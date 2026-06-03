@@ -12,12 +12,18 @@ datasource db {
 
 // --- Auth (better-auth) ---
 
+enum Role {
+  USER
+  ADMIN
+}
+
 model User {
   id            String    @id
   name          String
   email         String
   emailVerified Boolean
   image         String?
+  role          Role      @default(USER)
   createdAt     DateTime
   updatedAt     DateTime
   sessions      Session[]

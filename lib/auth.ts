@@ -1,17 +1,29 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { nextCookies } from "better-auth/next-js";
 import prisma from "@/lib/prisma";
-import { resend } from "@/lib/resend";
+import { getResend } from "@/lib/resend";
 import { magicLink } from "better-auth/plugins";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  user: {
+    additionalFields: {
+      role: {
+        type: ["USER", "ADMIN"] as const,
+        required: false,
+        defaultValue: "USER",
+        input: false,
+      },
+    },
+  },
   plugins: [
+    nextCookies(),
     magicLink({
       sendMagicLink: async ({ email, url }) => {
-        await resend.emails.send({
+        await getResend().emails.send({
           from: process.env.EMAIL_FROM!,
           to: email,
           subject: "Sign in",
@@ -29,7 +41,7 @@ export const auth = betterAuth({
     requireEmailVerification: true,
 
     sendResetPassword: async ({ user, url }) => {
-      await resend.emails.send({
+      await getResend().emails.send({
         from: process.env.EMAIL_FROM ?? "Auth <onboarding@resend.dev>",
         to: user.email,
         subject: "Reset your password",
@@ -44,7 +56,7 @@ export const auth = betterAuth({
 
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
-      await resend.emails.send({
+      await getResend().emails.send({
         from: process.env.EMAIL_FROM ?? "Auth <onboarding@resend.dev>",
         to: user.email,
         subject: "Verify your email",
