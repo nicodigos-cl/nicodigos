@@ -15,6 +15,12 @@ export const routes = {
 
 /** Legacy Spanish paths → canonical English paths. */
 export const legacyPathRedirects: Record<string, string> = {
+  "/catalogo": "/catalog",
+  "/carrito": "/cart",
+  "/lista-deseos": "/wishlist",
+  "/checkout/retorno": "/checkout/return",
+  "/legal/terminos": "/legal/terms",
+  "/legal/privacidad": "/legal/privacy",
   "/dashboard/configuracion": routes.dashboardSettings,
   "/dashboard/pedidos": routes.dashboardOrders,
   "/dashboard/claves": routes.dashboardKeys,

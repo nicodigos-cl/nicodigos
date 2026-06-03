@@ -72,6 +72,7 @@ export function mapKinguinProductToCreateInput(
     sellPrice: toDecimal(sellClpFromCostEur(costEur, eurToClpRate)),
     qty,
     isActive: false,
+    isOffer: false,
     isPreorder: product.isPreorder,
     ...metadata,
     kinguinSyncedAt: new Date(),

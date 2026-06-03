@@ -1,5 +1,7 @@
 import prisma from "@/lib/prisma";
 
+export const CATALOG_PAGE_SIZE = 24;
+
 export type StorefrontProduct = {
   id: string;
   slug: string;
@@ -9,32 +11,81 @@ export type StorefrontProduct = {
   sellPrice: string;
 };
 
-export async function getStorefrontProducts(
-  limit = 16,
-): Promise<StorefrontProduct[]> {
-  const products = await prisma.product.findMany({
-    where: {
-      isActive: true,
-      qty: { gt: 0 },
-    },
-    orderBy: [{ updatedAt: "desc" }],
-    take: limit,
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-      platform: true,
-      coverImageUrl: true,
-      sellPrice: true,
-    },
-  });
+export type StorefrontProductsPage = {
+  products: StorefrontProduct[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
 
-  return products.map((product) => ({
+const storefrontProductSelect = {
+  id: true,
+  slug: true,
+  name: true,
+  platform: true,
+  coverImageUrl: true,
+  sellPrice: true,
+} as const;
+
+const storefrontProductWhere = {
+  isActive: true,
+  qty: { gt: 0 },
+} as const;
+
+function mapStorefrontProduct(product: {
+  id: string;
+  slug: string;
+  name: string;
+  platform: string;
+  coverImageUrl: string | null;
+  sellPrice: { toString(): string };
+}): StorefrontProduct {
+  return {
     id: product.id,
     slug: product.slug,
     name: product.name,
     platform: product.platform,
     coverImageUrl: product.coverImageUrl,
     sellPrice: product.sellPrice.toString(),
-  }));
+  };
+}
+
+export async function getStorefrontProducts(
+  limit = 16,
+): Promise<StorefrontProduct[]> {
+  const products = await prisma.product.findMany({
+    where: storefrontProductWhere,
+    orderBy: [{ updatedAt: "desc" }],
+    take: limit,
+    select: storefrontProductSelect,
+  });
+
+  return products.map(mapStorefrontProduct);
+}
+
+export async function getStorefrontProductsPage(
+  page = 1,
+  pageSize = CATALOG_PAGE_SIZE,
+): Promise<StorefrontProductsPage> {
+  const total = await prisma.product.count({ where: storefrontProductWhere });
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const skip = (safePage - 1) * pageSize;
+
+  const products = await prisma.product.findMany({
+    where: storefrontProductWhere,
+    orderBy: [{ updatedAt: "desc" }],
+    take: pageSize,
+    skip,
+    select: storefrontProductSelect,
+  });
+
+  return {
+    products: products.map(mapStorefrontProduct),
+    total,
+    page: safePage,
+    pageSize,
+    totalPages,
+  };
 }

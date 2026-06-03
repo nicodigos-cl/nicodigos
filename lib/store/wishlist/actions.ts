@@ -8,18 +8,19 @@ import {
   resolveProductOfferId,
 } from "@/lib/store/cart/helpers";
 import { getOrCreateWishlist } from "@/lib/store/wishlist/helpers";
+import { storeRoutes } from "@/lib/store/navigation";
 import type { StoreActionResult } from "@/lib/store/types";
 
 function revalidateStorePaths() {
-  revalidatePath("/carrito");
-  revalidatePath("/lista-deseos");
+  revalidatePath(storeRoutes.cart);
+  revalidatePath(storeRoutes.wishlist);
   revalidatePath("/");
 }
 
 export async function toggleWishlistAction(
   productId: string,
 ): Promise<StoreActionResult<{ inWishlist: boolean }>> {
-  const session = await requireStoreUser("/lista-deseos");
+  const session = await requireStoreUser(storeRoutes.wishlist);
 
   if (!productId.trim()) {
     return { success: false, error: "Producto no válido." };
@@ -73,7 +74,7 @@ export async function toggleWishlistAction(
 export async function removeWishlistItemAction(
   itemId: string,
 ): Promise<StoreActionResult> {
-  const session = await requireStoreUser("/lista-deseos");
+  const session = await requireStoreUser(storeRoutes.wishlist);
 
   const item = await prisma.wishlistItem.findFirst({
     where: { id: itemId, wishlist: { userId: session.user.id } },
@@ -92,7 +93,7 @@ export async function removeWishlistItemAction(
 export async function addWishlistItemToCartAction(
   itemId: string,
 ): Promise<StoreActionResult> {
-  const session = await requireStoreUser("/lista-deseos");
+  const session = await requireStoreUser(storeRoutes.wishlist);
 
   const item = await prisma.wishlistItem.findFirst({
     where: { id: itemId, wishlist: { userId: session.user.id } },
@@ -134,7 +135,7 @@ export async function addWishlistItemToCartAction(
 }
 
 export async function clearWishlistAction(): Promise<StoreActionResult> {
-  const session = await requireStoreUser("/lista-deseos");
+  const session = await requireStoreUser(storeRoutes.wishlist);
   const wishlist = await prisma.wishlist.findUnique({
     where: { userId: session.user.id },
     select: { id: true },

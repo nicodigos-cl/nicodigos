@@ -2,11 +2,15 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { FiChevronDown, FiHeart, FiMenu, FiShoppingCart } from "react-icons/fi";
+import { useRouter } from "next/navigation";
+import { FiChevronDown, FiHeart, FiMenu } from "react-icons/fi";
+import { IconLogout, IconUser } from "@tabler/icons-react";
 
 import Logo from "@/components/logo";
+import { CartPreviewSheet } from "@/components/store/cart-preview-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Collapsible,
   CollapsibleContent,
@@ -35,7 +39,11 @@ import {
   storeRoutes,
   type ShopMenuItem,
 } from "@/lib/store/navigation";
+import type { CartView } from "@/lib/store/types";
 import { cn } from "@/lib/utils";
+import { DashboardUserMenu, type DashboardUserMenuUser } from "@/components/dashboard/dashboard-user-menu";
+import { getUserInitials } from "@/lib/dashboard/format";
+import { signOut } from "@/lib/auth-client";
 
 function ShopMenuLink({ item }: { item: ShopMenuItem }) {
   const Icon = item.icon;
@@ -87,11 +95,15 @@ function MobileNavLink({
 }
 
 function StoreHeaderIcons({
+  cart,
   cartCount,
   wishlistCount,
+  isAuthenticated,
 }: {
+  cart: CartView | null;
   cartCount: number;
   wishlistCount: number;
+  isAuthenticated: boolean;
 }) {
   return (
     <div className="flex items-center gap-1">
@@ -105,33 +117,47 @@ function StoreHeaderIcons({
           ) : null}
         </Link>
       </Button>
-      <Button variant="ghost" size="icon" className="relative shrink-0" asChild>
-        <Link href={storeRoutes.cart} aria-label="Carrito">
-          <FiShoppingCart className="size-5" aria-hidden />
-          {cartCount > 0 ? (
-            <Badge className="absolute -top-1 -right-1 size-5 justify-center rounded-full px-0 text-[10px]">
-              {cartCount > 9 ? "9+" : cartCount}
-            </Badge>
-          ) : null}
-        </Link>
-      </Button>
+      <CartPreviewSheet
+        cart={cart}
+        cartCount={cartCount}
+        isAuthenticated={isAuthenticated}
+      />
     </div>
   );
 }
 
 export type MarketplaceHeaderProps = {
+  cart?: CartView | null;
   cartCount?: number;
   wishlistCount?: number;
   isAuthenticated?: boolean;
+  user?: DashboardUserMenuUser | null;
 };
 
 export function MarketplaceHeader({
+  cart = null,
   cartCount = 0,
   wishlistCount = 0,
+  isAuthenticated = false,
+  user = null,
 }: MarketplaceHeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
 
   const closeMobile = () => setMobileOpen(false);
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      await signOut();
+      closeMobile();
+      router.push("/");
+      router.refresh();
+    } finally {
+      setSigningOut(false);
+    }
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 shadow-sm backdrop-blur supports-backdrop-filter:bg-background/80">
@@ -199,23 +225,33 @@ export function MarketplaceHeader({
           </NavigationMenu>
         </div>
 
-        <div className="hidden items-center gap-2 lg:flex lg:flex-1 lg:justify-end">
+        <div className="hidden items-center gap-3 lg:flex lg:flex-1 lg:justify-end">
           <StoreHeaderIcons
+            cart={cart}
             cartCount={cartCount}
             wishlistCount={wishlistCount}
+            isAuthenticated={isAuthenticated}
           />
-          <Button variant="ghost" asChild>
-            <Link href={storeRoutes.signIn}>Iniciar sesión</Link>
-          </Button>
-          <Button asChild>
-            <Link href={storeRoutes.signUp}>Crear cuenta</Link>
-          </Button>
+          {isAuthenticated && user ? (
+            <DashboardUserMenu user={user} />
+          ) : (
+            <>
+              <Button variant="ghost" asChild>
+                <Link href={storeRoutes.signIn}>Iniciar sesión</Link>
+              </Button>
+              <Button asChild>
+                <Link href={storeRoutes.signUp}>Crear cuenta</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         <div className="ml-auto flex items-center gap-1 lg:hidden">
           <StoreHeaderIcons
+            cart={cart}
             cartCount={cartCount}
             wishlistCount={wishlistCount}
+            isAuthenticated={isAuthenticated}
           />
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
@@ -314,25 +350,73 @@ export function MarketplaceHeader({
                 <Separator className="my-3" />
 
                 <div className="space-y-2 pb-4">
-                  <Button className="h-11 w-full rounded-xl" asChild>
-                    <Link href={storeRoutes.signUp} onClick={closeMobile}>
-                      Crear cuenta
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-11 w-full rounded-xl"
-                    asChild
-                  >
-                    <Link href={storeRoutes.support} onClick={closeMobile}>
-                      Soporte
-                    </Link>
-                  </Button>
-                  <Button variant="ghost" className="h-10 w-full" asChild>
-                    <Link href={storeRoutes.signIn} onClick={closeMobile}>
-                      Iniciar sesión
-                    </Link>
-                  </Button>
+                  {isAuthenticated && user ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-xl border border-border/10">
+                        <Avatar size="default">
+                          {user.image ? (
+                            <AvatarImage src={user.image} alt={user.name} />
+                          ) : null}
+                          <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                            {getUserInitials(user.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-foreground">
+                            {user.name}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1.5">
+                        <Button className="h-10 w-full rounded-xl gap-2" asChild>
+                          <Link href="/dashboard" onClick={closeMobile}>
+                            <IconUser className="size-4" />
+                            Mi cuenta
+                          </Link>
+                        </Button>
+                        <Button variant="outline" className="h-10 w-full rounded-xl gap-2" asChild>
+                          <Link href={storeRoutes.support} onClick={closeMobile}>
+                            Soporte
+                          </Link>
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          className="h-10 w-full rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive gap-2"
+                          disabled={signingOut}
+                          onClick={handleSignOut}
+                        >
+                          <IconLogout className="size-4" />
+                          {signingOut ? "Cerrando sesión…" : "Cerrar sesión"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <Button className="h-11 w-full rounded-xl" asChild>
+                        <Link href={storeRoutes.signUp} onClick={closeMobile}>
+                          Crear cuenta
+                        </Link>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="h-11 w-full rounded-xl"
+                        asChild
+                      >
+                        <Link href={storeRoutes.support} onClick={closeMobile}>
+                          Soporte
+                        </Link>
+                      </Button>
+                      <Button variant="ghost" className="h-10 w-full" asChild>
+                        <Link href={storeRoutes.signIn} onClick={closeMobile}>
+                          Iniciar sesión
+                        </Link>
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </SheetContent>

@@ -249,6 +249,7 @@ model Product {
   sellPrice           Decimal        @db.Decimal(10, 2)
   qty                 Int            @default(0)
   isActive            Boolean        @default(false)
+  isOffer             Boolean        @default(false)
   isPreorder          Boolean        @default(false)
   regionalLimitations String?
   regionId            Int?
@@ -274,6 +275,7 @@ model Product {
 
   @@index([categoryId])
   @@index([isActive])
+  @@index([isOffer])
   @@index([platform])
   @@index([sellPrice])
   @@map("product")

@@ -5,19 +5,20 @@ import { LuFolderOpen, LuTags } from "react-icons/lu";
 /** Rutas de tienda (páginas públicas previstas o existentes). */
 export const storeRoutes = {
   home: "/",
-  catalog: "/catalogo",
-  categories: "/categorias",
-  offers: "/ofertas",
-  howItWorks: "/como-funciona",
-  support: "/soporte",
+  catalog: "/catalog",
+  categories: "/categories",
+  offers: "/offers",
+  howItWorks: "/how-it-works",
+  support: "/support",
   signIn: "/auth/sign-in",
   signUp: "/auth/sign-up",
-  cart: "/carrito",
-  wishlist: "/lista-deseos",
-  orders: "/dashboard/orders",
-  keys: "/dashboard/keys",
-  product: (slug: string) => `/catalogo/${slug}` as const,
-  category: (slug: string) => `/categorias/${slug}` as const,
+  cart: "/cart",
+  checkoutReturn: "/checkout/return",
+  wishlist: "/wishlist",
+  orders: "/orders",
+  keys: "/keys",
+  product: (slug: string) => `/catalog/${slug}` as const,
+  category: (slug: string) => `/categories/${slug}` as const,
 } as const;
 
 export type StoreNavItem = {
@@ -86,6 +87,6 @@ export const footerAccountLinks: StoreNavItem[] = [
 ];
 
 export const footerLegalLinks: StoreNavItem[] = [
-  { name: "Términos", href: "/legal/terminos" },
-  { name: "Privacidad", href: "/legal/privacidad" },
+  { name: "Términos", href: "/legal/terms" },
+  { name: "Privacidad", href: "/legal/privacy" },
 ];

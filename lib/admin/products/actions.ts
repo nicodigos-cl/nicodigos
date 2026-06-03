@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { storeRoutes } from "@/lib/store/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
 import { getEurToClpRate } from "@/lib/currency/exchange";
 import { mapKinguinProductMetadata } from "@/lib/admin/products/kinguin-metadata";
@@ -201,6 +202,7 @@ export async function updateProductAction(
         costPrice: new Prisma.Decimal(data.costPrice),
         qty: data.qty,
         isActive: data.isActive,
+        isOffer: data.isOffer,
         isPreorder: data.isPreorder,
         activationDetails: data.activationDetails || null,
         countryLimitations: data.countryLimitations,
@@ -236,6 +238,7 @@ export async function updateProductAction(
 
     revalidatePath("/admin/products");
     revalidatePath(`/admin/products/${productId}/edit`);
+    revalidatePath(storeRoutes.offers);
 
     return {
       success: true,

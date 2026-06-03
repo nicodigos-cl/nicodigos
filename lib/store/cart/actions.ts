@@ -7,11 +7,13 @@ import {
   getOrCreateCart,
   resolveProductOfferId,
 } from "@/lib/store/cart/helpers";
+import { storeRoutes } from "@/lib/store/navigation";
 import type { StoreActionResult } from "@/lib/store/types";
 
 function revalidateStorePaths() {
-  revalidatePath("/carrito");
-  revalidatePath("/lista-deseos");
+  revalidatePath(storeRoutes.cart);
+  revalidatePath(storeRoutes.wishlist);
+  revalidatePath(storeRoutes.checkoutReturn);
   revalidatePath("/");
 }
 
@@ -26,7 +28,7 @@ export async function addToCartAction(
   productId: string,
   quantity = 1,
 ): Promise<StoreActionResult> {
-  const session = await requireStoreUser("/carrito");
+  const session = await requireStoreUser(storeRoutes.cart);
 
   if (!productId.trim()) {
     return { success: false, error: "Producto no válido." };
@@ -68,7 +70,7 @@ export async function updateCartItemQuantityAction(
   itemId: string,
   quantity: number,
 ): Promise<StoreActionResult> {
-  const session = await requireStoreUser("/carrito");
+  const session = await requireStoreUser(storeRoutes.cart);
   const item = await requireCartItemOwner(itemId, session.user.id);
 
   if (!item) {
@@ -99,7 +101,7 @@ export async function updateCartItemQuantityAction(
 export async function removeCartItemAction(
   itemId: string,
 ): Promise<StoreActionResult> {
-  const session = await requireStoreUser("/carrito");
+  const session = await requireStoreUser(storeRoutes.cart);
   const item = await requireCartItemOwner(itemId, session.user.id);
 
   if (!item) {
@@ -112,7 +114,7 @@ export async function removeCartItemAction(
 }
 
 export async function clearCartAction(): Promise<StoreActionResult> {
-  const session = await requireStoreUser("/carrito");
+  const session = await requireStoreUser(storeRoutes.cart);
   const cart = await prisma.cart.findUnique({
     where: { userId: session.user.id },
     select: { id: true },
@@ -129,7 +131,7 @@ export async function clearCartAction(): Promise<StoreActionResult> {
 export async function moveCartItemToWishlistAction(
   itemId: string,
 ): Promise<StoreActionResult> {
-  const session = await requireStoreUser("/carrito");
+  const session = await requireStoreUser(storeRoutes.cart);
   const item = await requireCartItemOwner(itemId, session.user.id);
 
   if (!item) {

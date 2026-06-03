@@ -291,6 +291,9 @@ export function AdminProductsBoard({ products }: AdminProductsBoardProps) {
                           {product.isPreorder ? (
                             <Badge variant="outline">Preorder</Badge>
                           ) : null}
+                          {product.isOffer ? (
+                            <Badge variant="secondary">Oferta</Badge>
+                          ) : null}
                         </div>
                       </TableCell>
                       <TableCell

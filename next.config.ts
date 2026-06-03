@@ -4,6 +4,36 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
+        source: "/catalogo",
+        destination: "/catalog",
+        permanent: true,
+      },
+      {
+        source: "/carrito",
+        destination: "/cart",
+        permanent: true,
+      },
+      {
+        source: "/lista-deseos",
+        destination: "/wishlist",
+        permanent: true,
+      },
+      {
+        source: "/checkout/retorno",
+        destination: "/checkout/return",
+        permanent: true,
+      },
+      {
+        source: "/legal/terminos",
+        destination: "/legal/terms",
+        permanent: true,
+      },
+      {
+        source: "/legal/privacidad",
+        destination: "/legal/privacy",
+        permanent: true,
+      },
+      {
         source: "/admin/productos/nuevo",
         destination: "/admin/products/new",
         permanent: true,

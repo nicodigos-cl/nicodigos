@@ -9,6 +9,7 @@ export type AdminProductListItem = {
   sourceCostPrice: string | null;
   sourceCurrency: string;
   isActive: boolean;
+  isOffer: boolean;
   isPreorder: boolean;
   kinguinId: number;
   coverImageUrl: string | null;

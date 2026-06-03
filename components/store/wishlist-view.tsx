@@ -3,12 +3,13 @@
 import { useTransition } from "react";
 import Link from "next/link";
 import { FiShoppingCart, FiTrash2 } from "react-icons/fi";
+import { IconHeart } from "@tabler/icons-react";
 import { toast } from "sonner";
 
 import { StoreProductCover } from "@/components/store/store-product-cover";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { formatMoney } from "@/lib/currency/format";
 import {
   addWishlistItemToCartAction,
@@ -67,14 +68,21 @@ export function WishlistViewPanel({ wishlist }: WishlistViewProps) {
 
   if (wishlist.items.length === 0) {
     return (
-      <Card className="border border-dashed border-border bg-card">
-        <CardHeader>
-          <CardTitle>Tu lista está vacía</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 text-sm text-muted-foreground">
-          <p>Guarda productos para comprarlos más tarde con un clic.</p>
-          <Button asChild>
-            <Link href={storeRoutes.home}>Explorar productos</Link>
+      <Card className="border-2 border-dashed border-border/60 bg-card/60 backdrop-blur-md p-8 sm:p-12 text-center max-w-lg mx-auto rounded-3xl shadow-sm space-y-6">
+        <CardContent className="flex flex-col items-center justify-center p-0 space-y-5">
+          <div className="relative p-4 rounded-full bg-rose-500/5 text-rose-500 border border-rose-500/10">
+            <IconHeart className="size-10 text-rose-500 animate-pulse" />
+            <div className="absolute -top-1 -right-1 size-3 rounded-full bg-rose-500 animate-ping" />
+            <div className="absolute -top-1 -right-1 size-3 rounded-full bg-rose-500" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="font-heading text-xl font-bold text-foreground">Tu lista de deseos está vacía</h2>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              Explora y guarda tus productos favoritos para comprarlos más tarde con un solo clic.
+            </p>
+          </div>
+          <Button asChild size="lg" className="w-full sm:w-auto font-semibold px-6 shadow-sm">
+            <Link href={storeRoutes.catalog}>Explorar productos</Link>
           </Button>
         </CardContent>
       </Card>
@@ -82,74 +90,80 @@ export function WishlistViewPanel({ wishlist }: WishlistViewProps) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          {wishlist.itemCount} producto{wishlist.itemCount === 1 ? "" : "s"}{" "}
-          guardado{wishlist.itemCount === 1 ? "" : "s"}
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/10 pb-4">
+        <p className="text-xs text-muted-foreground font-medium">
+          Tienes <span className="font-semibold text-foreground">{wishlist.itemCount}</span> producto{wishlist.itemCount === 1 ? "" : "s"} guardado{wishlist.itemCount === 1 ? "" : "s"}
         </p>
         <Button
           type="button"
           variant="outline"
-          size="sm"
           disabled={isPending}
           onClick={handleClear}
+          className="text-xs h-8 px-3 rounded-lg hover:text-destructive hover:border-destructive/40 transition-colors"
         >
           Vaciar lista
         </Button>
       </div>
 
-      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {wishlist.items.map((item) => (
           <li key={item.id}>
-            <Card size="sm" className="h-full border border-border/60 bg-card">
-              <CardContent className="flex h-full flex-col gap-3 p-4">
-                <Link href={storeRoutes.product(item.product.slug)}>
+            <Card className="h-full glass-card overflow-hidden hover:border-rose-500/20 transition-all duration-300">
+              <CardContent className="flex h-full flex-col gap-4 p-5">
+                <Link
+                  href={storeRoutes.product(item.product.slug)}
+                  className="relative overflow-hidden block aspect-[16/10] bg-muted/20 border border-border/50 rounded-xl"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 pointer-events-none" />
                   <StoreProductCover
                     src={item.product.coverImageUrl}
                     alt={item.product.name}
-                    className="aspect-16/10 w-full"
+                    className="w-full h-full object-cover rounded-none transition-transform duration-500 hover:scale-105"
                     sizes="(max-width:640px) 100vw, 320px"
                   />
                 </Link>
 
                 <div className="flex flex-1 flex-col gap-2">
-                  <Badge variant="secondary" className="w-fit">
+                  <Badge variant="secondary" className="w-fit font-bold text-[10px] tracking-wider uppercase">
                     {item.product.platform}
                   </Badge>
                   <Link
                     href={storeRoutes.product(item.product.slug)}
-                    className="line-clamp-2 text-sm font-semibold text-foreground hover:text-primary"
+                    className="line-clamp-2 text-sm font-extrabold text-foreground hover:text-primary transition-colors leading-snug"
                   >
                     {item.product.name}
                   </Link>
-                  <p className="text-sm font-semibold text-foreground">
-                    {formatMoney(item.product.sellPrice)}
-                  </p>
+                  <div className="flex items-baseline justify-between mt-auto pt-2 border-t border-border/30">
+                    <span className="text-xs text-muted-foreground/80 font-medium">Precio</span>
+                    <p className="text-base font-black text-foreground tabular-nums">
+                      {formatMoney(item.product.sellPrice)}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 pt-2 border-t border-border/10">
                   <Button
                     type="button"
-                    className="w-full"
                     disabled={
                       isPending ||
                       !item.product.isActive ||
                       item.product.qty <= 0
                     }
                     onClick={() => handleAddToCart(item.id)}
+                    className="w-full h-9 text-xs font-bold shadow-sm"
                   >
-                    <FiShoppingCart aria-hidden />
+                    <FiShoppingCart className="size-3.5 mr-1" />
                     Agregar al carrito
                   </Button>
                   <Button
                     type="button"
                     variant="ghost"
-                    className="w-full"
                     disabled={isPending}
                     onClick={() => handleRemove(item.id)}
+                    className="w-full h-9 text-xs text-muted-foreground hover:text-destructive transition-colors rounded-lg"
                   >
-                    <FiTrash2 aria-hidden />
+                    <FiTrash2 className="size-3.5 mr-1" />
                     Quitar
                   </Button>
                 </div>

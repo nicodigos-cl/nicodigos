@@ -155,6 +155,7 @@ export function ProductEditForm({
     sellPrice: Math.round(Number(product.sellPrice)),
     qty: product.qty,
     isActive: product.isActive,
+    isOffer: product.isOffer,
     isPreorder: product.isPreorder,
   });
 
@@ -318,6 +319,19 @@ export function ProductEditForm({
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox
+                    id="isOffer"
+                    checked={form.isOffer}
+                    onCheckedChange={(checked) =>
+                      updateField("isOffer", checked === true)
+                    }
+                    disabled={isPending}
+                  />
+                  <FieldLabel htmlFor="isOffer" className="mb-0">
+                    Destacar en ofertas
+                  </FieldLabel>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
                     id="isPreorder"
                     checked={form.isPreorder}
                     onCheckedChange={(checked) =>
@@ -331,7 +345,8 @@ export function ProductEditForm({
                 </div>
               </div>
               <FieldDescription>
-                Desmarcado = borrador (no visible para clientes)
+                Desmarcado = borrador (no visible para clientes). «Destacar en
+                ofertas» lo muestra en /offers.
               </FieldDescription>
             </Field>
           </FieldGroup>

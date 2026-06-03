@@ -72,6 +72,7 @@ export const updateProductSchema = z.object({
     .nonnegative("El costo no puede ser negativo"),
   qty: z.coerce.number().int().nonnegative(),
   isActive: z.boolean(),
+  isOffer: z.boolean(),
   isPreorder: z.boolean(),
   regionalLimitations: z.string().trim().optional(),
   activationDetails: z.string().trim().optional(),
