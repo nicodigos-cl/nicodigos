@@ -23,7 +23,11 @@ export function AdminShell({
         <AdminAppSidebar user={user} />
         <SidebarInset className="min-h-dvh min-w-0">
           <AdminHeader title={title} user={user} />
-          <div className="flex-1 px-3 py-4 md:px-8 md:py-8">{children}</div>
+          <div className="flex-1 px-3 py-4 md:px-8 md:py-8 bg-muted/40 dark:bg-muted/10 relative">
+            {/* Subtle decorative background grid */}
+            <div className="admin-dashboard-grid absolute inset-0 opacity-40 dark:opacity-20 pointer-events-none" />
+            <div className="relative z-10">{children}</div>
+          </div>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>
