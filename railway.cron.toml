@@ -1,0 +1,10 @@
+# Servicio cron-sync-catalog: Settings → Config file path = /railway.cron.toml
+
+[build]
+builder = "RAILPACK"
+buildCommand = "true"
+
+[deploy]
+startCommand = "bun scripts/cron-sync-catalog.ts"
+cronSchedule = "*/15 * * * *"
+restartPolicyType = "NEVER"

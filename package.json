@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "postinstall": "prisma generate",
+    "postinstall": "sh -c 'if [ -n \"$DATABASE_URL\" ]; then prisma generate; fi'",
     "build": "prisma generate && next build",
     "start": "next start",
+    "cron:sync-catalog": "bun run scripts/cron-sync-catalog.ts",
     "lint": "eslint"
   },
   "engines": {

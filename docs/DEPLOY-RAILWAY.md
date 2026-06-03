@@ -96,33 +96,30 @@ Variables:
 | `CRON_SYNC_BATCH_SIZE` | `15`    | Productos por ejecución        |
 | `CRON_SYNC_DELAY_MS`   | `200`   | Pausa entre llamadas a Kinguin |
 
-**Servicio cron en Railway (recomendado):** carpeta `services/cron-sync-catalog` (Docker + `curl`).
+**Cron en Railway:** servicio `cron-sync-catalog` (mismo repo).
 
-1. Nuevo servicio `cron-sync-catalog` → **Root Directory** = `/services/cron-sync-catalog`
-2. Variables:
-   - `CRON_SECRET` = `${{nicodigos-web.CRON_SECRET}}`
-   - `BETTER_AUTH_URL` = `${{nicodigos-web.BETTER_AUTH_URL}}`
-3. El `railway.toml` de esa carpeta programa `*/15 * * * *` (UTC)
+1. **Settings** → **Config file path** = `/railway.cron.toml` (evita usar el `railway.toml` del web)
+2. Variables: `CRON_SECRET`, `BETTER_AUTH_URL` (referencias `${{nicodigos-web.*}}`)
+3. El schedule `*/15 * * * *` y el start `bun run scripts/cron-sync-catalog.ts` vienen de `railway.cron.toml`
+
+Recrear servicio:
 
 ```bash
-cd services/cron-sync-catalog
+railway add -s cron-sync-catalog
 railway service link cron-sync-catalog
-railway variables set \
+railway variable set -s cron-sync-catalog \
   CRON_SECRET='${{nicodigos-web.CRON_SECRET}}' \
   BETTER_AUTH_URL='${{nicodigos-web.BETTER_AUTH_URL}}'
-railway up --detach
+railway up --service cron-sync-catalog --detach
 ```
 
-Guía: [services/cron-sync-catalog/README.md](../services/cron-sync-catalog/README.md)
-
-Con muchos productos, cada ejecución avanza un lote hasta recorrer todo el catálogo.
-
-Prueba manual (local):
+Local:
 
 ```bash
-export CRON_SECRET=tu-secreto BETTER_AUTH_URL=http://localhost:3000
-./scripts/cron-sync-catalog.sh
+bun --env-file=.env run cron:sync-catalog
 ```
+
+Cada ejecución procesa un lote; con el schedule fijo recorre todo el catálogo.
 
 ## 6. Verificación
 
