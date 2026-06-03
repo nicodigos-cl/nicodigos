@@ -2,9 +2,10 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { FiChevronDown, FiMenu } from "react-icons/fi";
+import { FiChevronDown, FiHeart, FiMenu, FiShoppingCart } from "react-icons/fi";
 
 import Logo from "@/components/logo";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -85,7 +86,49 @@ function MobileNavLink({
   );
 }
 
-export function MarketplaceHeader() {
+function StoreHeaderIcons({
+  cartCount,
+  wishlistCount,
+}: {
+  cartCount: number;
+  wishlistCount: number;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <Button variant="ghost" size="icon" className="relative shrink-0" asChild>
+        <Link href={storeRoutes.wishlist} aria-label="Lista de deseos">
+          <FiHeart className="size-5" aria-hidden />
+          {wishlistCount > 0 ? (
+            <Badge className="absolute -top-1 -right-1 size-5 justify-center rounded-full px-0 text-[10px]">
+              {wishlistCount > 9 ? "9+" : wishlistCount}
+            </Badge>
+          ) : null}
+        </Link>
+      </Button>
+      <Button variant="ghost" size="icon" className="relative shrink-0" asChild>
+        <Link href={storeRoutes.cart} aria-label="Carrito">
+          <FiShoppingCart className="size-5" aria-hidden />
+          {cartCount > 0 ? (
+            <Badge className="absolute -top-1 -right-1 size-5 justify-center rounded-full px-0 text-[10px]">
+              {cartCount > 9 ? "9+" : cartCount}
+            </Badge>
+          ) : null}
+        </Link>
+      </Button>
+    </div>
+  );
+}
+
+export type MarketplaceHeaderProps = {
+  cartCount?: number;
+  wishlistCount?: number;
+  isAuthenticated?: boolean;
+};
+
+export function MarketplaceHeader({
+  cartCount = 0,
+  wishlistCount = 0,
+}: MarketplaceHeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const closeMobile = () => setMobileOpen(false);
@@ -157,6 +200,10 @@ export function MarketplaceHeader() {
         </div>
 
         <div className="hidden items-center gap-2 lg:flex lg:flex-1 lg:justify-end">
+          <StoreHeaderIcons
+            cartCount={cartCount}
+            wishlistCount={wishlistCount}
+          />
           <Button variant="ghost" asChild>
             <Link href={storeRoutes.signIn}>Iniciar sesión</Link>
           </Button>
@@ -165,7 +212,11 @@ export function MarketplaceHeader() {
           </Button>
         </div>
 
-        <div className="ml-auto flex items-center lg:hidden">
+        <div className="ml-auto flex items-center gap-1 lg:hidden">
+          <StoreHeaderIcons
+            cartCount={cartCount}
+            wishlistCount={wishlistCount}
+          />
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button

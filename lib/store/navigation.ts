@@ -12,6 +12,8 @@ export const storeRoutes = {
   support: "/soporte",
   signIn: "/auth/sign-in",
   signUp: "/auth/sign-up",
+  cart: "/carrito",
+  wishlist: "/lista-deseos",
   orders: "/dashboard/orders",
   keys: "/dashboard/keys",
   product: (slug: string) => `/catalogo/${slug}` as const,
@@ -78,6 +80,8 @@ export const footerHelpLinks: StoreNavItem[] = [
 export const footerAccountLinks: StoreNavItem[] = [
   { name: "Crear cuenta", href: storeRoutes.signUp },
   { name: "Iniciar sesión", href: storeRoutes.signIn },
+  { name: "Carrito", href: storeRoutes.cart },
+  { name: "Lista de deseos", href: storeRoutes.wishlist },
   { name: "Mis pedidos", href: storeRoutes.orders },
 ];
 

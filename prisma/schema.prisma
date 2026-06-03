@@ -29,6 +29,7 @@ model User {
   sessions       Session[]
   accounts       Account[]
   cart           Cart?
+  wishlist       Wishlist?
   orders         Order[]
   transactions   Transaction[]
   profile        UserProfile?
@@ -266,6 +267,7 @@ model Product {
   category            Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   offers              ProductOffer[]
   cartItems           CartItem[]
+  wishlistItems       WishlistItem[]
   orderItems          OrderItem[]
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
@@ -361,6 +363,33 @@ model CartItem {
   @@index([cartId])
   @@index([productId])
   @@map("cart_item")
+}
+
+// --- Wishlist ---
+
+model Wishlist {
+  id        String         @id @default(cuid())
+  userId    String         @unique
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     WishlistItem[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@map("wishlist")
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  wishlistId String
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([wishlistId, productId])
+  @@index([wishlistId])
+  @@index([productId])
+  @@map("wishlist_item")
 }
 
 // --- Orders ---

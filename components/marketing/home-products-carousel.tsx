@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
+import { ProductStoreActions } from "@/components/store/product-store-actions";
 import {
   Carousel,
   type CarouselApi,
@@ -22,38 +23,43 @@ type HomeProductsCarouselProps = {
 
 function ProductSlide({ product }: { product: StorefrontProduct }) {
   return (
-    <Link
-      href={storeRoutes.product(product.slug)}
-      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm ring-1 ring-foreground/5 transition-colors hover:border-primary/30 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30 dark:ring-foreground/10"
-    >
-      <div className="relative aspect-16/10 w-full overflow-hidden bg-muted">
-        {product.coverImageUrl ? (
-          <Image
-            src={product.coverImageUrl}
-            alt=""
-            fill
-            unoptimized
-            sizes="260px"
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-xs font-medium text-muted-foreground">
-            Sin imagen
-          </div>
-        )}
+    <div className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm ring-1 ring-foreground/5 transition-colors hover:border-primary/30 dark:ring-foreground/10">
+      <Link
+        href={storeRoutes.product(product.slug)}
+        className="block focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+      >
+        <div className="relative aspect-16/10 w-full overflow-hidden bg-muted">
+          {product.coverImageUrl ? (
+            <Image
+              src={product.coverImageUrl}
+              alt=""
+              fill
+              unoptimized
+              sizes="260px"
+              className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-xs font-medium text-muted-foreground">
+              Sin imagen
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-1 p-3">
+          <p className="line-clamp-1 text-xs font-medium text-primary">
+            {product.platform}
+          </p>
+          <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
+            {product.name}
+          </p>
+          <p className="text-sm font-semibold text-foreground">
+            {formatMoney(product.sellPrice)}
+          </p>
+        </div>
+      </Link>
+      <div className="px-3 pb-3">
+        <ProductStoreActions productId={product.id} compact />
       </div>
-      <div className="flex flex-1 flex-col gap-1 p-3">
-        <p className="line-clamp-1 text-xs font-medium text-primary">
-          {product.platform}
-        </p>
-        <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
-          {product.name}
-        </p>
-        <p className="mt-auto text-sm font-semibold text-foreground">
-          {formatMoney(product.sellPrice)}
-        </p>
-      </div>
-    </Link>
+    </div>
   );
 }
 
