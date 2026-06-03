@@ -96,7 +96,7 @@ export async function saveProfileSettingsAction(
         headers: await headers(),
         body: {
           newEmail: data.email,
-          callbackURL: `${getAuthBaseUrl()}/dashboard/configuracion?emailChanged=1`,
+          callbackURL: `${getAuthBaseUrl()}/dashboard/settings?emailChanged=1`,
         },
       });
       emailMessage =

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: "Pedidos",
 };
 
-export default async function DashboardPedidosPage() {
+export default async function DashboardOrdersPage() {
   const session = await requireUser();
   const orders = await getUserOrders(session.user.id);
 

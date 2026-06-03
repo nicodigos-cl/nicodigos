@@ -18,6 +18,7 @@ export default async function AdminLayout({
       user={{
         name: session.user.name,
         email: session.user.email,
+        image: session.user.image,
       }}
     >
       {children}

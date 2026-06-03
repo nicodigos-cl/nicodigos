@@ -168,7 +168,7 @@ export function mapPreferencesFromDb(
   return {
     theme: mapThemeFromPrisma(row?.theme ?? "SYSTEM"),
     language: row?.language ?? "es",
-    currency: row?.currency ?? "EUR",
+    currency: row?.currency ?? "CLP",
     defaultCountry: row?.defaultCountry ?? "CL",
     contentDensity: mapContentDensityFromPrisma(
       row?.contentDensity ?? "COMFORTABLE",

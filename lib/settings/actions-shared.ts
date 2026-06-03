@@ -10,7 +10,7 @@ export async function requireSessionUserId(): Promise<string> {
   });
 
   if (!session?.user) {
-    redirect("/auth/sign-in?callbackUrl=/dashboard/configuracion");
+    redirect("/auth/sign-in?callbackUrl=/dashboard/settings");
   }
 
   return session.user.id;

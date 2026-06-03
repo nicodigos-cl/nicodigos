@@ -49,6 +49,8 @@ export function getAuthErrorFromSearchParams(
   );
 }
 
+import { normalizeAppPath } from "@/lib/routes";
+
 const DEFAULT_CALLBACK_URL = "/dashboard";
 
 export function resolveCallbackURL(searchParams: SignInSearchParams): string {
@@ -58,7 +60,7 @@ export function resolveCallbackURL(searchParams: SignInSearchParams): string {
   }
 
   if (callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")) {
-    return callbackUrl;
+    return normalizeAppPath(callbackUrl);
   }
 
   return DEFAULT_CALLBACK_URL;

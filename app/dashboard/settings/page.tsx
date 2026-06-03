@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: "Configuración",
 };
 
-export default async function DashboardConfiguracionPage() {
+export default async function DashboardSettingsPage() {
   const session = await requireUser();
   const initialData = await getUserSettings(session.user.id);
 

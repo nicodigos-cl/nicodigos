@@ -90,7 +90,7 @@ export function PrivacySecuritySettingsCard({
             className="min-h-9 rounded-xl"
             asChild
           >
-            <Link href="/auth/forgot-password?callbackUrl=/dashboard/configuracion">
+            <Link href="/auth/forgot-password?callbackUrl=/dashboard/settings">
               Cambiar
             </Link>
           </Button>

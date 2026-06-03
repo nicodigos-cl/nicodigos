@@ -28,7 +28,7 @@ const baseActions = [
   {
     title: "Ver pedidos",
     description: "Historial completo",
-    href: "/dashboard/pedidos",
+    href: "/dashboard/orders",
     icon: IconReceipt,
   },
   {

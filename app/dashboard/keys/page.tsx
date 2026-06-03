@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: "Mis claves",
 };
 
-export default async function DashboardClavesPage() {
+export default async function DashboardKeysPage() {
   const session = await requireUser();
   const keys = await getUserKeys(session.user.id);
 

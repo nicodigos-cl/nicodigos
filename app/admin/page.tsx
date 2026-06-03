@@ -2,6 +2,7 @@ import { LowStockList } from "@/components/admin/low-stock-list";
 import { OrdersByStatus } from "@/components/admin/orders-by-status";
 import { RecentOrdersTable } from "@/components/admin/recent-orders-table";
 import { StatCard } from "@/components/admin/stat-card";
+import { DashboardPageHeader } from "@/components/dashboard/dashboard-page-header";
 import { formatMoney } from "@/lib/admin/format";
 import { getDashboardData } from "@/lib/admin/queries";
 
@@ -9,15 +10,11 @@ export default async function AdminPage() {
   const data = await getDashboardData();
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">
-          Dashboard
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Overview of orders, catalog, and inventory.
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-7xl space-y-6 md:space-y-8">
+      <DashboardPageHeader
+        title="Dashboard"
+        description="Resumen de pedidos, catálogo e inventario."
+      />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard

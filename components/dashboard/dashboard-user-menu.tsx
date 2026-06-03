@@ -82,7 +82,7 @@ export function DashboardUserMenu({ user, compact }: DashboardUserMenuProps) {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/dashboard/configuracion">
+          <Link href="/dashboard/settings">
             <IconSettings className="size-4" />
             Configuración
           </Link>

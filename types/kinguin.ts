@@ -95,6 +95,7 @@ export type KinguinOfferWholesaleTier = {
 
 export type KinguinVideo = {
   video_id: string;
+  video_url?: string;
 };
 
 export type KinguinSystemRequirement = {

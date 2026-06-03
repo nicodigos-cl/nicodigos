@@ -27,17 +27,17 @@ export const dashboardNavItems: DashboardNavItem[] = [
     icon: IconShoppingBag,
   },
   {
-    href: "/dashboard/pedidos",
+    href: "/dashboard/orders",
     label: "Pedidos",
     icon: IconReceipt,
   },
   {
-    href: "/dashboard/claves",
+    href: "/dashboard/keys",
     label: "Mis claves",
     icon: IconKey,
   },
   {
-    href: "/dashboard/configuracion",
+    href: "/dashboard/settings",
     label: "Configuración",
     icon: IconSettings,
   },

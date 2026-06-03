@@ -48,7 +48,7 @@ export function buildSettingsInitialState(
     preferences: {
       theme: "system",
       language: "es",
-      currency: "EUR",
+      currency: "CLP",
       defaultCountry: "CL",
       contentDensity: "comfortable",
       emailFormat: "html",

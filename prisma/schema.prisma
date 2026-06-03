@@ -141,7 +141,7 @@ model UserPreferences {
   twoFactorEnabled     Boolean         @default(false)
   theme                ThemePreference @default(SYSTEM)
   language             String          @default("es")
-  currency             String          @default("EUR")
+  currency             String          @default("CLP")
   defaultCountry       String          @default("CL")
   contentDensity       ContentDensity  @default(COMFORTABLE)
   emailFormat          EmailFormat     @default(HTML)
@@ -213,6 +213,11 @@ model Category {
   @@map("category")
 }
 
+enum ProductImageSource {
+  KINGUIN
+  MANUAL
+}
+
 model Product {
   id                  String         @id @default(cuid())
   kinguinId           Int            @unique
@@ -224,13 +229,32 @@ model Product {
   platform            String
   genres              String[]
   coverImageUrl       String?
+  images              ProductImage[]
+  videos              ProductVideo[]
+  /**
+   * Kinguin supplier cost in sourceCurrency (typically EUR).
+   */
+  sourceCostPrice     Decimal?       @db.Decimal(10, 2)
+  sourceCurrency      String         @default("EUR")
+  /**
+   * Retail prices in CLP.
+   */
   costPrice           Decimal        @db.Decimal(10, 2)
   sellPrice           Decimal        @db.Decimal(10, 2)
   qty                 Int            @default(0)
-  isActive            Boolean        @default(true)
+  isActive            Boolean        @default(false)
   isPreorder          Boolean        @default(false)
   regionalLimitations String?
   regionId            Int?
+  regionName          String?
+  countryLimitations  String[]       @default([])
+  activationDetails   String?        @db.Text
+  languages           String[]       @default([])
+  developers          String[]       @default([])
+  publishers          String[]       @default([])
+  releaseDate         String?
+  ageRating           String?
+  systemRequirements  Json?
   steamAppId          String?
   kinguinSyncedAt     DateTime?
   categoryId          String?
@@ -248,24 +272,55 @@ model Product {
   @@map("product")
 }
 
-model ProductOffer {
-  id             String      @id @default(cuid())
+model ProductImage {
+  id           String             @id @default(cuid())
+  productId    String
+  product      Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url          String
+  thumbnailUrl String?
+  sortOrder    Int                @default(0)
+  isCover      Boolean            @default(false)
+  source       ProductImageSource @default(MANUAL)
+  createdAt    DateTime           @default(now())
+
+  @@index([productId, sortOrder])
+  @@map("product_image")
+}
+
+model ProductVideo {
+  id             String             @id @default(cuid())
   productId      String
-  product        Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  kinguinOfferId String      @unique
-  name           String
-  costPrice      Decimal     @db.Decimal(10, 2)
-  sellPrice      Decimal     @db.Decimal(10, 2)
-  qty            Int         @default(0)
-  textQty        Int         @default(0)
-  merchantName   String?
-  isPreorder     Boolean     @default(false)
-  releaseDate    String?
-  isDefault      Boolean     @default(false)
-  cartItems      CartItem[]
-  orderItems     OrderItem[]
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  product        Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  youtubeVideoId String
+  title          String?
+  sortOrder      Int                @default(0)
+  source         ProductImageSource @default(MANUAL)
+  createdAt      DateTime           @default(now())
+
+  @@index([productId, sortOrder])
+  @@map("product_video")
+}
+
+model ProductOffer {
+  id              String      @id @default(cuid())
+  productId       String
+  product         Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  kinguinOfferId  String      @unique
+  name            String
+  sourceCostPrice Decimal?    @db.Decimal(10, 2)
+  sourceCurrency  String      @default("EUR")
+  costPrice       Decimal     @db.Decimal(10, 2)
+  sellPrice       Decimal     @db.Decimal(10, 2)
+  qty             Int         @default(0)
+  textQty         Int         @default(0)
+  merchantName    String?
+  isPreorder      Boolean     @default(false)
+  releaseDate     String?
+  isDefault       Boolean     @default(false)
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   @@index([productId])
   @@index([isDefault])
@@ -310,7 +365,7 @@ model Order {
   userId            String
   user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   status            OrderStatus @default(PENDING)
-  currency          String      @default("EUR")
+  currency          String      @default("CLP")
   subtotal          Decimal     @db.Decimal(10, 2)
   total             Decimal     @db.Decimal(10, 2)
   kinguinOrderId    String?     @unique

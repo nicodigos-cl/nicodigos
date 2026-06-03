@@ -1,36 +1,18 @@
 import type { OrderStatus } from "@/lib/generated/prisma/client";
+export { formatMoney, formatSourceMoney } from "@/lib/currency/format";
 
 const orderStatusLabels: Record<OrderStatus, string> = {
-  PENDING: "Pending",
-  PROCESSING: "Processing",
-  COMPLETED: "Completed",
-  CANCELED: "Canceled",
-  REFUNDED: "Refunded",
+  PENDING: "Pendiente",
+  PROCESSING: "Procesando",
+  COMPLETED: "Completado",
+  CANCELED: "Cancelado",
+  REFUNDED: "Reembolsado",
 };
-
-export function formatMoney(
-  value: { toString(): string } | string | number | null | undefined,
-  currency = "EUR",
-): string {
-  if (value == null) {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-    }).format(0);
-  }
-
-  const amount = typeof value === "number" ? value : Number(value.toString());
-
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-  }).format(Number.isFinite(amount) ? amount : 0);
-}
 
 export function formatDate(value: Date | string): string {
   const date = typeof value === "string" ? new Date(value) : value;
 
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat("es-CL", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
