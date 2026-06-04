@@ -84,10 +84,13 @@ export async function assistProductTextAction(
   );
 
   try {
+    const model = getOpenAIModel();
+    const isReasoningModel = model.startsWith("o1") || model.startsWith("o3");
+
     const completion = await client.chat.completions.create({
-      model: getOpenAIModel(),
-      temperature: task === "translate" ? 0.3 : 0.6,
-      max_tokens: MAX_OUTPUT_TOKENS,
+      model,
+      max_completion_tokens: MAX_OUTPUT_TOKENS,
+      ...(!isReasoningModel && { temperature: task === "translate" ? 0.3 : 0.6 }),
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -169,10 +172,13 @@ export async function assistSystemRequirementsAction(
   );
 
   try {
+    const model = getOpenAIModel();
+    const isReasoningModel = model.startsWith("o1") || model.startsWith("o3");
+
     const completion = await client.chat.completions.create({
-      model: getOpenAIModel(),
-      temperature: task === "translate" ? 0.3 : 0.5,
-      max_tokens: MAX_OUTPUT_TOKENS,
+      model,
+      max_completion_tokens: MAX_OUTPUT_TOKENS,
+      ...(!isReasoningModel && { temperature: task === "translate" ? 0.3 : 0.5 }),
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: system },
@@ -260,10 +266,13 @@ export async function assistSystemRequirementBlockAction(
   );
 
   try {
+    const model = getOpenAIModel();
+    const isReasoningModel = model.startsWith("o1") || model.startsWith("o3");
+
     const completion = await client.chat.completions.create({
-      model: getOpenAIModel(),
-      temperature: task === "translate" ? 0.3 : 0.6,
-      max_tokens: MAX_OUTPUT_TOKENS,
+      model,
+      max_completion_tokens: MAX_OUTPUT_TOKENS,
+      ...(!isReasoningModel && { temperature: task === "translate" ? 0.3 : 0.6 }),
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },

@@ -30,6 +30,8 @@ import { resolveKinguinProductCoverUrl } from "@/lib/kinguin/product-images";
 import { Prisma } from "@/lib/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import type { KinguinProduct } from "@/types/kinguin";
+import { isOpenAIConfigured } from "@/lib/openai/env";
+import { translateAndImproveKinguinProduct } from "@/lib/admin/products/kinguin-translate";
 
 const MIN_SEARCH_LENGTH = 3;
 
@@ -106,6 +108,7 @@ export async function searchKinguinProductsAction(
 
 export async function importKinguinProductAction(
   kinguinProductId: string,
+  options?: { translateWithAi?: boolean },
 ): Promise<AdminProductActionResult<{ productId: string; slug: string }>> {
   await requireAdmin();
 
@@ -133,11 +136,51 @@ export async function importKinguinProductAction(
   try {
     const kinguin = getKinguinSdk();
     const kinguinProduct = await kinguin.getProduct(productId);
-    const slug = await uniqueProductSlug(kinguinProduct.name);
+
+    let name = kinguinProduct.name;
+    let description = kinguinProduct.description ?? null;
+    let activationDetails = kinguinProduct.activationDetails?.trim() || null;
+
+    if (options?.translateWithAi) {
+      if (!isOpenAIConfigured()) {
+        return {
+          success: false,
+          error: "OpenAI no está configurado. Configura OPENAI_API_KEY en el servidor.",
+        };
+      }
+      try {
+        const translated = await translateAndImproveKinguinProduct(
+          kinguinProduct.name,
+          kinguinProduct.platform,
+          kinguinProduct.description ?? null,
+          kinguinProduct.activationDetails ?? null,
+        );
+        name = translated.name;
+        description = translated.description;
+        activationDetails = translated.activationDetails;
+      } catch (err) {
+        return {
+          success: false,
+          error: `Error al traducir con IA: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
+    }
+
+    const slug = await uniqueProductSlug(name);
     const { rate } = await getEurToClpRate();
-    const metadata = await mapKinguinProductMetadata(kinguinProduct);
+
+    const modifiedProduct = {
+      ...kinguinProduct,
+      name,
+      description: description ?? undefined,
+      activationDetails: activationDetails ?? "",
+    };
+
+    const metadata = await mapKinguinProductMetadata(modifiedProduct);
+    metadata.activationDetails = activationDetails;
+
     const productData = mapKinguinProductToCreateInput(
-      kinguinProduct,
+      modifiedProduct,
       slug,
       rate,
       metadata,

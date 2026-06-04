@@ -5,6 +5,7 @@ import { CreateProductFromKinguinForm } from "@/components/admin/create-product-
 import { DashboardPageHeader } from "@/components/dashboard/dashboard-page-header";
 import { Button } from "@/components/ui/button";
 import { isKinguinConfigured } from "@/lib/kinguin/client";
+import { isOpenAIConfigured } from "@/lib/openai/env";
 
 export const metadata: Metadata = {
   title: "Nuevo producto",
@@ -26,7 +27,10 @@ export default function AdminNewProductPage() {
         />
       </div>
 
-      <CreateProductFromKinguinForm kinguinConfigured={isKinguinConfigured()} />
+      <CreateProductFromKinguinForm
+        kinguinConfigured={isKinguinConfigured()}
+        openAiConfigured={isOpenAIConfigured()}
+      />
     </div>
   );
 }
