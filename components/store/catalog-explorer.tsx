@@ -43,6 +43,10 @@ function hasActiveCatalogFilters(filters: CatalogFilters): boolean {
     filters.q ||
     filters.category ||
     filters.platform ||
+    filters.genre ||
+    filters.tag ||
+    filters.minPrice ||
+    filters.maxPrice ||
     filters.offersOnly ||
     filters.preordersOnly ||
     filters.sort !== "newest",
@@ -105,6 +109,10 @@ export function CatalogExplorer({
       q: "",
       category: "",
       platform: "",
+      genre: "",
+      tag: "",
+      minPrice: "",
+      maxPrice: "",
       offersOnly: false,
       preordersOnly: false,
       sort: "newest",
