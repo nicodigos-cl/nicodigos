@@ -16,8 +16,8 @@ export const storeRoutes = {
   checkout: "/checkout",
   checkoutReturn: "/checkout/return",
   wishlist: "/wishlist",
-  orders: "/orders",
-  keys: "/keys",
+  orders: "/dashboard/orders",
+  keys: "/dashboard/keys",
   product: (slug: string) => `/catalog/${slug}` as const,
   category: (slug: string) => `/categories/${slug}` as const,
 } as const;
