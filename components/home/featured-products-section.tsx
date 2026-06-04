@@ -17,9 +17,9 @@ export function FeaturedProductsSection({
   return (
     <SectionShell
       id="destacados"
-      eyebrow="Selección editorial"
+      eyebrow="Lo bacán del mes"
       title="Productos destacados"
-      description="Keys y licencias con entrega inmediata, stock verificado y precios en CLP."
+      description="Keys y licencias al tiro, stock chequeado y precios en pesos chilenos."
       href={storeRoutes.catalog}
       className="py-16 sm:py-20"
     >

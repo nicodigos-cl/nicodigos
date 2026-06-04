@@ -36,9 +36,9 @@ export function ReviewsSection() {
   return (
     <SectionShell
       id="opiniones"
-      eyebrow="Comunidad"
-      title="Lo que dicen nuestros clientes"
-      description="Opiniones de compradores verificados en Chile."
+      eyebrow="La gente opina"
+      title="Lo que dice la gente"
+      description="Comentarios de compradores de acá en Chile."
       className="py-16 sm:py-20"
     >
       <ul className="grid gap-6 md:grid-cols-3">

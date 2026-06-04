@@ -13,31 +13,31 @@ const faqItems = [
     id: "activation",
     question: "¿Cómo activo mi key después de comprar?",
     answer:
-      "Cada producto incluye activationDetails con instrucciones para Steam, Xbox, PlayStation u otra plataforma. Tras completar tu pedido, revisa OrderKey en tu cuenta y copia el código en el launcher indicado.",
+      "Cuando pagas, te mandamos las instrucciones según la plataforma (Steam, Xbox, PlayStation u otra). Entras a tu cuenta, vas a Mis pedidos, copias el código y lo pegas donde corresponda.",
   },
   {
     id: "region",
     question: "¿Hay restricciones regionales?",
     answer:
-      "Sí. Consulta regionName, regionalLimitations y countryLimitations del producto antes de pagar. Algunas keys solo funcionan en ciertos países o cuentas.",
+      "Algunos juegos tienen bloqueo por país o región. Revisa la ficha del producto antes de pagar; ahí dice si funciona en Chile o en qué países aplica.",
   },
   {
     id: "refund",
     question: "¿Puedo pedir reembolso?",
     answer:
-      "Las keys digitales entregadas no suelen ser reembolsables una vez reveladas. Si hay un error de región o stock, contáctanos con tu número de pedido para revisar el caso.",
+      "Una vez que revelamos la key, por lo general no hay devolución — así funcionan los códigos digitales. Si hubo un error de región o stock, escríbenos con tu número de pedido y lo vemos contigo.",
   },
   {
     id: "preorder",
     question: "¿Cómo funcionan las preventas?",
     answer:
-      "Los productos en preventa se reservan con pago anticipado. La key o acceso se entrega cerca de la fecha de lanzamiento según disponibilidad.",
+      "Pagas hoy y reservamos tu copia. Te entregamos la key cerca de la fecha de lanzamiento, según vaya llegando el stock.",
   },
   {
     id: "payment",
     question: "¿Qué métodos de pago aceptan?",
     answer:
-      "Aceptamos medios de pago configurados en checkout (tarjetas y alternativas locales). Todas las transacciones quedan registradas en Transaction con moneda CLP.",
+      "Puedes pagar con tarjeta y otros medios que aparecen en el checkout. Todo queda en pesos chilenos (CLP) y registrado en tu historial de compras.",
   },
 ] as const;
 
@@ -47,10 +47,10 @@ export function FaqSection() {
       id="faq"
       eyebrow="Ayuda"
       title="Preguntas frecuentes"
-      description="Todo lo que necesitas saber antes de comprar tu próximo juego."
+      description="Las dudas que más nos tiran antes de partir con la compra."
       className="py-16 sm:py-20"
     >
-      <Accordion type="single" collapsible className="max-w-3xl">
+      <Accordion type="single" collapsible>
         {faqItems.map((item) => (
           <AccordionItem key={item.id} value={item.id}>
             <AccordionTrigger className="text-left text-sm font-semibold">

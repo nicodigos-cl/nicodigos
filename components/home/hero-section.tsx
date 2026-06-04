@@ -10,10 +10,11 @@ import { HomeProductsCarousel } from "@/components/marketing/home-products-carou
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GridPattern } from "@/components/ui/grid-pattern";
-import { Separator } from "@/components/ui/separator";
 import { storeRoutes } from "@/lib/store/navigation";
 import type { StorefrontProductCard } from "@/lib/store/home/types";
 import { cn } from "@/lib/utils";
+import { CHILEAN_FLAG_EMOJI } from "@/constants/assets.constants";
+import Image from "next/image";
 
 interface HeroSectionProps {
   products: StorefrontProductCard[];
@@ -42,9 +43,7 @@ export default function HeroSection({ products, hasOffers }: HeroSectionProps) {
         width={48}
         height={48}
         squares={gridHighlights}
-        className={cn(
-          "opacity-90",
-        )}
+        className={cn("opacity-90")}
       />
 
       <section className="relative pt-10">
@@ -55,23 +54,36 @@ export default function HeroSection({ products, hasOffers }: HeroSectionProps) {
                 variant="outline"
                 className="rounded-full border-border/80 bg-background/80 px-3 py-1 text-sm font-medium text-muted-foreground backdrop-blur-sm"
               >
-                Marketplace digital para Chile
+                Tu tienda digital chilena
               </Badge>
             </div>
 
             <h1 className="font-heading text-4xl font-semibold tracking-tight text-balance text-foreground sm:text-5xl lg:text-6xl">
-              Compra keys, gift cards y licencias digitales al instante
+              <span className="inline-flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1">
+                <span>
+                  Consigue tus keys, gift cards y licencias al tiro{" "}
+                  <Image
+                    src={CHILEAN_FLAG_EMOJI}
+                    alt=""
+                    width={48}
+                    height={48}
+                    className="inline-block size-24 shrink-0"
+                    aria-hidden
+                  />
+                </span>{" "}
+              </span>
             </h1>
 
             <p className="mt-6 text-base font-medium text-pretty text-muted-foreground sm:mt-8 sm:text-lg/8">
-              Juegos, software y suscripciones con entrega automática, stock
-              verificado y soporte local. Compra rápido y sin complicaciones.
+              Juegos, software y suscripciones con entrega al instante, stock
+              real y soporte chileno siempre atento. Compra al toque, sin
+              enredos ni letra chica.
             </p>
 
             <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
               <Button asChild size="lg" className="rounded-lg px-6">
                 <Link href={storeRoutes.catalog}>
-                  Ver catálogo
+                  Ver todo el catálogo
                   <IconArrowRight className="size-4" />
                 </Link>
               </Button>
@@ -83,7 +95,9 @@ export default function HeroSection({ products, hasOffers }: HeroSectionProps) {
                 className="rounded-lg border-border/80 bg-background/60 px-6 backdrop-blur-sm"
               >
                 <Link href={storeRoutes.offers}>
-                  {hasOffers ? "Ver ofertas" : "Ofertas de hoy"}
+                  {hasOffers
+                    ? "Aprovecha las medias ofertas"
+                    : "Ofertas pa' hoy"}
                 </Link>
               </Button>
             </div>
@@ -104,7 +118,9 @@ export default function HeroSection({ products, hasOffers }: HeroSectionProps) {
                   />
                 )}
                 <p className="text-sm font-semibold text-foreground">
-                  {hasOffers ? "Ofertas del momento" : "Productos destacados"}
+                  {hasOffers
+                    ? "Ofertas que están filete"
+                    : "Recomendados pa' ti"}
                 </p>
               </div>
 
@@ -115,7 +131,7 @@ export default function HeroSection({ products, hasOffers }: HeroSectionProps) {
                   "transition-colors hover:text-primary/80",
                 )}
               >
-                Ver todos
+                Ver más juegos
                 <IconChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </div>

@@ -15,9 +15,9 @@ export function OffersSection({ products }: OffersSectionProps) {
   return (
     <SectionShell
       id="ofertas"
-      eyebrow="Promociones"
-      title="Productos en oferta"
-      description="Precios especiales en juegos y software con stock limitado."
+      eyebrow="Promos"
+      title="Ofertas que valen la pena"
+      description="Precios especiales en juegos y software, con stock limitado."
       href={storeRoutes.offers}
       className="py-16 sm:py-20"
     >

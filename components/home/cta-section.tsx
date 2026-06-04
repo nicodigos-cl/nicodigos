@@ -23,14 +23,14 @@ export function CtaSection() {
           <div className="relative z-10 mx-auto max-w-2xl text-center space-y-6">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/15 px-3 py-1 text-xs font-semibold text-primary-foreground border border-primary-foreground/25">
               <IconBolt className="size-3.5" aria-hidden />
-              Miles de juegos · Entrega instantánea
+              Miles de juegos · Al tiro a tu mail
             </div>
             <h2 className="font-heading text-3xl font-extrabold tracking-tight text-primary-foreground sm:text-4xl">
-              Los mejores precios en keys digitales
+              Los precios más bacanes en keys digitales
             </h2>
             <p className="text-sm sm:text-base text-primary-foreground/80 leading-relaxed">
               Miles de títulos digitales, precios en pesos chilenos y soporte
-              local. Empieza ahora y recibe tu código en minutos.
+              local. Parte nomás y recibe tu código en minutos.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Button
@@ -40,7 +40,7 @@ export function CtaSection() {
                 className="rounded-xl gap-1.5 group bg-primary-foreground text-primary hover:bg-primary-foreground/90 shadow-lg"
               >
                 <Link href={storeRoutes.catalog}>
-                  Explorar catálogo
+                  Ver catálogo
                   <IconArrowRight className="size-4 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               </Button>
@@ -50,7 +50,7 @@ export function CtaSection() {
                 size="lg"
                 className="rounded-xl border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
               >
-                <Link href={storeRoutes.offers}>Ver ofertas</Link>
+                <Link href={storeRoutes.offers}>Ver las ofertas</Link>
               </Button>
             </div>
           </div>

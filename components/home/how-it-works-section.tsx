@@ -12,35 +12,35 @@ const steps = [
   {
     step: 1,
     icon: IconSearch,
-    title: "Selecciona un juego",
-    description: "Explora el catálogo por categoría, plataforma o oferta.",
+    title: "Elige tu juego",
+    description: "Revisa el catálogo por categoría, plataforma u ofertas.",
   },
   {
     step: 2,
     icon: IconShoppingCart,
-    title: "Agrega al carrito",
+    title: "Mételo al carrito",
     description:
-      "Elige la oferta disponible; tu Cart guarda productId y offerId.",
+      "Escoge la oferta que te acomode y guárdala pa' cuando quieras pagar.",
   },
   {
     step: 3,
     icon: IconCreditCard,
-    title: "Completa el pago",
-    description: "Confirma tu Order y recibe confirmación por correo.",
+    title: "Paga al tiro",
+    description: "Confirma la compra y te llega la confirmación al correo.",
   },
   {
     step: 4,
     icon: IconKey,
     title: "Recibe tu key",
     description:
-      "Las OrderKey se entregan en tu panel cuando el pedido está listo.",
+      "Cuando el pedido está listo, la ves en tu cuenta y la copias al toque.",
   },
   {
     step: 5,
     icon: IconDeviceGamepad2,
     title: "Activa y juega",
     description:
-      "Sigue activationDetails del producto en Steam, Xbox o la plataforma indicada.",
+      "Sigue las instrucciones del producto en Steam, Xbox o la plataforma que sea.",
   },
 ] as const;
 
@@ -50,9 +50,9 @@ export function HowItWorksSection() {
       id="como-funciona"
       variant="primary"
       primaryAccent="warm"
-      eyebrow="Proceso"
+      eyebrow="En simple"
       title="Cómo funciona"
-      description="De la búsqueda a la activación en cinco pasos simples."
+      description="De la búsqueda a jugar, en cinco pasos nomás."
       className="py-16 sm:py-20 lg:py-24"
     >
       <div className="relative">

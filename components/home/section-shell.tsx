@@ -23,7 +23,7 @@ export function SectionShell({
   title,
   description,
   href,
-  linkLabel = "Ver todos",
+  linkLabel = "Ver más",
   children,
   className,
   variant = "default",

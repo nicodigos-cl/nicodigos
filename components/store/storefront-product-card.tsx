@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { IconBolt, IconClock } from "@tabler/icons-react";
+import { IconBolt, IconClock, IconCalendar } from "@tabler/icons-react";
 
 import { ProductStoreActions } from "@/components/store/product-store-actions";
 import { StoreProductCover } from "@/components/store/store-product-cover";
@@ -17,8 +17,35 @@ import { storeRoutes } from "@/lib/store/navigation";
 import type { StorefrontProductCard } from "@/lib/store/home/types";
 import { cn } from "@/lib/utils";
 
+export type StorefrontCardProduct = {
+  id: string;
+  slug: string;
+  name: string;
+  platform: string;
+  coverImageUrl: string | null;
+  sellPrice: string;
+
+  description?: string | null;
+  genres?: string[];
+  listPrice?: string | null;
+  discountPercent?: number | null;
+  qty?: number;
+  isOffer?: boolean;
+  isPreorder?: boolean;
+  releaseDate?: string | null;
+  regionName?: string | null;
+  languages?: string[];
+  developers?: string[];
+  publishers?: string[];
+  offer?: {
+    sellPrice: string;
+    qty: number;
+    isPreorder: boolean;
+  } | null;
+};
+
 type StorefrontProductCardProps = {
-  product: StorefrontProductCard;
+  product: StorefrontCardProduct;
   className?: string;
 };
 
@@ -26,14 +53,16 @@ export function StorefrontProductCardView({
   product,
   className,
 }: StorefrontProductCardProps) {
-  const inStock = product.qty > 0 || product.isPreorder;
+  const isPreorder = !!product.isPreorder;
+  const qty = product.qty ?? 1;
+  const inStock = qty > 0 || isPreorder;
   const displayPrice = product.offer?.sellPrice ?? product.sellPrice;
 
   return (
     <Card
       size="sm"
       className={cn(
-        "group relative h-full gap-0 overflow-hidden py-0 ring-border/40 transition-all duration-300 hover:ring-primary/30",
+        "group relative h-full gap-0 overflow-hidden py-0 ring-border/40 transition-all duration-300 hover:ring-primary/30 pt-0!",
         className,
       )}
     >
@@ -42,10 +71,10 @@ export function StorefrontProductCardView({
           -{product.discountPercent}%
         </Badge>
       ) : null}
-      {product.isPreorder ? (
+      {isPreorder ? (
         <Badge
           variant="outline"
-          className="absolute left-3 top-3 z-20 border-violet-500/30 bg-violet-500/10 text-violet-400"
+          className="absolute left-3 top-3 z-20 border-violet-500/30 bg-violet-500/10 text-violet-400 font-semibold"
         >
           <IconClock className="size-3" aria-hidden />
           Preventa
@@ -59,7 +88,7 @@ export function StorefrontProductCardView({
         <StoreProductCover
           src={product.coverImageUrl}
           alt={product.name}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 rounded-none"
           sizes="(max-width:640px) 100vw, 280px"
         />
       </Link>
@@ -74,7 +103,19 @@ export function StorefrontProductCardView({
             {product.name}
           </Link>
         </CardTitle>
-        {product.genres.length > 0 ? (
+        {isPreorder ? (
+          product.releaseDate ? (
+            <p className="flex items-center gap-1 text-xs text-violet-400 font-semibold">
+              <IconCalendar className="size-3.5" aria-hidden />
+              Lanzamiento: {product.releaseDate}
+            </p>
+          ) : (
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              <IconClock className="size-3.5" aria-hidden />
+              Fecha por confirmar
+            </p>
+          )
+        ) : product.genres && product.genres.length > 0 ? (
           <p className="line-clamp-1 text-xs text-muted-foreground">
             {product.genres.slice(0, 2).join(" · ")}
           </p>
@@ -103,10 +144,10 @@ export function StorefrontProductCardView({
                 inStock ? "text-emerald-500" : "text-muted-foreground",
               )}
             >
-              {product.isPreorder
+              {isPreorder
                 ? "Preventa"
-                : product.qty > 0
-                  ? product.qty
+                : qty > 0
+                  ? qty
                   : "Agotado"}
             </p>
           </div>

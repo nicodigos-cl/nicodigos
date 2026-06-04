@@ -25,9 +25,9 @@ export function CategoriesSection({ categories }: CategoriesSectionProps) {
   return (
     <SectionShell
       id="categorias"
-      eyebrow="Explora"
+      eyebrow="Mira nomás"
       title="Categorías destacadas"
-      description="Navega por tipo de producto: juegos, gift cards, suscripciones y más."
+      description="Juegos, gift cards, suscripciones y más — anda a ver qué hay pa' ti."
       href={storeRoutes.categories}
       className="py-16 sm:py-20"
     >
@@ -60,7 +60,6 @@ export function CategoriesSection({ categories }: CategoriesSectionProps) {
                       />
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
                 </div>
                 <CardHeader className="px-4 pt-4 pb-0">
                   <CardTitle className="text-base font-bold">

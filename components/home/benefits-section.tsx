@@ -11,33 +11,33 @@ import { SectionShell } from "@/components/home/section-shell";
 const benefits = [
   {
     icon: IconBolt,
-    title: "Entrega instantánea",
+    title: "Te llega al tiro",
     description:
-      "Recibe tu key digital en minutos tras confirmar el pago, directo en tu cuenta.",
+      "Pagas y en minutos tienes tu key en la cuenta. Sin colas ni correos eternos.",
   },
   {
     icon: IconRefresh,
-    title: "Stock sincronizado",
+    title: "Stock al día",
     description:
-      "Inventario actualizado en tiempo real para evitar sobreventa.",
+      "Inventario actualizado al instante, pa' que no te quedes colgado a mitad de compra.",
   },
   {
     icon: IconSparkles,
-    title: "Productos originales",
+    title: "100% originales",
     description:
-      "Códigos de distribuidores verificados y trazabilidad en cada pedido.",
+      "Códigos de distribuidores verificados, con respaldo en cada pedido.",
   },
   {
     icon: IconHeadset,
-    title: "Soporte 24/7",
+    title: "Soporte de acá",
     description:
-      "Equipo local en Chile para activación, regiones y estado de tu pedido.",
+      "Gente chilena pa' ayudarte con activación, regiones y el estado de tu pedido.",
   },
   {
     icon: IconShieldCheck,
     title: "Compra segura",
     description:
-      "Pagos protegidos, pedidos en Order/OrderKey y transacciones auditables.",
+      "Pagos protegidos, pedidos trazables y una compra en la que puedes confiar.",
   },
 ] as const;
 
@@ -47,9 +47,9 @@ export function BenefitsSection() {
       id="beneficios"
       variant="primary"
       primaryAccent="cool"
-      eyebrow="Por qué Nicodigos"
-      title="Beneficios de comprar aquí"
-      description="Marketplace pensado para gamers en Chile con catálogo digital escalable."
+      eyebrow="Pa' qué elegirnos"
+      title="Por qué conviene comprar acá"
+      description="Hecho en Chile pa' gamers: catálogo digital, precios claros y cero vueltas."
       className="py-16 sm:py-20 lg:py-24"
     >
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
