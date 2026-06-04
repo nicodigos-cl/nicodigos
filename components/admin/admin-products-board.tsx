@@ -2,12 +2,19 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   IconDotsVertical,
   IconEdit,
   IconPackage,
   IconSearch,
+  IconEye,
+  IconEyeOff,
+  IconDiscount2,
+  IconStar,
+  IconCalendarTime,
+  IconLoader2,
+  IconX,
 } from "@tabler/icons-react";
 import type { AdminProductListItem } from "@/lib/admin/products/types";
 import { formatMoney, formatSourceMoney } from "@/lib/admin/format";
@@ -47,6 +54,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { bulkUpdateProductsAction } from "@/lib/admin/products/actions";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 type AdminProductsBoardProps = {
@@ -69,6 +79,8 @@ function productStatusLabel(isActive: boolean): string {
 export function AdminProductsBoard({ products }: AdminProductsBoardProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isPending, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -91,8 +103,32 @@ export function AdminProductsBoard({ products }: AdminProductsBoardProps) {
     return { total: products.length, active, drafts, lowStock };
   }, [products]);
 
+  const allSelected = filtered.length > 0 && filtered.every((p) => selectedIds.includes(p.id));
+  const someSelected = filtered.some((p) => selectedIds.includes(p.id)) && !allSelected;
+  const headerCheckedState = allSelected ? true : someSelected ? "indeterminate" : false;
+
   function goToEdit(productId: string) {
     router.push(`/admin/products/${productId}/edit`);
+  }
+
+  function handleBulkUpdate(updates: {
+    isActive?: boolean;
+    isOffer?: boolean;
+    isFeatured?: boolean;
+    isPreorder?: boolean;
+  }) {
+    startTransition(async () => {
+      const toastId = toast.loading("Actualizando productos...");
+      const res = await bulkUpdateProductsAction(selectedIds, updates);
+      if (res.success) {
+        toast.success(res.message || "Productos actualizados con éxito", {
+          id: toastId,
+        });
+        setSelectedIds([]);
+      } else {
+        toast.error(res.error, { id: toastId });
+      }
+    });
   }
 
   if (products.length === 0) {
@@ -185,7 +221,20 @@ export function AdminProductsBoard({ products }: AdminProductsBoardProps) {
             <Table className="min-w-4xl">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="min-w-56 pl-6">Producto</TableHead>
+                  <TableHead className="w-12 pl-6">
+                    <Checkbox
+                      checked={headerCheckedState}
+                      onCheckedChange={(checked) => {
+                        if (checked === true) {
+                          setSelectedIds(filtered.map((p) => p.id));
+                        } else {
+                          setSelectedIds([]);
+                        }
+                      }}
+                      aria-label="Seleccionar todos"
+                    />
+                  </TableHead>
+                  <TableHead className="min-w-56 pl-2">Producto</TableHead>
                   <TableHead className="w-28">Plataforma</TableHead>
                   <TableHead className="w-16 text-right">Stock</TableHead>
                   <TableHead className="hidden w-28 text-right lg:table-cell">
@@ -210,14 +259,31 @@ export function AdminProductsBoard({ products }: AdminProductsBoardProps) {
                     product.costPrice,
                     product.sellPrice,
                   );
+                  const isSelected = selectedIds.includes(product.id);
 
                   return (
                     <TableRow
                       key={product.id}
-                      className="cursor-pointer transition-colors"
+                      className={cn(
+                        "cursor-pointer transition-colors",
+                        isSelected && "bg-muted/40 hover:bg-muted/50",
+                      )}
                       onClick={() => goToEdit(product.id)}
                     >
-                      <TableCell className="max-w-xs whitespace-normal pl-6">
+                      <TableCell className="w-12 pl-6" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => {
+                            setSelectedIds((prev) =>
+                              checked
+                                ? [...prev, product.id]
+                                : prev.filter((id) => id !== product.id),
+                            );
+                          }}
+                          aria-label={`Seleccionar ${product.name}`}
+                        />
+                      </TableCell>
+                      <TableCell className="max-w-xs whitespace-normal pl-2">
                         <div className="flex items-center gap-3 py-1">
                           {product.coverImageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -338,6 +404,134 @@ export function AdminProductsBoard({ products }: AdminProductsBoardProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Floating Action Bar */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 flex-col gap-3 rounded-2xl border border-border/80 bg-background/85 px-4 py-3.5 shadow-xl shadow-black/5 backdrop-blur-md transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 sm:flex-row sm:items-center sm:gap-4 sm:rounded-full sm:px-6 sm:py-3">
+          <div className="flex items-center justify-between gap-2 max-sm:w-full sm:border-r sm:border-border sm:pr-4 text-sm font-medium">
+            <div className="flex items-center gap-2">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground tabular-nums">
+                {selectedIds.length}
+              </span>
+              <span className="text-muted-foreground text-xs sm:text-sm">
+                seleccionado{selectedIds.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={isPending}
+              onClick={() => setSelectedIds([])}
+              className="h-8 w-8 rounded-full hover:bg-muted sm:hidden"
+              title="Cancelar selección"
+            >
+              <IconX className="size-4" />
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 max-sm:justify-center">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isPending}
+              onClick={() => handleBulkUpdate({ isActive: true })}
+              className="h-8 gap-1.5 rounded-full text-xs font-semibold hover:bg-accent"
+            >
+              {isPending ? (
+                <IconLoader2 className="size-3.5 animate-spin" />
+              ) : (
+                <IconEye className="size-3.5 text-emerald-500" />
+              )}
+              Publicar
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isPending}
+              onClick={() => handleBulkUpdate({ isActive: false })}
+              className="h-8 gap-1.5 rounded-full text-xs font-semibold hover:bg-accent"
+            >
+              {isPending ? (
+                <IconLoader2 className="size-3.5 animate-spin" />
+              ) : (
+                <IconEyeOff className="size-3.5 text-amber-500" />
+              )}
+              Desactivar
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isPending}
+                  className="h-8 rounded-full text-xs font-semibold hover:bg-accent"
+                >
+                  Más acciones...
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={() => handleBulkUpdate({ isFeatured: true })}
+                  className="cursor-pointer"
+                >
+                  <IconStar className="mr-2 size-4 text-amber-500 fill-amber-500" />
+                  Destacar en Inicio
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleBulkUpdate({ isFeatured: false })}
+                  className="cursor-pointer"
+                >
+                  <IconStar className="mr-2 size-4 text-muted-foreground" />
+                  Quitar de Inicio
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => handleBulkUpdate({ isOffer: true })}
+                  className="cursor-pointer"
+                >
+                  <IconDiscount2 className="mr-2 size-4 text-emerald-500" />
+                  Marcar como Oferta
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleBulkUpdate({ isOffer: false })}
+                  className="cursor-pointer"
+                >
+                  <IconDiscount2 className="mr-2 size-4 text-muted-foreground" />
+                  Quitar de Oferta
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => handleBulkUpdate({ isPreorder: true })}
+                  className="cursor-pointer"
+                >
+                  <IconCalendarTime className="mr-2 size-4 text-blue-500" />
+                  Marcar como Preorden
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleBulkUpdate({ isPreorder: false })}
+                  className="cursor-pointer"
+                >
+                  <IconCalendarTime className="mr-2 size-4 text-muted-foreground" />
+                  Quitar de Preorden
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={isPending}
+              onClick={() => setSelectedIds([])}
+              className="h-8 w-8 max-sm:hidden rounded-full hover:bg-muted"
+              title="Cancelar selección"
+            >
+              <IconX className="size-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

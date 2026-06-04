@@ -340,3 +340,43 @@ export async function uploadProductImageAction(
     };
   }
 }
+
+export async function bulkUpdateProductsAction(
+  productIds: string[],
+  data: {
+    isActive?: boolean;
+    isOffer?: boolean;
+    isFeatured?: boolean;
+    isPreorder?: boolean;
+  },
+): Promise<AdminProductActionResult> {
+  await requireAdmin();
+
+  if (!productIds || productIds.length === 0) {
+    return { success: false, error: "No se seleccionaron productos." };
+  }
+
+  try {
+    await prisma.product.updateMany({
+      where: {
+        id: { in: productIds },
+      },
+      data,
+    });
+
+    revalidatePath("/admin/products");
+    revalidatePath("/");
+    revalidatePath(storeRoutes.offers);
+
+    return {
+      success: true,
+      data: undefined,
+      message: `${productIds.length} productos actualizados.`,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: "Error al realizar la actualización masiva.",
+    };
+  }
+}
