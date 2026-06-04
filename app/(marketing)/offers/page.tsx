@@ -66,7 +66,7 @@ export default async function OffersPage({ searchParams }: OffersPageProps) {
                 Ofertas Especiales
               </h1>
               <p className="text-sm text-muted-foreground/90 max-w-xl leading-relaxed">
-                Precios especiales y promociones por tiempo limitado en juegos y
+                Precios especiales y promociones por tiempo limitado en keys y
                 herramientas de software seleccionados.
               </p>
             </div>
@@ -119,7 +119,7 @@ export default async function OffersPage({ searchParams }: OffersPageProps) {
           <>
             <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {products.map((product) => (
-                <li key={product.id}>
+                <li key={product.id} className="h-full">
                   <StorefrontProductCardView product={product} />
                 </li>
               ))}

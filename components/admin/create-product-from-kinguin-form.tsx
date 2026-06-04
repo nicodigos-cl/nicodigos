@@ -113,7 +113,7 @@ export function CreateProductFromKinguinForm({
         <CardHeader>
           <CardTitle>Buscar en Kinguin</CardTitle>
           <CardDescription>
-            Escribe el nombre del juego o producto tal como aparece en Kinguin.
+            Escribe el nombre de la key o producto tal como aparece en Kinguin.
             Los resultados se importan al catálogo local con sus ofertas.
           </CardDescription>
         </CardHeader>

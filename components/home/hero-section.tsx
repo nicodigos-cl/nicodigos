@@ -75,7 +75,7 @@ export default function HeroSection({ products, hasOffers }: HeroSectionProps) {
             </h1>
 
             <p className="mt-6 text-base font-medium text-pretty text-muted-foreground sm:mt-8 sm:text-lg/8">
-              Juegos, software y suscripciones con entrega al instante, stock
+              Keys, software y suscripciones con entrega al instante, stock
               real y soporte chileno siempre atento. Compra al toque, sin
               enredos ni letra chica.
             </p>
@@ -131,7 +131,7 @@ export default function HeroSection({ products, hasOffers }: HeroSectionProps) {
                   "transition-colors hover:text-primary/80",
                 )}
               >
-                Ver más juegos
+                Ver más keys
                 <IconChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </div>

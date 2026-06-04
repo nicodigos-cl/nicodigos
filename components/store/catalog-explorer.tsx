@@ -169,7 +169,7 @@ export function CatalogExplorer({
             )}
           >
             {result.products.map((product) => (
-              <li key={product.id}>
+              <li key={product.id} className="h-full">
                 <StorefrontProductCardView product={product} />
               </li>
             ))}

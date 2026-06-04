@@ -67,7 +67,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
                 Te llega al tiro
               </div>
               <h1 className="font-heading text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
-                Catálogo de juegos digitales en Chile
+                Catálogo de keys digitales en Chile
               </h1>
               <p className="text-sm text-muted-foreground/90 max-w-xl leading-relaxed">
                 Keys, gift cards y licencias con filtros por plataforma,

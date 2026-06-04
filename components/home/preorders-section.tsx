@@ -16,14 +16,14 @@ export function PreordersSection({ products }: PreordersSectionProps) {
     <SectionShell
       id="preventas"
       eyebrow="Próximos lanzamientos"
-      title="Aparta tu juego"
+      title="Aparta tu key"
       description="Preventas con fecha de salida; activas apenas estrene."
       href={storeRoutes.catalog}
       className="py-16 sm:py-20"
     >
       <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {products.map((product) => (
-          <li key={product.id}>
+          <li key={product.id} className="h-full">
             <StorefrontProductCardView product={product} />
           </li>
         ))}

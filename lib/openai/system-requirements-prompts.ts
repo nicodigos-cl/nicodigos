@@ -9,7 +9,7 @@ const JSON_FORMAT = `Responde ÚNICAMENTE con un objeto JSON válido (sin markdo
 {"requirements":[{"system":"Windows","requirement":["OS: Windows 10 64-bit","Processor: Intel Core i5","Memory: 8 GB RAM"]}]}
 - "system": nombre de la plataforma (Windows, Mac, Linux, etc.)
 - "requirement": array de strings, un requisito por línea, con etiquetas claras (OS, Processor, Memory, Graphics, Storage, DirectX, etc.)
-- Incluye solo plataformas que apliquen al juego; máximo 6 bloques.
+- Incluye solo plataformas que apliquen a la key; máximo 6 bloques.
 - Texto en español de Chile.`;
 
 function taskInstruction(task: AiTextTask): string {
@@ -17,13 +17,13 @@ function taskInstruction(task: AiTextTask): string {
     case "improve":
       return "Mejora los requisitos del sistema existentes: más claros y consistentes para compradores en Chile. Conserva datos técnicos reales.";
     case "generate":
-      return "Genera requisitos del sistema realistas para este videojuego según su plataforma y contexto. Si hay datos de referencia, úsalos como base.";
+      return "Genera requisitos del sistema realistas para esta key según su plataforma y contexto. Si hay datos de referencia, úsalos como base.";
     case "translate":
       return "Traduce los requisitos al español de Chile. Si ya están en español, unifica terminología y corrige redacción.";
     case "shorten":
       return "Resume los requisitos manteniendo lo esencial (OS, CPU, RAM, GPU, almacenamiento).";
     case "expand":
-      return "Amplía los requisitos con detalle técnico útil, sin inventar hardware incompatible con el juego.";
+      return "Amplía los requisitos con detalle técnico útil, sin inventar hardware incompatible con la key.";
     default:
       return "Edita los requisitos del sistema para la ficha en Chile.";
   }
@@ -71,7 +71,7 @@ export function buildAiSystemRequirementBlockMessages(
       taskLine = `Mejora los requisitos de ${systemLabel} para la ficha en Chile. ${lineInstruction}`;
       break;
     case "generate":
-      taskLine = `Genera requisitos de ${systemLabel} para este juego. ${lineInstruction}`;
+      taskLine = `Genera requisitos de ${systemLabel} para esta key. ${lineInstruction}`;
       break;
     case "translate":
       taskLine = `Traduce al español de Chile los requisitos de ${systemLabel}. ${lineInstruction}`;

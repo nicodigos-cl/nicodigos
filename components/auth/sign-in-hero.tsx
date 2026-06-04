@@ -53,7 +53,7 @@ export function SignInHero() {
               en minutos.
             </p>
             <p className="border-l-2 border-primary-foreground/30 pl-4 text-sm leading-relaxed text-primary-foreground/75">
-              Juegos, DLC y software con entrega digital inmediata. Sin esperas,
+              Keys, DLC y software con entrega digital inmediata. Sin esperas,
               sin envíos — solo tu código, listo para canjear.
             </p>
           </blockquote>
@@ -87,7 +87,7 @@ export function SignInHero() {
             Entrega instantánea
           </span>
           <span className="rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-3 py-1.5 backdrop-blur-sm">
-            Juegos &amp; DLC
+            Keys &amp; DLC
           </span>
           <span className="rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-3 py-1.5 backdrop-blur-sm">
             Activación segura

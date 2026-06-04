@@ -12,7 +12,7 @@ const steps = [
   {
     step: 1,
     icon: IconSearch,
-    title: "Elige tu juego",
+    title: "Elige tu key",
     description: "Revisa el catálogo por categoría, plataforma u ofertas.",
   },
   {

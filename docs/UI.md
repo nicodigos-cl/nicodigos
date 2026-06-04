@@ -8,7 +8,7 @@ Guía de diseño e implementación del storefront chileno: tokens, Tailwind CSS 
 
 ### Qué somos
 
-Nicodigos es un **marketplace digital para Chile**: keys de juegos, gift cards (Steam, PlayStation, Xbox, Nintendo, etc.), licencias de software y suscripciones, con entrega automática y soporte local.
+Nicodigos es un **marketplace digital para Chile**: keys digitales, gift cards (Steam, PlayStation, Xbox, Nintendo, etc.), licencias de software y suscripciones, con entrega automática y soporte local.
 
 ### Personalidad visual
 
@@ -22,7 +22,7 @@ Nicodigos es un **marketplace digital para Chile**: keys de juegos, gift cards (
 ### Idioma y SEO
 
 - **UI copy**: siempre en español (títulos, botones, vacíos, errores, tooltips).
-- **SEO / keywords**: usar términos de [KEYWORDS.md](./KEYWORDS.md) en H1, secciones, badges y FAQs de forma natural (ej. “juegos digitales Chile”, “Steam wallet Chile”, “gift cards Chile”). Evitar keyword stuffing.
+- **SEO / keywords**: usar términos de [KEYWORDS.md](./KEYWORDS.md) en H1, secciones, badges y FAQs de forma natural (ej. “keys digitales Chile”, “Steam wallet Chile”, “gift cards Chile”). Evitar keyword stuffing.
 - **HTML**: el documento debe usar `lang="es"` en el layout raíz (`app/layout.tsx`). Si aún figura `lang="en"`, corregirlo en la fase de implementación.
 
 ### Principio rector
@@ -457,7 +457,7 @@ Son **exports de referencia** de Tailwind UI (licencia premium). No se importan 
 | -------------- | ----------------------------------------------------------- |
 | Badge hero     | “Marketplace digital para Chile”                            |
 | H1 hero        | “Compra keys, gift cards y licencias digitales al instante” |
-| Subtítulo      | “Juegos, software y suscripciones con entrega automática…”  |
+| Subtítulo      | “Keys, software y suscripciones con entrega automática…”  |
 | CTA primario   | “Ver catálogo”                                              |
 | CTA secundario | “Ver ofertas” / “Ofertas de hoy”                            |
 | Beneficios     | “Entrega instantánea”, “Soporte 24/7”, “Compra segura”      |

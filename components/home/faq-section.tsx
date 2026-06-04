@@ -19,7 +19,7 @@ const faqItems = [
     id: "region",
     question: "¿Hay restricciones regionales?",
     answer:
-      "Algunos juegos tienen bloqueo por país o región. Revisa la ficha del producto antes de pagar; ahí dice si funciona en Chile o en qué países aplica.",
+      "Algunas keys tienen bloqueo por país o región. Revisa la ficha del producto antes de pagar; ahí dice si funciona en Chile o en qué países aplica.",
   },
   {
     id: "refund",

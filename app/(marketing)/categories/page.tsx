@@ -47,7 +47,7 @@ export default async function CategoriesPage() {
                 Categorías de Productos
               </h1>
               <p className="text-sm text-muted-foreground/90 max-w-xl leading-relaxed">
-                Navega y filtra fácilmente por tipo de producto digital: juegos de PC, tarjetas de regalo de consola, suscripciones y licencias oficiales.
+                Navega y filtra fácilmente por tipo de producto digital: keys de PC, tarjetas de regalo de consola, suscripciones y licencias oficiales.
               </p>
             </div>
             {categories.length > 0 && (

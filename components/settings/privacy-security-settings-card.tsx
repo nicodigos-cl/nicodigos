@@ -190,7 +190,7 @@ export function PrivacySecuritySettingsCard({
       <div className="flex items-start gap-3 rounded-2xl border border-border/30 bg-muted/10 p-4 text-xs text-muted-foreground">
         <IconKey className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
         <p>
-          Las claves de juego y datos sensibles nunca se incluyen en
+          Las keys y datos sensibles nunca se incluyen en
           exportaciones automáticas. Para soporte de seguridad, contacta al
           equipo desde el centro de ayuda.
         </p>

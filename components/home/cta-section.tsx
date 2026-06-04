@@ -23,7 +23,7 @@ export function CtaSection() {
           <div className="relative z-10 mx-auto max-w-2xl text-center space-y-6">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/15 px-3 py-1 text-xs font-semibold text-primary-foreground border border-primary-foreground/25">
               <IconBolt className="size-3.5" aria-hidden />
-              Miles de juegos · Al tiro a tu mail
+              Miles de keys · Al tiro a tu mail
             </div>
             <h2 className="font-heading text-3xl font-extrabold tracking-tight text-primary-foreground sm:text-4xl">
               Los precios más bacanes en keys digitales

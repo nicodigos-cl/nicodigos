@@ -17,13 +17,13 @@ export function OffersSection({ products }: OffersSectionProps) {
       id="ofertas"
       eyebrow="Promos"
       title="Ofertas que valen la pena"
-      description="Precios especiales en juegos y software, con stock limitado."
+      description="Precios especiales en keys y software, con stock limitado."
       href={storeRoutes.offers}
       className="py-16 sm:py-20"
     >
       <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {products.map((product) => (
-          <li key={product.id}>
+          <li key={product.id} className="h-full">
             <StorefrontProductCardView product={product} />
           </li>
         ))}

@@ -27,7 +27,7 @@ export function CategoriesSection({ categories }: CategoriesSectionProps) {
       id="categorias"
       eyebrow="Mira nomás"
       title="Categorías destacadas"
-      description="Juegos, gift cards, suscripciones y más — anda a ver qué hay pa' ti."
+      description="Keys, gift cards, suscripciones y más — anda a ver qué hay pa' ti."
       href={storeRoutes.categories}
       className="py-16 sm:py-20"
     >

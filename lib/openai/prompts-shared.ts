@@ -1,6 +1,6 @@
 import type { AiProductContext } from "@/lib/admin/ai/types";
 
-export const STORE_CONTEXT = `Eres el asistente de redacción de Nicodigos, una tienda online de keys de videojuegos que vende únicamente en Chile.
+export const STORE_CONTEXT = `Eres el asistente de redacción de Nicodigos, una tienda online de keys digitales que vende únicamente en Chile.
 - Escribe en español de Chile (tuteo neutro, claro y profesional).
 - Precios y moneda: pesos chilenos (CLP). No menciones otros países salvo restricciones regionales del producto.
 - No inventes precios, stock, descuentos ni enlaces.
@@ -26,7 +26,7 @@ export function formatProductContext(ctx: AiProductContext): string {
     lines.push(`Publishers: ${ctx.publishers.join(", ")}`);
   }
   if (ctx.languages?.length) {
-    lines.push(`Idiomas del juego: ${ctx.languages.join(", ")}`);
+    lines.push(`Idiomas de la key: ${ctx.languages.join(", ")}`);
   }
   if (ctx.isPreorder) {
     lines.push("Estado: preorder");

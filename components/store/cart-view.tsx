@@ -97,7 +97,7 @@ export function CartViewPanel({ cart }: CartViewProps) {
           <div className="space-y-2">
             <h2 className="font-heading text-xl font-bold text-foreground">Tu carrito está vacío</h2>
             <p className="text-sm text-muted-foreground max-w-sm">
-              Explora nuestro catálogo completo de juegos oficiales, tarjetas de regalo y licencias de software con activación inmediata.
+              Explora nuestro catálogo completo de keys oficiales, tarjetas de regalo y licencias de software con activación inmediata.
             </p>
           </div>
           <Button asChild size="lg" className="w-full sm:w-auto font-semibold px-6 shadow-sm">
