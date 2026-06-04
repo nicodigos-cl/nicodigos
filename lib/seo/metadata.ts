@@ -64,10 +64,14 @@ export function mergeSeoMetadata(
   }
 
   if (override.robots) {
-    merged.robots = {
-      ...(isRecord(base.robots) ? base.robots : {}),
-      ...override.robots,
-    };
+    if (typeof override.robots === "string") {
+      merged.robots = override.robots;
+    } else {
+      merged.robots = {
+        ...(isRecord(base.robots) ? base.robots : {}),
+        ...override.robots,
+      };
+    }
   }
 
   return merged;

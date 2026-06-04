@@ -69,8 +69,6 @@ async function main() {
       name: "catalog-sync",
       prefixColor: "yellow",
       env: sharedEnv,
-      restartTries: 100,
-      restartDelay: 5_000,
     });
   } else {
     console.log("[dev] Sync catálogo desactivado (DEV_CATALOG_SYNC=0).");
@@ -79,12 +77,14 @@ async function main() {
   const { result } = concurrently(processes, {
     prefix: "{name}",
     killOthersOn: ["failure"],
+    restartTries: 100,
+    restartDelay: 5_000,
   });
 
   await result;
 }
 
-if (import.meta.main) {
+if ((import.meta as any).main) {
   main().catch((error) => {
     console.error(error instanceof Error ? error.message : error);
     process.exit(1);
