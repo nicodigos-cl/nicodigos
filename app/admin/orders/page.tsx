@@ -4,7 +4,7 @@ import { DashboardPageHeader } from "@/components/dashboard/dashboard-page-heade
 import { getAdminOrders } from "@/lib/admin/orders/queries";
 
 export const metadata: Metadata = {
-  title: "Pedidos — Admin",
+  title: "Pedidos",
 };
 
 export default async function AdminOrdersPage() {

@@ -16,6 +16,22 @@ export const metadata: Metadata = {
   title: "Categorías",
   description:
     "Explora keys, gift cards y licencias por tipo de producto digital.",
+  alternates: {
+    canonical: "/categories",
+  },
+  openGraph: {
+    title: "Categorías de Productos Digitales | Nicodigos",
+    description:
+      "Explora keys, gift cards y licencias por tipo de producto digital.",
+    type: "website",
+    url: "/categories",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Categorías de Productos Digitales | Nicodigos",
+    description:
+      "Explora keys, gift cards y licencias por tipo de producto digital.",
+  },
 };
 
 export const revalidate = 300;

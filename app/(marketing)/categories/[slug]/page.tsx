@@ -33,15 +33,36 @@ export async function generateMetadata({
   }
 
   const metadata = resolveCategorySeoMetadata(category, category.seoMetadata);
+  const canonicalPath =
+    filters.page > 1
+      ? `/categories/${slug}?page=${filters.page}`
+      : `/categories/${slug}`;
 
-  if (filters.page > 1) {
-    return {
-      ...metadata,
-      title: `${category.name} — Página ${filters.page}`,
-    };
-  }
-
-  return metadata;
+  return {
+    ...metadata,
+    title:
+      filters.page > 1
+        ? `${category.name} — Página ${filters.page}`
+        : metadata.title,
+    alternates: {
+      canonical: canonicalPath,
+    },
+    openGraph: {
+      ...metadata.openGraph,
+      title:
+        filters.page > 1
+          ? `${category.name} — Página ${filters.page}`
+          : metadata.openGraph?.title,
+      url: canonicalPath,
+    },
+    twitter: {
+      ...metadata.twitter,
+      title:
+        filters.page > 1
+          ? `${category.name} — Página ${filters.page}`
+          : metadata.twitter?.title,
+    },
+  };
 }
 
 export default async function CategoryPage({

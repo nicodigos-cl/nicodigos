@@ -20,6 +20,9 @@ export function buildDefaultProductSeoMetadata(
   const metadata: Metadata = {
     title: product.name,
     description,
+    alternates: {
+      canonical: path,
+    },
     openGraph: {
       title: product.name,
       description,

@@ -7,6 +7,13 @@ import { IconHeart } from "@tabler/icons-react";
 
 export const metadata: Metadata = {
   title: "Lista de deseos",
+  robots: {
+    index: false,
+    follow: false,
+  },
+  alternates: {
+    canonical: "/wishlist",
+  },
 };
 
 export default async function WishlistPage() {

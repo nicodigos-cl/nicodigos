@@ -13,7 +13,7 @@ export async function generateMetadata({
   const { id } = await params;
   const order = await getAdminOrderById(id);
   return {
-    title: order ? `Pedido ${id.slice(0, 8)}… — Admin` : "Pedido — Admin",
+    title: order ? `Pedido ${id.slice(0, 8)}…` : "Pedido no encontrado",
   };
 }
 

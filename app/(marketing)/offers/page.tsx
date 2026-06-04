@@ -30,10 +30,28 @@ export async function generateMetadata({
   const { page: pageParam } = await searchParams;
   const page = parsePageParam(pageParam);
 
+  const title = page > 1 ? `Ofertas — Página ${page}` : "Ofertas";
+  const description =
+    "Promociones y precios destacados en keys, gift cards y licencias digitales.";
+  const path = page > 1 ? `/offers?page=${page}` : "/offers";
+
   return {
-    title: page > 1 ? `Ofertas — Página ${page}` : "Ofertas",
-    description:
-      "Promociones y precios destacados en keys, gift cards y licencias digitales.",
+    title,
+    description,
+    alternates: {
+      canonical: path,
+    },
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      url: path,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
   };
 }
 

@@ -3,7 +3,14 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { requireAdmin } from "@/lib/admin/auth";
 
 export const metadata: Metadata = {
-  title: "Admin",
+  title: {
+    default: "Admin",
+    template: "%s | Admin | Nicodigos",
+  },
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default async function AdminLayout({

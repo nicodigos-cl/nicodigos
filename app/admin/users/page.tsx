@@ -4,7 +4,7 @@ import { DashboardPageHeader } from "@/components/dashboard/dashboard-page-heade
 import { getAdminUsers } from "@/lib/admin/users/queries";
 
 export const metadata: Metadata = {
-  title: "Clientes — Admin",
+  title: "Clientes",
 };
 
 export default async function AdminUsersPage() {

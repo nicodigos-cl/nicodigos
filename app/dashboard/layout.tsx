@@ -3,7 +3,14 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { requireUser } from "@/lib/dashboard/auth";
 
 export const metadata: Metadata = {
-  title: "Mi cuenta",
+  title: {
+    default: "Mi cuenta",
+    template: "%s | Mi cuenta | Nicodigos",
+  },
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default async function DashboardLayout({

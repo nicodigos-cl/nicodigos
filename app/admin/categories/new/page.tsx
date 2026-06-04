@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { isR2Configured } from "@/lib/r2/env";
 
 export const metadata: Metadata = {
-  title: "Nueva categoría — Admin",
+  title: "Nueva categoría",
 };
 
 export default function AdminNewCategoryPage() {

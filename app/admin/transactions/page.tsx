@@ -7,7 +7,7 @@ import {
 } from "@/lib/admin/transactions/queries";
 
 export const metadata: Metadata = {
-  title: "Transacciones — Admin",
+  title: "Transacciones",
 };
 
 export default async function AdminTransactionsPage() {

@@ -11,6 +11,9 @@ export function buildDefaultHomeSeoMetadata(): SeoMetadataDocument {
   const metadata: Metadata = {
     title: "Nicodigos — Keys, gift cards y licencias digitales",
     description,
+    alternates: {
+      canonical: "/",
+    },
     openGraph: {
       title: "Nicodigos — Marketplace digital en Chile",
       description,

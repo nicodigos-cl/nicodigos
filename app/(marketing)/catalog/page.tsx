@@ -21,7 +21,7 @@ export async function generateMetadata({
   const parts: string[] = ["Catálogo"];
 
   if (filters.q) {
-    parts.push(filters.q);
+    parts.push(`Búsqueda: ${filters.q}`);
   }
   if (filters.category) {
     parts.push(filters.category);
@@ -30,10 +30,34 @@ export async function generateMetadata({
     parts.push(`Página ${filters.page}`);
   }
 
+  const title = parts.join(" — ");
+  const description =
+    "Compra keys, gift cards y licencias digitales en Chile. Filtra por plataforma, categoría, ofertas y preventas.";
+
+  const queryParts: string[] = [];
+  if (filters.page > 1) queryParts.push(`page=${filters.page}`);
+  if (filters.category) queryParts.push(`category=${encodeURIComponent(filters.category)}`);
+  if (filters.q) queryParts.push(`q=${encodeURIComponent(filters.q)}`);
+
+  const path = queryParts.length > 0 ? `/catalog?${queryParts.join("&")}` : "/catalog";
+
   return {
-    title: parts.join(" — "),
-    description:
-      "Compra keys, gift cards y licencias digitales en Chile. Filtra por plataforma, categoría, ofertas y preventas.",
+    title,
+    description,
+    alternates: {
+      canonical: path,
+    },
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      url: path,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
   };
 }
 

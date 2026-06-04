@@ -7,7 +7,7 @@ import {
 } from "@/lib/admin/inventory/queries";
 
 export const metadata: Metadata = {
-  title: "Inventario — Admin",
+  title: "Inventario",
 };
 
 export default async function AdminInventoryPage() {

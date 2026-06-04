@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { getAdminCategories } from "@/lib/admin/categories/queries";
 
 export const metadata: Metadata = {
-  title: "Categorías — Admin",
+  title: "Categorías",
 };
 
 export default async function AdminCategoriesPage() {

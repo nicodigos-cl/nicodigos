@@ -12,6 +12,7 @@
     "cron:sync-catalog": "bun run scripts/cron-sync-catalog.ts",
     "sync:catalog": "bun run scripts/sync-catalog-local.ts",
     "sync:catalog:loop": "bun run scripts/sync-catalog-scheduler.ts",
+    "generate:favicons": "bun run scripts/generate-favicons.ts",
     "lint": "eslint"
   },
   "engines": {

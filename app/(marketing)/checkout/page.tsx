@@ -11,6 +11,13 @@ import { formatMoney } from "@/lib/currency/format";
 
 export const metadata: Metadata = {
   title: "Checkout — Datos de compra",
+  robots: {
+    index: false,
+    follow: false,
+  },
+  alternates: {
+    canonical: "/checkout",
+  },
 };
 
 export default async function CheckoutPage() {

@@ -8,6 +8,13 @@ import { IconShoppingCart } from "@tabler/icons-react";
 
 export const metadata: Metadata = {
   title: "Carrito",
+  robots: {
+    index: false,
+    follow: false,
+  },
+  alternates: {
+    canonical: "/cart",
+  },
 };
 
 export default async function CartPage() {

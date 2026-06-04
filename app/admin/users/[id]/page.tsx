@@ -13,7 +13,7 @@ export async function generateMetadata({
   const { id } = await params;
   const user = await getAdminUserById(id);
   return {
-    title: user ? `${user.name} — Admin` : "Cliente — Admin",
+    title: user ? `Usuario: ${user.name}` : "Usuario no encontrado",
   };
 }
 

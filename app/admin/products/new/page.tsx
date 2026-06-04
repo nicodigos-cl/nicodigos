@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { isKinguinConfigured } from "@/lib/kinguin/client";
 
 export const metadata: Metadata = {
-  title: "Nuevo producto — Admin",
+  title: "Nuevo producto",
 };
 
 export default function AdminNewProductPage() {

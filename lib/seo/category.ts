@@ -29,6 +29,9 @@ export function buildDefaultCategorySeoMetadata(
   const metadata: Metadata = {
     title: category.name,
     description,
+    alternates: {
+      canonical: path,
+    },
     openGraph: {
       title: category.name,
       description,

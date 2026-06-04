@@ -12,7 +12,7 @@ import { syncAllProductsClpFromSourceIfNeeded } from "@/lib/admin/products/sync-
 import { getEurToClpRate } from "@/lib/currency/exchange";
 
 export const metadata: Metadata = {
-  title: "Productos — Admin",
+  title: "Productos",
 };
 
 export default async function AdminProductsPage() {
