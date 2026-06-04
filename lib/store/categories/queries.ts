@@ -1,11 +1,10 @@
 import prisma from "@/lib/prisma";
 import { seoMetadataFromRelation } from "@/lib/seo/metadata";
 import type { SeoMetadataDocument } from "@/lib/seo/metadata";
-import {
-  CATALOG_PAGE_SIZE,
-  type StorefrontProduct,
-  type StorefrontProductsPage,
-} from "@/lib/store/products";
+import { CATALOG_PAGE_SIZE } from "@/lib/store/products";
+import { mapStorefrontProductCard } from "@/lib/store/home/map-product";
+import type { StorefrontProductCardsPage } from "@/lib/store/home/types";
+import { storefrontProductCardSelect } from "@/lib/store/product-card-query";
 
 export type StorefrontCategory = {
   id: string;
@@ -39,15 +38,6 @@ const activeProductWhere = {
   qty: { gt: 0 },
 } as const;
 
-const storefrontProductSelect = {
-  id: true,
-  slug: true,
-  name: true,
-  platform: true,
-  coverImageUrl: true,
-  sellPrice: true,
-} as const;
-
 function categoryDescriptionPreview(
   html: string | null,
   maxLength = 120,
@@ -66,24 +56,6 @@ function categoryDescriptionPreview(
   }
 
   return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
-}
-
-function mapStorefrontProduct(product: {
-  id: string;
-  slug: string;
-  name: string;
-  platform: string;
-  coverImageUrl: string | null;
-  sellPrice: { toString(): string };
-}): StorefrontProduct {
-  return {
-    id: product.id,
-    slug: product.slug,
-    name: product.name,
-    platform: product.platform,
-    coverImageUrl: product.coverImageUrl,
-    sellPrice: product.sellPrice.toString(),
-  };
 }
 
 export async function getStorefrontCategoryBySlug(
@@ -128,7 +100,7 @@ export async function getStorefrontCategoryProductsPage(
   categorySlug: string,
   page = 1,
   pageSize = CATALOG_PAGE_SIZE,
-): Promise<StorefrontProductsPage | null> {
+): Promise<StorefrontProductCardsPage | null> {
   const category = await prisma.category.findUnique({
     where: { slug: categorySlug },
     select: { id: true },
@@ -153,11 +125,15 @@ export async function getStorefrontCategoryProductsPage(
     orderBy: [{ updatedAt: "desc" }],
     take: pageSize,
     skip,
-    select: storefrontProductSelect,
+    select: storefrontProductCardSelect,
   });
 
   return {
-    products: products.map(mapStorefrontProduct),
+    products: products.map((row) =>
+      mapStorefrontProductCard(
+        row as Parameters<typeof mapStorefrontProductCard>[0],
+      ),
+    ),
     total,
     page: safePage,
     pageSize,

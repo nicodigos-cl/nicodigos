@@ -2,6 +2,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { getStorefrontCategories } from "@/lib/store/categories/queries";
 import { mapStorefrontProductCard } from "@/lib/store/home/map-product";
+import { storefrontProductCardSelect } from "@/lib/store/product-card-query";
 import {
   DEFAULT_CATALOG_PAGE_SIZE,
   type CatalogFilterOptions,
@@ -10,34 +11,7 @@ import {
   type CatalogSort,
 } from "@/lib/store/catalog/types";
 
-const productCardSelect: Prisma.ProductSelect = {
-  id: true,
-  slug: true,
-  name: true,
-  description: true,
-  platform: true,
-  genres: true,
-  coverImageUrl: true,
-  sellPrice: true,
-  costPrice: true,
-  qty: true,
-  isOffer: true,
-  isPreorder: true,
-  releaseDate: true,
-  regionName: true,
-  languages: true,
-  developers: true,
-  publishers: true,
-  offers: {
-    orderBy: [{ isDefault: "desc" }, { sellPrice: "asc" }],
-    take: 1,
-    select: {
-      sellPrice: true,
-      qty: true,
-      isPreorder: true,
-    },
-  },
-};
+const productCardSelect = storefrontProductCardSelect;
 
 function buildCatalogWhere(filters: CatalogFilters): Prisma.ProductWhereInput {
   const where: Prisma.ProductWhereInput = {

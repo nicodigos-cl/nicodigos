@@ -1,9 +1,8 @@
 import prisma from "@/lib/prisma";
-import {
-  CATALOG_PAGE_SIZE,
-  type StorefrontProduct,
-  type StorefrontProductsPage,
-} from "@/lib/store/products";
+import { CATALOG_PAGE_SIZE } from "@/lib/store/products";
+import { mapStorefrontProductCard } from "@/lib/store/home/map-product";
+import type { StorefrontProductCardsPage } from "@/lib/store/home/types";
+import { storefrontProductCardSelect } from "@/lib/store/product-card-query";
 
 export const OFFERS_PAGE_SIZE = CATALOG_PAGE_SIZE;
 
@@ -13,37 +12,10 @@ const storefrontOfferWhere = {
   qty: { gt: 0 },
 } as const;
 
-const storefrontOfferSelect = {
-  id: true,
-  slug: true,
-  name: true,
-  platform: true,
-  coverImageUrl: true,
-  sellPrice: true,
-} as const;
-
-function mapOfferProduct(product: {
-  id: string;
-  slug: string;
-  name: string;
-  platform: string;
-  coverImageUrl: string | null;
-  sellPrice: { toString(): string };
-}): StorefrontProduct {
-  return {
-    id: product.id,
-    slug: product.slug,
-    name: product.name,
-    platform: product.platform,
-    coverImageUrl: product.coverImageUrl,
-    sellPrice: product.sellPrice.toString(),
-  };
-}
-
 export async function getStorefrontOffersPage(
   page = 1,
   pageSize = OFFERS_PAGE_SIZE,
-): Promise<StorefrontProductsPage> {
+): Promise<StorefrontProductCardsPage> {
   const total = await prisma.product.count({ where: storefrontOfferWhere });
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const safePage = Math.min(Math.max(1, page), totalPages);
@@ -54,11 +26,15 @@ export async function getStorefrontOffersPage(
     orderBy: [{ updatedAt: "desc" }],
     take: pageSize,
     skip,
-    select: storefrontOfferSelect,
+    select: storefrontProductCardSelect,
   });
 
   return {
-    products: products.map(mapOfferProduct),
+    products: products.map((row) =>
+      mapStorefrontProductCard(
+        row as Parameters<typeof mapStorefrontProductCard>[0],
+      ),
+    ),
     total,
     page: safePage,
     pageSize,

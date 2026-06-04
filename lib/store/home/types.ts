@@ -30,6 +30,14 @@ export type StorefrontProductCard = {
   offer: StorefrontProductOffer | null;
 };
 
+export type StorefrontProductCardsPage = {
+  products: StorefrontProductCard[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
 export type HomePageData = {
   categories: StorefrontCategory[];
   navCategories: StorefrontNavCategory[];

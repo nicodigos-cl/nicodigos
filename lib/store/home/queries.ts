@@ -9,40 +9,14 @@ import type {
   HomePageData,
   StorefrontProductCard,
 } from "@/lib/store/home/types";
+import { storefrontProductCardSelect } from "@/lib/store/product-card-query";
 
 const HOME_FEATURED_LIMIT = 8;
 const HOME_OFFERS_LIMIT = 8;
 const HOME_PREORDERS_LIMIT = 6;
 const HOME_HERO_LIMIT = 12;
 
-const productCardSelect: Prisma.ProductSelect = {
-  id: true,
-  slug: true,
-  name: true,
-  description: true,
-  platform: true,
-  genres: true,
-  coverImageUrl: true,
-  sellPrice: true,
-  costPrice: true,
-  qty: true,
-  isOffer: true,
-  isPreorder: true,
-  releaseDate: true,
-  regionName: true,
-  languages: true,
-  developers: true,
-  publishers: true,
-  offers: {
-    orderBy: [{ isDefault: "desc" }, { sellPrice: "asc" }],
-    take: 1,
-    select: {
-      sellPrice: true,
-      qty: true,
-      isPreorder: true,
-    },
-  },
-};
+const productCardSelect = storefrontProductCardSelect;
 
 const inStockWhere = {
   isActive: true,
