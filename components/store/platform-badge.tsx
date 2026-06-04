@@ -20,10 +20,14 @@ type PlatformBadgeProps = {
   showLabel?: boolean;
   /** Fondo opaco para usar sobre portadas de producto. */
   overlay?: boolean;
-  size?: "sm" | "md";
+  size?: "xs" | "sm" | "md";
 };
 
 const sizeConfig = {
+  xs: {
+    badge: "h-7 min-w-7 px-1.5 [&>svg]:!size-4",
+    icon: "size-4",
+  },
   sm: {
     badge: "h-9 min-w-9 px-2.5 [&>svg]:!size-6",
     icon: "size-6",

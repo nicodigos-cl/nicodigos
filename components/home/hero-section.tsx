@@ -58,7 +58,7 @@ export default function HeroSection({ products, hasOffers }: HeroSectionProps) {
               </Badge>
             </div>
 
-            <h1 className="font-heading text-4xl font-semibold tracking-tight text-balance text-foreground sm:text-5xl lg:text-6xl">
+            <h1 className="font-heading text-4xl font-semibold tracking-tight text-balance text-foreground sm:text-5xl lg:text-6xl px-4 sm:px-6 lg:px-8">
               <span className="inline-flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1">
                 <span>
                   Consigue tus keys, gift cards y licencias al tiro{" "}
@@ -104,7 +104,7 @@ export default function HeroSection({ products, hasOffers }: HeroSectionProps) {
           </div>
 
           <div className="mt-10 sm:mt-12">
-            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between px-4 sm:px-6 lg:px-8">
               <div className="flex items-center gap-2">
                 {hasOffers ? (
                   <IconBolt

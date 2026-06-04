@@ -90,4 +90,5 @@ export const footerAccountLinks: StoreNavItem[] = [
 export const footerLegalLinks: StoreNavItem[] = [
   { name: "Términos", href: "/legal/terms" },
   { name: "Privacidad", href: "/legal/privacy" },
+  { name: "Empresa", href: "/legal/company" },
 ];

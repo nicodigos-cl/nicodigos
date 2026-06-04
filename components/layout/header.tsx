@@ -275,12 +275,6 @@ export function MarketplaceHeader({
         </div>
 
         <div className="ml-auto flex items-center gap-1 lg:hidden">
-          <StoreHeaderIcons
-            cart={cart}
-            cartCount={cartCount}
-            wishlistCount={wishlistCount}
-            isAuthenticated={isAuthenticated}
-          />
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button

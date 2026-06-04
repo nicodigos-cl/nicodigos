@@ -10,7 +10,7 @@ import { storeRoutes } from "@/lib/store/navigation";
 import { cn } from "@/lib/utils";
 
 export const storefrontProductGridClassName =
-  "grid grid-cols-1 gap-y-4 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-3 lg:gap-x-8";
+  "grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-3 lg:gap-x-8";
 
 export type StorefrontCardProduct = {
   id: string;
@@ -103,7 +103,7 @@ export function StorefrontProductCardView({
       )}
     >
       {product.isOffer && product.discountPercent ? (
-        <Badge className="absolute right-3 top-3 z-20 border-0 bg-rose-500 font-extrabold text-white shadow-md text-[10px] tracking-wider uppercase">
+        <Badge className="absolute right-2 top-2 sm:right-3 sm:top-3 z-20 border-0 bg-rose-500 font-extrabold text-white shadow-md text-[9px] sm:text-[10px] tracking-wider uppercase px-1.5 py-0.5 sm:px-2.5">
           -{product.discountPercent}%
         </Badge>
       ) : null}
@@ -121,21 +121,37 @@ export function StorefrontProductCardView({
         <PlatformBadge
           platform={product.platform}
           overlay
-          className="absolute left-3 top-3 z-20"
+          size="xs"
+          className="absolute left-2 top-2 z-20 sm:hidden"
+        />
+        <PlatformBadge
+          platform={product.platform}
+          overlay
+          size="sm"
+          className="absolute left-3 top-3 z-20 hidden sm:inline-flex"
         />
         {isPreorder ? (
-          <Badge
-            variant="outline"
-            className="absolute left-3 top-14 z-20 border-violet-500/30 bg-background text-violet-600 font-bold text-[10px] shadow-md backdrop-blur-sm dark:bg-zinc-950 dark:text-violet-400"
-          >
-            <IconClock className="size-3" aria-hidden />
-            Preventa
-          </Badge>
+          <>
+            <Badge
+              variant="outline"
+              className="absolute left-2 top-10 z-20 border-violet-500/30 bg-background text-violet-600 font-bold text-[9px] shadow-md backdrop-blur-sm dark:bg-zinc-950 dark:text-violet-400 sm:hidden"
+            >
+              <IconClock className="size-2.5" aria-hidden />
+              Reserva
+            </Badge>
+            <Badge
+              variant="outline"
+              className="absolute left-3 top-14 z-20 border-violet-500/30 bg-background text-violet-600 font-bold text-[10px] shadow-md backdrop-blur-sm dark:bg-zinc-950 dark:text-violet-400 hidden sm:inline-flex"
+            >
+              <IconClock className="size-3" aria-hidden />
+              Preventa
+            </Badge>
+          </>
         ) : null}
       </Link>
 
-      <div className="relative z-10 flex flex-1 flex-col space-y-2 p-4">
-        <h3 className="text-sm font-medium text-foreground">
+      <div className="relative z-10 flex flex-1 flex-col space-y-2 p-3 sm:p-4">
+        <h3 className="text-xs font-semibold sm:text-sm sm:font-medium text-foreground leading-tight">
           <Link
             href={storeRoutes.product(product.slug)}
             className="hover:text-primary transition-colors"
@@ -145,51 +161,51 @@ export function StorefrontProductCardView({
         </h3>
 
         {description ? (
-          <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+          <p className="hidden sm:block text-sm text-muted-foreground line-clamp-2 leading-relaxed">
             {description}
           </p>
         ) : null}
 
-        <div className="flex flex-1 flex-col justify-end gap-3 pt-1">
+        <div className="flex flex-1 flex-col justify-end gap-2.5 pt-1">
           {metaLine ? (
-            <p className="text-sm text-muted-foreground italic line-clamp-1">
+            <p className="text-[10px] sm:text-xs text-muted-foreground italic line-clamp-1">
               {metaLine}
             </p>
           ) : null}
 
-          <div className="flex items-end justify-between gap-2 border-t border-border/50 pt-3">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-1 sm:gap-2 border-t border-border/50 pt-2 sm:pt-3">
             <div className="min-w-0">
               {product.listPrice ? (
-                <p className="text-xs text-muted-foreground line-through tabular-nums">
+                <p className="text-[10px] sm:text-xs text-muted-foreground line-through tabular-nums leading-none mb-0.5">
                   {formatMoney(product.listPrice)}
                 </p>
               ) : null}
-              <p className="text-base font-medium tabular-nums text-foreground">
+              <p className="text-sm sm:text-base font-extrabold sm:font-bold tabular-nums text-foreground leading-none">
                 {formatMoney(displayPrice)}
               </p>
             </div>
-            <p className="shrink-0 text-xs font-medium tabular-nums">
+            <div className="text-left sm:text-right shrink-0">
               {isPreorder ? (
-                <span className="text-violet-500">Reserva</span>
+                <span className="text-[9px] sm:text-xs font-bold sm:font-semibold text-violet-500 uppercase sm:normal-case">Reserva</span>
               ) : qty > 0 ? (
-                <span className="text-emerald-600 dark:text-emerald-400">
+                <span className="text-[9px] sm:text-xs font-bold sm:font-semibold text-emerald-600 dark:text-emerald-400">
                   {qty} en stock
                 </span>
               ) : (
-                <span className="text-muted-foreground">Agotado</span>
+                <span className="text-[9px] sm:text-xs font-bold sm:font-semibold text-muted-foreground uppercase sm:normal-case">Agotado</span>
               )}
-            </p>
+            </div>
           </div>
 
           {product.isOffer ? (
-            <p className="flex items-center gap-0.5 text-xs font-semibold text-rose-500">
-              <IconBolt className="size-3" aria-hidden />
+            <p className="flex items-center gap-0.5 text-[10px] sm:text-xs font-semibold text-rose-500">
+              <IconBolt className="size-3 shrink-0" aria-hidden />
               Oferta activa
             </p>
           ) : null}
 
           {isPreorder && product.releaseDate ? (
-            <p className="flex items-center gap-1 text-xs font-medium text-violet-500">
+            <p className="flex items-center gap-1 text-[10px] sm:text-xs font-medium text-violet-500">
               <IconCalendar className="size-3 shrink-0" aria-hidden />
               <span className="truncate">{product.releaseDate}</span>
             </p>
@@ -199,7 +215,7 @@ export function StorefrontProductCardView({
             productId={product.id}
             compact
             disabled={!inStock}
-            className="relative z-10 w-full flex-row gap-2 [&_button]:min-h-9 [&_button]:flex-1 [&_button]:text-xs"
+            className="hidden sm:flex relative z-10 w-full flex-row gap-2 [&_button]:min-h-9 [&_button]:flex-1 [&_button]:text-xs"
           />
         </div>
       </div>

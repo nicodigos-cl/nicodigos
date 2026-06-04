@@ -276,6 +276,24 @@ export default async function ProductPage({ params }: ProductPageProps) {
           ) : null}
         </div>
       </div>
+
+      {/* Sticky bottom actions bar on mobile */}
+      <div className="lg:hidden fixed bottom-16 inset-x-0 bg-background/95 backdrop-blur-md border-t border-border/80 p-4 z-40 flex items-center justify-between gap-4 shadow-lg safe-bottom">
+        <div className="min-w-0">
+          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Total</p>
+          <p className="text-lg font-black text-primary tabular-nums">
+            {formatMoney(product.sellPrice)}
+          </p>
+        </div>
+        <div className="flex-1 max-w-[240px]">
+          <ProductStoreActions
+            productId={product.id}
+            inWishlist={inWishlist}
+            disabled={!inStock}
+            className="w-full flex-row gap-2 [&_button]:min-h-10 [&_button]:flex-1 [&_button]:text-xs"
+          />
+        </div>
+      </div>
     </main>
   );
 }

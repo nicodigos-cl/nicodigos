@@ -106,14 +106,14 @@ export function WishlistViewPanel({ wishlist }: WishlistViewProps) {
         </Button>
       </div>
 
-      <ul className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3">
         {wishlist.items.map((item) => (
           <li key={item.id}>
             <Card className="h-full glass-card overflow-hidden hover:border-rose-500/20 transition-all duration-300">
-              <CardContent className="flex h-full flex-col gap-4 p-5">
+              <CardContent className="flex h-full flex-col gap-3 p-3 sm:gap-4 sm:p-5">
                 <Link
                   href={storeRoutes.product(item.product.slug)}
-                  className="relative overflow-hidden block aspect-[16/10] bg-muted/20 border border-border/50 rounded-xl"
+                  className="relative overflow-hidden block aspect-[4/3] sm:aspect-[16/10] bg-muted/20 border border-border/50 rounded-xl"
                 >
                   <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 pointer-events-none" />
                   <StoreProductCover
@@ -124,25 +124,25 @@ export function WishlistViewPanel({ wishlist }: WishlistViewProps) {
                   />
                 </Link>
 
-                <div className="flex flex-1 flex-col gap-2">
-                  <Badge variant="secondary" className="w-fit font-bold text-[10px] tracking-wider uppercase">
+                <div className="flex flex-1 flex-col gap-1.5 sm:gap-2">
+                  <Badge variant="secondary" className="w-fit font-bold text-[8px] sm:text-[10px] tracking-wider uppercase px-1.5 py-0">
                     {item.product.platform}
                   </Badge>
                   <Link
                     href={storeRoutes.product(item.product.slug)}
-                    className="line-clamp-2 text-sm font-extrabold text-foreground hover:text-primary transition-colors leading-snug"
+                    className="line-clamp-2 text-xs sm:text-sm font-extrabold text-foreground hover:text-primary transition-colors leading-snug"
                   >
                     {item.product.name}
                   </Link>
-                  <div className="flex items-baseline justify-between mt-auto pt-2 border-t border-border/30">
-                    <span className="text-xs text-muted-foreground/80 font-medium">Precio</span>
-                    <p className="text-base font-black text-foreground tabular-nums">
+                  <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between mt-auto pt-2 border-t border-border/30 gap-1">
+                    <span className="hidden sm:inline text-xs text-muted-foreground/80 font-medium">Precio</span>
+                    <p className="text-sm sm:text-base font-extrabold text-foreground tabular-nums">
                       {formatMoney(item.product.sellPrice)}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2 pt-2 border-t border-border/10">
+                <div className="flex items-center gap-1.5 pt-2 border-t border-border/10">
                   <Button
                     type="button"
                     disabled={
@@ -151,20 +151,21 @@ export function WishlistViewPanel({ wishlist }: WishlistViewProps) {
                       item.product.qty <= 0
                     }
                     onClick={() => handleAddToCart(item.id)}
-                    className="w-full h-9 text-xs font-bold shadow-sm"
+                    className="flex-1 h-9 text-xs font-bold shadow-sm px-2"
                   >
-                    <FiShoppingCart className="size-3.5 mr-1" />
-                    Agregar al carrito
+                    <FiShoppingCart className="size-3.5 mr-1 shrink-0" />
+                    <span className="truncate">Añadir</span>
                   </Button>
                   <Button
                     type="button"
                     variant="ghost"
+                    size="icon"
                     disabled={isPending}
                     onClick={() => handleRemove(item.id)}
-                    className="w-full h-9 text-xs text-muted-foreground hover:text-destructive transition-colors rounded-lg"
+                    className="size-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                    aria-label="Quitar de la lista de deseos"
                   >
-                    <FiTrash2 className="size-3.5 mr-1" />
-                    Quitar
+                    <FiTrash2 className="size-3.5" />
                   </Button>
                 </div>
               </CardContent>

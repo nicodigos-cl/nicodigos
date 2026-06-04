@@ -94,75 +94,63 @@ export default async function CategoriesPage() {
             </Link>
           </Empty>
         ) : (
-          <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
             {categories.map((category) => (
               <li key={category.id}>
                 <Link
                   href={storeRoutes.category(category.slug)}
                   className="group block h-full"
                 >
-                  <article
-                    className="flex h-full flex-col overflow-hidden rounded-2xl glass-card glass-card-hover transition-all duration-300"
-                  >
-                    <div className="relative aspect-[16/7] overflow-hidden bg-muted/20">
+                  <article className="group relative overflow-hidden rounded-3xl border border-border/80 bg-muted/10 transition-all duration-300 hover:border-primary/45 hover:shadow-lg">
+                    <div className="relative aspect-[4/3] sm:aspect-[16/8] w-full overflow-hidden">
                       {category.bannerUrl || category.imageUrl ? (
                         <Image
                           src={category.bannerUrl ?? category.imageUrl!}
                           alt={category.name}
                           fill
                           unoptimized
-                          sizes="(max-width:640px) 100vw, 400px"
-                          className="object-cover transition-transform duration-500 group-hover:scale-106"
+                          sizes="(max-width:640px) 50vw, 400px"
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/10 via-muted to-indigo-500/10">
-                          <IconCategory className="size-12 text-primary/40" />
+                          <IconCategory className="size-12 text-primary/30" />
                         </div>
                       )}
-                      {/* Gradient overlay inside image for better text readability */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
                       
-                      <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3 z-10">
-                        <div className="min-w-0">
-                          <h2 className="font-heading text-lg font-extrabold text-foreground truncate">
+                      {/* Gradient overlay inside image for better text readability */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent transition-opacity duration-300 group-hover:from-black/95" />
+                      
+                      {/* Overlay content */}
+                      <div className="absolute inset-0 flex flex-col justify-end p-4 sm:p-6">
+                        <div className="space-y-1.5 transform translate-y-3 sm:translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                          <h2 className="font-heading text-sm sm:text-xl font-black text-white tracking-tight uppercase group-hover:text-primary transition-colors truncate">
                             {category.name}
                           </h2>
-                          <p className="text-xs font-semibold text-muted-foreground/90">
-                            {category.productCount === 1
-                              ? "1 producto"
-                              : `${category.productCount} productos`}
-                          </p>
-                        </div>
-                        {category.imageUrl ? (
-                          <div className="relative size-12 shrink-0 overflow-hidden rounded-xl border border-border bg-background shadow-md">
-                            <Image
-                              src={category.imageUrl}
-                              alt=""
-                              fill
-                              unoptimized
-                              sizes="48px"
-                              className="object-cover"
-                            />
+                          
+                          {/* Description hidden on mobile, fades in on desktop hover */}
+                          {category.description ? (
+                            <p className="hidden sm:block text-xs text-gray-300 line-clamp-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-75 leading-relaxed">
+                              {category.description}
+                            </p>
+                          ) : (
+                            <p className="hidden sm:block text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-75">
+                              Explora todo el catálogo de {category.name.toLowerCase()} al mejor precio.
+                            </p>
+                          )}
+                          
+                          <div className="flex items-center justify-between gap-2 pt-1">
+                            <p className="text-[10px] sm:text-xs font-bold text-gray-300">
+                              {category.productCount === 1
+                                ? "1 producto"
+                                : `${category.productCount} productos`}
+                            </p>
+                            <span className="text-[10px] sm:text-xs font-extrabold text-primary opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                              Explorar →
+                            </span>
                           </div>
-                        ) : null}
+                        </div>
                       </div>
-                    </div>
-
-                    <div className="flex flex-1 flex-col gap-4 p-5 relative z-10">
-                      {category.description ? (
-                        <p className="line-clamp-2 text-sm text-muted-foreground leading-relaxed">
-                          {category.description}
-                        </p>
-                      ) : (
-                        <p className="text-sm text-muted-foreground/75">
-                          Ver productos de {category.name.toLowerCase()}.
-                        </p>
-                      )}
-
-                      <span className="mt-auto inline-flex items-center gap-1 text-sm font-bold text-primary group-hover:gap-1.5 transition-all">
-                        Explorar
-                        <IconChevronRight className="size-4" />
-                      </span>
                     </div>
                   </article>
                 </Link>
