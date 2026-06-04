@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { addToCartAction } from "@/lib/store/cart/actions";
+import { playSound } from "@/lib/sounds";
 import { toggleWishlistAction } from "@/lib/store/wishlist/actions";
 import { cn } from "@/lib/utils";
 
@@ -34,9 +35,11 @@ export function ProductStoreActions({
     startTransition(async () => {
       const result = await addToCartAction(productId, 1);
       if (!result.success) {
+        playSound("caution");
         toast.error(result.error);
         return;
       }
+      playSound("notification");
       toast.success(result.message ?? "Agregado al carrito.");
     });
   }
@@ -45,10 +48,12 @@ export function ProductStoreActions({
     startTransition(async () => {
       const result = await toggleWishlistAction(productId);
       if (!result.success) {
+        playSound("caution");
         toast.error(result.error);
         return;
       }
       setSaved(result.data?.inWishlist ?? !saved);
+      playSound(result.data?.inWishlist ? "toggleOn" : "toggleOff");
       toast.success(result.message);
     });
   }

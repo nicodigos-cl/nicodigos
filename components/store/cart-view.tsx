@@ -17,6 +17,7 @@ import {
   removeCartItemAction,
   updateCartItemQuantityAction,
 } from "@/lib/store/cart/actions";
+import { playSound } from "@/lib/sounds";
 import type { CartView } from "@/lib/store/types";
 import { storeRoutes } from "@/lib/store/navigation";
 import { formatMoney } from "@/lib/currency/format";
@@ -29,7 +30,10 @@ export function CartViewPanel({ cart }: CartViewProps) {
   const [isPending, startTransition] = useTransition();
 
   function refreshFromAction(message?: string) {
-    if (message) toast.success(message);
+    if (message) {
+      playSound("notification");
+      toast.success(message);
+    }
     startTransition(() => {
       window.location.reload();
     });
@@ -39,6 +43,7 @@ export function CartViewPanel({ cart }: CartViewProps) {
     startTransition(async () => {
       const result = await updateCartItemQuantityAction(itemId, quantity);
       if (!result.success) {
+        playSound("caution");
         toast.error(result.error);
         return;
       }
@@ -50,6 +55,7 @@ export function CartViewPanel({ cart }: CartViewProps) {
     startTransition(async () => {
       const result = await removeCartItemAction(itemId);
       if (!result.success) {
+        playSound("caution");
         toast.error(result.error);
         return;
       }
@@ -61,6 +67,7 @@ export function CartViewPanel({ cart }: CartViewProps) {
     startTransition(async () => {
       const result = await moveCartItemToWishlistAction(itemId);
       if (!result.success) {
+        playSound("caution");
         toast.error(result.error);
         return;
       }
@@ -72,6 +79,7 @@ export function CartViewPanel({ cart }: CartViewProps) {
     startTransition(async () => {
       const result = await clearCartAction();
       if (!result.success) {
+        playSound("caution");
         toast.error(result.error);
         return;
       }

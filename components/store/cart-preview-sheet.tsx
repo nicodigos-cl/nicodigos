@@ -18,6 +18,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { formatMoney } from "@/lib/currency/format";
+import { playSound } from "@/lib/sounds";
 import {
   removeCartItemAction,
   updateCartItemQuantityAction,
@@ -45,7 +46,10 @@ export function CartPreviewSheet({
   const itemCount = cart?.itemCount ?? cartCount;
 
   function refresh(message?: string) {
-    if (message) toast.success(message);
+    if (message) {
+      playSound("notification");
+      toast.success(message);
+    }
     router.refresh();
   }
 
@@ -53,6 +57,7 @@ export function CartPreviewSheet({
     startTransition(async () => {
       const result = await updateCartItemQuantityAction(itemId, quantity);
       if (!result.success) {
+        playSound("caution");
         toast.error(result.error);
         return;
       }
@@ -64,6 +69,7 @@ export function CartPreviewSheet({
     startTransition(async () => {
       const result = await removeCartItemAction(itemId);
       if (!result.success) {
+        playSound("caution");
         toast.error(result.error);
         return;
       }

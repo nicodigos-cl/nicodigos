@@ -45,6 +45,7 @@ import { footerLegalLinks, storeRoutes } from "@/lib/store/navigation";
 import type { UserAddress } from "@/lib/settings/types";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/currency/format";
+import { playSound } from "@/lib/sounds";
 
 type CheckoutFormProps = CheckoutPageData & {
   userId: string;
@@ -261,10 +262,12 @@ export function CheckoutForm({
       });
 
       if (!result.success) {
+        playSound("caution");
         toast.error(result.error);
         return;
       }
 
+      playSound("transitionUp");
       clearCheckoutDraftFromStorage(userId);
       window.location.href = result.data!.redirectUrl;
     });

@@ -1,3 +1,4 @@
+import prisma from "@/lib/prisma";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -7,6 +8,7 @@ import { PlatformBadge } from "@/components/store/platform-badge";
 import { ProductGallery } from "@/components/store/product-gallery";
 import { ProductStoreActions } from "@/components/store/product-store-actions";
 import { ProductDetailsTabs } from "@/components/store/product-tabs";
+import { ProductActivationDialog } from "@/components/store/product-activation-dialog";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/currency/format";
 import { getOptionalStoreSession } from "@/lib/store/auth";
@@ -201,12 +203,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
               <p className="mt-4 text-sm/6 text-muted-foreground">
                 Recibes tu key o instrucciones en tu cuenta y correo apenas se
                 confirme el pago.{" "}
-                <a
-                  href="#product-tabs"
-                  className="font-medium text-primary hover:text-primary/80"
-                >
-                  Ver detalles de activación
-                </a>
+                <ProductActivationDialog activationDetails={product.activationDetails} />
               </p>
             </section>
 

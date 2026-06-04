@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Nunito_Sans, Roboto } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { SoundEffects } from "@/components/sound-effects";
 import { Toaster } from "@/components/ui/sonner";
 
 const robotoHeading = Roboto({
@@ -117,6 +118,7 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning className="min-h-full flex flex-col">
         {children}
+        <SoundEffects />
         <Toaster />
       </body>
     </html>

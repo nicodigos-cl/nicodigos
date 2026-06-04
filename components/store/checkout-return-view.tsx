@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   IconAlertTriangle,
@@ -33,6 +33,7 @@ import {
   hasCheckoutReturnKeys,
   type CheckoutReturnPhase,
 } from "@/lib/store/checkout/return-ui";
+import { playSound, useLoopingSound } from "@/lib/sounds";
 import { storeRoutes } from "@/lib/store/navigation";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +50,7 @@ type ViewState =
   | { status: "ready"; result: CheckoutReturnResult };
 
 export function CheckoutReturnView({ token }: CheckoutReturnViewProps) {
+  const lastReadySoundRef = useRef<string | null>(null);
   const [view, setView] = useState<ViewState>(() =>
     token
       ? {
@@ -65,6 +67,37 @@ export function CheckoutReturnView({ token }: CheckoutReturnViewProps) {
           },
         },
   );
+
+  useLoopingSound("progressLoop", view.status === "loading", { volume: 0.14 });
+
+  useEffect(() => {
+    if (view.status !== "ready") return;
+
+    const presentation = getCheckoutReturnPresentation(view.result);
+    const soundKey = [
+      view.result.outcome,
+      view.result.orderId ?? "no-order",
+      presentation.variant,
+      hasCheckoutReturnKeys(view.result) ? "keys" : "no-keys",
+    ].join(":");
+
+    if (lastReadySoundRef.current === soundKey) return;
+    lastReadySoundRef.current = soundKey;
+
+    if (presentation.showKeys && hasCheckoutReturnKeys(view.result)) {
+      playSound("celebration", { volume: 0.42 });
+      return;
+    }
+
+    if (presentation.variant === "waiting") {
+      playSound("notification");
+      return;
+    }
+
+    if (presentation.variant === "error") {
+      playSound("caution");
+    }
+  }, [view]);
 
   useEffect(() => {
     const safeToken = token?.trim() ?? "";
