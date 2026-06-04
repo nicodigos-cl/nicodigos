@@ -11,6 +11,7 @@ import prisma from "@/lib/prisma";
 import type { KinguinKey, KinguinOrder } from "@/types/kinguin";
 import { storeRoutes } from "@/lib/store/navigation";
 import { syncTransactionsForOrder } from "@/lib/transactions/on-order";
+import { getKinguinBalanceCached, updateKinguinBalanceCached } from "@/lib/kinguin/balance";
 
 export type FulfillKinguinOrderResult = {
   status: "completed" | "processing" | "failed" | "skipped";
@@ -268,6 +269,78 @@ async function claimKinguinPlacement(
   return claim.count > 0 ? "claimed" : "busy";
 }
 
+async function buildAndPlaceKinguinOrder(
+  order: FulfillmentOrder,
+  items: Array<{
+    id: string;
+    kinguinId: number;
+    kinguinProductId: string;
+    kinguinOfferId: string;
+    quantity: number;
+    offer: { sourceCostPrice: any } | null;
+  }>,
+  kinguin: ReturnType<typeof getKinguinSdk>,
+): Promise<FulfillKinguinOrderResult> {
+  const kinguinProducts = await buildKinguinPlaceOrderProducts(
+    items,
+    kinguin,
+  );
+
+  const totalCostEur = kinguinProducts.reduce(
+    (sum, p) => sum + p.price * p.qty,
+    0,
+  );
+  const balance = await getKinguinBalanceCached();
+
+  if (balance < totalCostEur) {
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        kinguinStatus: `${KINGUIN_ERROR_PREFIX}Insufficient balance to fulfill order automatically (Cost: ${totalCostEur} EUR, Balance: ${balance} EUR). Manual fulfillment required.`,
+      },
+    });
+
+    return {
+      status: "failed",
+      message:
+        "Tu pago está confirmado. Estamos preparando la entrega manualmente; revisa Mis pedidos en unos minutos.",
+      keysDelivered: 0,
+    };
+  }
+
+  const kinguinOrder = await placeKinguinOrderWithFallback(
+    order.id,
+    kinguinProducts,
+    kinguin,
+    order.createdAt,
+  );
+
+  // Refresh balance cache in background
+  kinguin
+    .getBalance()
+    .then((balanceRes) => {
+      updateKinguinBalanceCached(balanceRes.balance);
+    })
+    .catch((err) => {
+      console.error("Error refreshing balance cache after order placement:", err);
+    });
+
+  await syncKinguinOrderToDb(
+    order.id,
+    kinguinOrder,
+    order.isPreorder,
+    order.preorderReleaseAt,
+  );
+
+  return syncKeysFromKinguin(
+    order.id,
+    kinguinOrder.orderId,
+    items,
+    kinguin,
+    order.isPreorder,
+  );
+}
+
 export async function fulfillKinguinOrder(
   orderId: string,
 ): Promise<FulfillKinguinOrderResult> {
@@ -408,29 +481,7 @@ export async function fulfillKinguinOrder(
           kinguinStatus: null,
         });
         if (retryClaim === "claimed") {
-          const kinguinProducts = await buildKinguinPlaceOrderProducts(
-            items,
-            kinguin,
-          );
-          const kinguinOrder = await placeKinguinOrderWithFallback(
-            order.id,
-            kinguinProducts,
-            kinguin,
-            order.createdAt,
-          );
-          await syncKinguinOrderToDb(
-            order.id,
-            kinguinOrder,
-            order.isPreorder,
-            order.preorderReleaseAt,
-          );
-          return syncKeysFromKinguin(
-            orderId,
-            kinguinOrder.orderId,
-            items,
-            kinguin,
-            order.isPreorder,
-          );
+          return buildAndPlaceKinguinOrder(order, items, kinguin);
         }
       }
 
@@ -456,32 +507,7 @@ export async function fulfillKinguinOrder(
       }
     }
 
-    const kinguinProducts = await buildKinguinPlaceOrderProducts(
-      items,
-      kinguin,
-    );
-
-    const kinguinOrder = await placeKinguinOrderWithFallback(
-      order.id,
-      kinguinProducts,
-      kinguin,
-      order.createdAt,
-    );
-
-    await syncKinguinOrderToDb(
-      order.id,
-      kinguinOrder,
-      order.isPreorder,
-      order.preorderReleaseAt,
-    );
-
-    return syncKeysFromKinguin(
-      orderId,
-      kinguinOrder.orderId,
-      items,
-      kinguin,
-      order.isPreorder,
-    );
+    return buildAndPlaceKinguinOrder(order, items, kinguin);
   } catch (error) {
     const message = formatKinguinError(error);
 

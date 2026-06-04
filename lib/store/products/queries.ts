@@ -45,6 +45,8 @@ export type StorefrontProductDetail = {
     name: string;
     slug: string;
   }[];
+  sourceCostPrice: number | null;
+  sourceCurrency: string;
   seoMetadata: SeoMetadataDocument | null;
 };
 
@@ -87,6 +89,8 @@ export async function getStorefrontProductBySlug(
       countryLimitations: true,
       activationDetails: true,
       systemRequirements: true,
+      sourceCostPrice: true,
+      sourceCurrency: true,
       images: {
         orderBy: { sortOrder: "asc" },
         select: {
@@ -147,6 +151,8 @@ export async function getStorefrontProductBySlug(
     images: product.images,
     videos: product.videos,
     categories: product.categories,
+    sourceCostPrice: product.sourceCostPrice ? product.sourceCostPrice.toNumber() : null,
+    sourceCurrency: product.sourceCurrency,
     seoMetadata: seoMetadataFromRelation(product.seoMetadata),
   };
 }

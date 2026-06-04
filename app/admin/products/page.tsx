@@ -15,15 +15,37 @@ export const metadata: Metadata = {
   title: "Productos",
 };
 
-export default async function AdminProductsPage() {
-  const fx = await getEurToClpRate();
-  await Promise.all([
-    syncAllProductsClpFromSourceIfNeeded(fx.rate),
-    syncAllProductGalleriesIfNeeded(),
-    syncAllProductVideosIfNeeded(),
-    syncAllProductMetadataFromKinguinIfNeeded(),
-  ]);
-  const products = await getAdminProducts();
+export default async function AdminProductsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; search?: string }>;
+}) {
+  const resolvedParams = await searchParams;
+  const page = resolvedParams.page ? parseInt(resolvedParams.page) : 1;
+  const search = resolvedParams.search || "";
+
+  if (page === 1 && !search) {
+    getEurToClpRate()
+      .then((fx) => {
+        Promise.all([
+          syncAllProductsClpFromSourceIfNeeded(fx.rate),
+          syncAllProductGalleriesIfNeeded(),
+          syncAllProductVideosIfNeeded(),
+          syncAllProductMetadataFromKinguinIfNeeded(),
+        ]).catch((err) => {
+          console.error("Error in background products synchronization:", err);
+        });
+      })
+      .catch((err) => {
+        console.error("Error fetching FX rate for background sync:", err);
+      });
+  }
+
+  const { products, total, totalPages, page: currentPage, stats } = await getAdminProducts({
+    page,
+    limit: 50,
+    search,
+  });
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 md:space-y-8">
@@ -40,7 +62,14 @@ export default async function AdminProductsPage() {
         </Button>
       </div>
 
-      <AdminProductsBoard products={products} />
+      <AdminProductsBoard
+        products={products}
+        total={total}
+        page={currentPage}
+        totalPages={totalPages}
+        search={search}
+        stats={stats}
+      />
     </div>
   );
 }

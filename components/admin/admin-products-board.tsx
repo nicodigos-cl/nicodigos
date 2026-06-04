@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   IconDotsVertical,
   IconEdit,
@@ -15,6 +15,8 @@ import {
   IconCalendarTime,
   IconLoader2,
   IconX,
+  IconChevronLeft,
+  IconChevronRight,
 } from "@tabler/icons-react";
 import type { AdminProductListItem } from "@/lib/admin/products/types";
 import { formatMoney, formatSourceMoney } from "@/lib/admin/format";
@@ -61,6 +63,16 @@ import { cn } from "@/lib/utils";
 
 type AdminProductsBoardProps = {
   products: AdminProductListItem[];
+  total: number;
+  page: number;
+  totalPages: number;
+  search: string;
+  stats: {
+    total: number;
+    active: number;
+    drafts: number;
+    lowStock: number;
+  };
 };
 
 function marginPercent(cost: string, sell: string): number | null {
@@ -76,32 +88,88 @@ function productStatusLabel(isActive: boolean): string {
   return isActive ? "Activo" : "Borrador";
 }
 
-export function AdminProductsBoard({ products }: AdminProductsBoardProps) {
+export function AdminProductsBoard({
+  products,
+  total,
+  page,
+  totalPages,
+  search,
+  stats,
+}: AdminProductsBoardProps) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(search);
+  const [prevSearch, setPrevSearch] = useState(search);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) {
-      return products;
-    }
-    return products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.platform.toLowerCase().includes(q) ||
-        String(p.kinguinId).includes(q) ||
-        p.slug.toLowerCase().includes(q),
-    );
-  }, [products, query]);
+  const filtered = products;
 
-  const stats = useMemo(() => {
-    const active = products.filter((p) => p.isActive).length;
-    const drafts = products.length - active;
-    const lowStock = products.filter((p) => p.qty < 5).length;
-    return { total: products.length, active, drafts, lowStock };
-  }, [products]);
+  // Sync state when prop updates from outside (like page back/forward or sidebar click)
+  if (search !== prevSearch) {
+    setPrevSearch(search);
+    setQuery(search);
+  }
+
+  // Debounced URL updates when typing
+  const debouncedSearch = useMemo(() => {
+    let timeoutId: any;
+    return (value: string) => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (value.trim()) {
+          params.set("search", value.trim());
+        } else {
+          params.delete("search");
+        }
+        params.set("page", "1");
+        router.push(`/admin/products?${params.toString()}`);
+      }, 400);
+    };
+  }, [router]);
+
+  const handleSearchChange = (val: string) => {
+    setQuery(val);
+    debouncedSearch(val);
+  };
+
+  function handlePageChange(newPage: number) {
+    const params = new URLSearchParams(window.location.search);
+    params.set("page", newPage.toString());
+    router.push(`/admin/products?${params.toString()}`);
+  }
+
+  function getPageNumbers() {
+    const pages: number[] = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+
+      if (page > 3) {
+        pages.push(-1);
+      }
+
+      const start = Math.max(2, page - 1);
+      const end = Math.min(totalPages - 1, page + 1);
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      if (page < totalPages - 2) {
+        pages.push(-1);
+      }
+
+      pages.push(totalPages);
+    }
+
+    return pages;
+  }
 
   const allSelected = filtered.length > 0 && filtered.every((p) => selectedIds.includes(p.id));
   const someSelected = filtered.some((p) => selectedIds.includes(p.id)) && !allSelected;
@@ -131,7 +199,7 @@ export function AdminProductsBoard({ products }: AdminProductsBoardProps) {
     });
   }
 
-  if (products.length === 0) {
+  if (stats.total === 0) {
     return (
       <Empty className="border border-dashed">
         <EmptyHeader>
@@ -204,7 +272,7 @@ export function AdminProductsBoard({ products }: AdminProductsBoardProps) {
               <InputGroupInput
                 placeholder="Buscar por nombre, plataforma…"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
               />
             </InputGroup>
             <Button asChild>
@@ -403,6 +471,84 @@ export function AdminProductsBoard({ products }: AdminProductsBoardProps) {
             </Table>
           )}
         </CardContent>
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-border px-6 py-4">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <Button
+                variant="outline"
+                disabled={page <= 1}
+                onClick={() => handlePageChange(page - 1)}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                disabled={page >= totalPages}
+                onClick={() => handlePageChange(page + 1)}
+              >
+                Siguiente
+              </Button>
+            </div>
+            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Mostrando página <span className="font-semibold text-foreground">{page}</span> de{" "}
+                  <span className="font-semibold text-foreground">{totalPages}</span> ({total} productos en total)
+                </p>
+              </div>
+              <div>
+                <nav className="isolate inline-flex -space-x-px rounded-full shadow-xs" aria-label="Pagination">
+                  <Button
+                    variant="outline"
+                    className="rounded-l-full px-3 h-9"
+                    disabled={page <= 1}
+                    onClick={() => handlePageChange(page - 1)}
+                  >
+                    <IconChevronLeft className="size-4" />
+                    <span className="sr-only">Anterior</span>
+                  </Button>
+                  
+                  {getPageNumbers().map((p, idx) => {
+                    if (p === -1) {
+                      return (
+                        <span
+                          key={`ellipsis-${idx}`}
+                          className="inline-flex items-center px-4 text-sm font-semibold text-muted-foreground select-none"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+                    return (
+                      <Button
+                        key={p}
+                        variant={p === page ? "default" : "outline"}
+                        className={cn(
+                          "h-9 px-4 font-semibold text-sm rounded-none border-x-0 first:border-l last:border-r",
+                          p === page && "z-10",
+                        )}
+                        onClick={() => handlePageChange(p)}
+                      >
+                        {p}
+                      </Button>
+                    );
+                  })}
+
+                  <Button
+                    variant="outline"
+                    className="rounded-r-full px-3 h-9"
+                    disabled={page >= totalPages}
+                    onClick={() => handlePageChange(page + 1)}
+                  >
+                    <IconChevronRight className="size-4" />
+                    <span className="sr-only">Siguiente</span>
+                  </Button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Floating Action Bar */}

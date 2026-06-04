@@ -1,15 +1,66 @@
 import prisma from "@/lib/prisma";
 import type { AdminProductListItem } from "@/lib/admin/products/types";
 
-export async function getAdminProducts(): Promise<AdminProductListItem[]> {
+export type AdminProductsResponse = {
+  products: AdminProductListItem[];
+  total: number;
+  page: number;
+  totalPages: number;
+  stats: {
+    total: number;
+    active: number;
+    drafts: number;
+    lowStock: number;
+  };
+};
+
+export async function getAdminProducts(options: {
+  page?: number;
+  limit?: number;
+  search?: string;
+} = {}): Promise<AdminProductsResponse> {
+  const page = Math.max(1, options.page ?? 1);
+  const limit = Math.max(1, options.limit ?? 50);
+  const search = options.search?.trim().toLowerCase() ?? "";
+
+  const where: any = {};
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: "insensitive" } },
+      { platform: { contains: search, mode: "insensitive" } },
+      { slug: { contains: search, mode: "insensitive" } },
+    ];
+    const kinguinIdSearch = parseInt(search);
+    if (!isNaN(kinguinIdSearch)) {
+      where.OR.push({ kinguinId: kinguinIdSearch });
+    }
+  }
+
+  // Get global counts (not filtered by search) for the board overview cards
+  const [globalTotal, globalActive, globalLowStock] = await Promise.all([
+    prisma.product.count(),
+    prisma.product.count({ where: { isActive: true } }),
+    prisma.product.count({ where: { qty: { lt: 5 } } }),
+  ]);
+  const globalDrafts = globalTotal - globalActive;
+
+  // Get total count matching search
+  const total = await prisma.product.count({ where });
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const safePage = Math.min(page, totalPages);
+  const skip = (safePage - 1) * limit;
+
   const products = await prisma.product.findMany({
+    where,
     orderBy: { updatedAt: "desc" },
+    take: limit,
+    skip,
     include: {
       _count: { select: { offers: true } },
     },
   });
 
-  return products.map((product) => ({
+  const listItems = products.map((product) => ({
     id: product.id,
     name: product.name,
     slug: product.slug,
@@ -28,6 +79,19 @@ export async function getAdminProducts(): Promise<AdminProductListItem[]> {
     offerCount: product._count.offers,
     updatedAt: product.updatedAt.toISOString(),
   }));
+
+  return {
+    products: listItems,
+    total,
+    page: safePage,
+    totalPages,
+    stats: {
+      total: globalTotal,
+      active: globalActive,
+      drafts: globalDrafts,
+      lowStock: globalLowStock,
+    },
+  };
 }
 
 export async function getImportedKinguinIds(

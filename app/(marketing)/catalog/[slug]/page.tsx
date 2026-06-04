@@ -20,6 +20,7 @@ import {
 } from "@/lib/store/products/description-preview";
 import { getStorefrontProductBySlug } from "@/lib/store/products/queries";
 import { isProductInWishlist } from "@/lib/store/wishlist/queries";
+import { getKinguinBalanceCached } from "@/lib/kinguin/balance";
 
 export const revalidate = 300;
 
@@ -74,6 +75,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const inStock = product.qty > 0 || product.isPreorder;
   const primaryVideo = product.videos[0] ?? null;
   const primaryCategory = product.categories[0] ?? null;
+
+  const balance = await getKinguinBalanceCached();
+  const hasImmediateDelivery =
+    product.sourceCostPrice != null && balance >= Number(product.sourceCostPrice);
 
   return (
     <main className="flex-1 bg-background">
@@ -157,9 +162,15 @@ export default async function ProductPage({ params }: ProductPageProps) {
             </p>
 
             {product.qty > 0 ? (
-              <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                {product.qty} en stock — entrega al tiro
-              </p>
+              hasImmediateDelivery ? (
+                <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                  {product.qty} en stock — entrega al tiro
+                </p>
+              ) : (
+                <p className="mt-1 text-sm font-medium text-amber-600 dark:text-amber-500">
+                  {product.qty} en stock — entrega diferida (revisión manual)
+                </p>
+              )
             ) : (
               <p className="mt-1 text-sm font-medium text-muted-foreground">
                 Sin stock por ahora
