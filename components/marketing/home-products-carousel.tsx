@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
+import { PlatformBadge } from "@/components/store/platform-badge";
 import { ProductStoreActions } from "@/components/store/product-store-actions";
 import {
   Carousel,
@@ -13,29 +14,29 @@ import {
 } from "@/components/ui/carousel";
 import { formatMoney } from "@/lib/currency/format";
 import { storeRoutes } from "@/lib/store/navigation";
-import type { StorefrontProduct } from "@/lib/store/products";
+import type { StorefrontProductCard } from "@/lib/store/home/types";
 import { cn } from "@/lib/utils";
 
 type HomeProductsCarouselProps = {
-  products: StorefrontProduct[];
+  products: StorefrontProductCard[];
   className?: string;
 };
 
-function ProductSlide({ product }: { product: StorefrontProduct }) {
+function ProductSlide({ product }: { product: StorefrontProductCard }) {
   return (
-    <div className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm ring-1 ring-foreground/5 transition-colors hover:border-primary/30 dark:ring-foreground/10">
+    <div className="group flex h-full w-full min-h-0 flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm transition-colors hover:border-border">
       <Link
         href={storeRoutes.product(product.slug)}
-        className="block focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+        className="flex min-h-0 flex-1 flex-col focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
       >
-        <div className="relative aspect-16/10 w-full overflow-hidden bg-muted">
+        <div className="relative aspect-16/10 w-full shrink-0 overflow-hidden bg-muted">
           {product.coverImageUrl ? (
             <Image
               src={product.coverImageUrl}
               alt=""
               fill
               unoptimized
-              sizes="260px"
+              sizes="(max-width:640px) 45vw, (max-width:1280px) 25vw, 240px"
               className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             />
           ) : (
@@ -44,20 +45,22 @@ function ProductSlide({ product }: { product: StorefrontProduct }) {
             </div>
           )}
         </div>
-        <div className="flex flex-col gap-1 p-3">
-          <p className="line-clamp-1 text-xs font-medium text-primary">
-            {product.platform}
-          </p>
-          <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
+        <div className="flex flex-1 flex-col gap-1 p-2.5 sm:p-3">
+          <PlatformBadge platform={product.platform} />
+          <p className="line-clamp-2 text-xs font-medium leading-snug text-foreground">
             {product.name}
           </p>
-          <p className="text-sm font-semibold text-foreground">
+          <p className="mt-auto text-sm font-bold tabular-nums text-foreground">
             {formatMoney(product.sellPrice)}
           </p>
         </div>
       </Link>
-      <div className="px-3 pb-3">
-        <ProductStoreActions productId={product.id} compact />
+      <div className="mt-auto shrink-0 border-t border-border/60 px-2.5 py-2.5 sm:px-3">
+        <ProductStoreActions
+          productId={product.id}
+          compact
+          className="w-full"
+        />
       </div>
     </div>
   );
@@ -112,11 +115,11 @@ export function HomeProductsCarousel({
         className="w-full"
         aria-label="Productos destacados"
       >
-        <CarouselContent className="-ml-3 md:-ml-4">
+        <CarouselContent className="-ml-2 items-stretch sm:-ml-3">
           {products.map((product) => (
             <CarouselItem
               key={product.id}
-              className="basis-[72%] pl-3 sm:basis-[48%] md:basis-[42%] md:pl-4 lg:basis-[38%] xl:basis-[32%]"
+              className="flex basis-[44%] pl-2 sm:basis-[31%] sm:pl-3 md:basis-[24%] lg:basis-[20%] xl:basis-[17%] 2xl:basis-[15%]"
             >
               <ProductSlide product={product} />
             </CarouselItem>

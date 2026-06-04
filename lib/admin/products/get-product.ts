@@ -50,6 +50,7 @@ export type AdminProductEditData = {
   qty: number;
   isActive: boolean;
   isOffer: boolean;
+  isFeatured: boolean;
   isPreorder: boolean;
   regionalLimitations: string | null;
   regionId: number | null;
@@ -110,6 +111,7 @@ export async function getAdminProductForEdit(
     qty: product.qty,
     isActive: product.isActive,
     isOffer: product.isOffer,
+    isFeatured: product.isFeatured,
     isPreorder: product.isPreorder,
     regionalLimitations: product.regionalLimitations,
     regionId: product.regionId,

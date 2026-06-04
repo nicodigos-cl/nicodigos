@@ -21,6 +21,7 @@ export async function getAdminProducts(): Promise<AdminProductListItem[]> {
     sourceCurrency: product.sourceCurrency,
     isActive: product.isActive,
     isOffer: product.isOffer,
+    isFeatured: product.isFeatured,
     isPreorder: product.isPreorder,
     kinguinId: product.kinguinId,
     coverImageUrl: product.coverImageUrl,

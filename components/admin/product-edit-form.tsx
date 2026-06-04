@@ -156,6 +156,7 @@ export function ProductEditForm({
     qty: product.qty,
     isActive: product.isActive,
     isOffer: product.isOffer,
+    isFeatured: product.isFeatured,
     isPreorder: product.isPreorder,
   });
 
@@ -332,6 +333,19 @@ export function ProductEditForm({
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox
+                    id="isFeatured"
+                    checked={form.isFeatured}
+                    onCheckedChange={(checked) =>
+                      updateField("isFeatured", checked === true)
+                    }
+                    disabled={isPending}
+                  />
+                  <FieldLabel htmlFor="isFeatured" className="mb-0">
+                    Destacar en inicio
+                  </FieldLabel>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
                     id="isPreorder"
                     checked={form.isPreorder}
                     onCheckedChange={(checked) =>
@@ -346,7 +360,7 @@ export function ProductEditForm({
               </div>
               <FieldDescription>
                 Desmarcado = borrador (no visible para clientes). «Destacar en
-                ofertas» lo muestra en /offers.
+                ofertas» → /offers. «Destacar en inicio» → carrusel de la home.
               </FieldDescription>
             </Field>
           </FieldGroup>

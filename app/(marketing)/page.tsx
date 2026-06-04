@@ -1,102 +1,40 @@
-import Link from "next/link";
-import { HomeProductsCarousel } from "@/components/marketing/home-products-carousel";
-import { Button } from "@/components/ui/button";
-import { storeRoutes } from "@/lib/store/navigation";
-import { getStorefrontProducts } from "@/lib/store/products";
-import {
-  IconChevronRight,
-  IconArrowRight,
-  IconSparkles,
-} from "@tabler/icons-react";
+import type { Metadata } from "next";
+
+import { BenefitsSection } from "@/components/home/benefits-section";
+import { CategoriesSection } from "@/components/home/categories-section";
+import { CtaSection } from "@/components/home/cta-section";
+import { FaqSection } from "@/components/home/faq-section";
+import { FeaturedProductsSection } from "@/components/home/featured-products-section";
+import HeroSection from "@/components/home/hero-section";
+import { HowItWorksSection } from "@/components/home/how-it-works-section";
+import { OffersSection } from "@/components/home/offers-section";
+import { PreordersSection } from "@/components/home/preorders-section";
+// import { ReviewsSection } from "@/components/home/reviews-section";
+import { resolveHomeSeoMetadata } from "@/lib/seo/home";
+import { getHomePageData } from "@/lib/store/home/queries";
 
 export const revalidate = 300;
 
+export async function generateMetadata(): Promise<Metadata> {
+  return resolveHomeSeoMetadata(null);
+}
+
 export default async function HomePage() {
-  const products = await getStorefrontProducts();
+  const data = await getHomePageData();
+  const hasOffers = data.heroProducts.some((p) => p.isOffer);
 
   return (
     <main className="flex-1 relative overflow-hidden bg-background">
-      {/* Decorative background grid and orbs */}
-      <div className="absolute inset-0 admin-dashboard-grid opacity-20 pointer-events-none z-0" />
-      <div className="absolute top-[-10%] right-[-10%] h-[500px] w-[500px] rounded-full bg-primary/50 blur-[120px] dark:bg-primary/5 pointer-events-none z-0" />
-      <div className="absolute top-[30%] left-[-10%] h-[600px] w-[600px] rounded-full bg-indigo-500/50 blur-[150px] pointer-events-none z-0" />
-
-      <section className="relative py-12 sm:py-16 lg:py-24">
-        <div className="w-full">
-          <div className="flex gap-12">
-            {/* Left Column: Hero Content */}
-            <div className="ml-auto space-y-8 w-1/2 pl-10 max-w-xl">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3.5 py-1 text-xs font-semibold text-primary border border-primary/20 dark:border-primary/30">
-                  <span className="flex size-1.5 rounded-full bg-primary animate-pulse" />
-                  Marketplace digital · Chile
-                </div>
-                <h1 className="font-heading text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl leading-tight">
-                  Keys, gift cards y{" "}
-                  <span className="bg-gradient-to-r from-primary to-indigo-500 bg-clip-text text-transparent">
-                    licencias al instante
-                  </span>
-                </h1>
-                <p className="text-base sm:text-lg text-muted-foreground/90 leading-relaxed">
-                  Compra juegos, software, suscripciones y códigos digitales con
-                  entrega rápida, garantía asegurada y soporte local en
-                  Nicodigos.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button
-                  asChild
-                  size="lg"
-                  className="rounded-xl shadow-lg shadow-primary/15 hover:shadow-primary/25 transition-all gap-1.5 group"
-                >
-                  <Link href={storeRoutes.catalog}>
-                    Ver catálogo
-                    <IconArrowRight className="size-4 group-hover:translate-x-0.5 transition-transform" />
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="lg"
-                  className="rounded-xl glass-card border-border/40 hover:bg-muted/40 transition-colors"
-                >
-                  <Link href={storeRoutes.offers}>Ofertas de hoy</Link>
-                </Button>
-              </div>
-            </div>
-
-            {/* Right Column: Featured Products Carousel */}
-            <div className="relative w-1/2">
-              <div className="mb-4 flex items-end justify-between gap-3 pr-4 sm:pr-6 lg:pr-8">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <IconSparkles className="size-4 text-primary animate-pulse" />
-                    <p className="text-sm font-bold text-foreground tracking-tight uppercase">
-                      Destacados
-                    </p>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Códigos listos para entrega inmediata
-                  </p>
-                </div>
-                <Link
-                  href={storeRoutes.catalog}
-                  className="shrink-0 text-sm font-medium text-primary hover:text-primary/80 transition-colors flex items-center gap-0.5 group"
-                >
-                  Ver todos
-                  <IconChevronRight className="size-4 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
-              </div>
-
-              {/* Carousel wrapper with glowing card boundary */}
-              <div className="relative rounded-3xl border border-border/10 bg-background/40 dark:bg-background/10 backdrop-blur-sm shadow-xl shadow-black/2">
-                <HomeProductsCarousel products={products} />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <HeroSection products={data.heroProducts} hasOffers={hasOffers} />
+      <CategoriesSection categories={data.categories} />
+      <FeaturedProductsSection products={data.featuredProducts} />
+      <BenefitsSection />
+      <OffersSection products={data.offerProducts} />
+      {/* <ReviewsSection /> */}
+      <HowItWorksSection />
+      <PreordersSection products={data.preorderProducts} />
+      <FaqSection />
+      <CtaSection />
     </main>
   );
 }

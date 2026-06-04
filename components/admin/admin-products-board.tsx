@@ -294,6 +294,9 @@ export function AdminProductsBoard({ products }: AdminProductsBoardProps) {
                           {product.isOffer ? (
                             <Badge variant="secondary">Oferta</Badge>
                           ) : null}
+                          {product.isFeatured ? (
+                            <Badge variant="secondary">Inicio</Badge>
+                          ) : null}
                         </div>
                       </TableCell>
                       <TableCell

@@ -203,6 +203,7 @@ export async function updateProductAction(
         qty: data.qty,
         isActive: data.isActive,
         isOffer: data.isOffer,
+        isFeatured: data.isFeatured,
         isPreorder: data.isPreorder,
         activationDetails: data.activationDetails || null,
         countryLimitations: data.countryLimitations,
@@ -239,6 +240,7 @@ export async function updateProductAction(
     revalidatePath("/admin/products");
     revalidatePath(`/admin/products/${productId}/edit`);
     revalidatePath(storeRoutes.offers);
+    revalidatePath("/");
 
     return {
       success: true,

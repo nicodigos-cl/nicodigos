@@ -73,6 +73,7 @@ export function mapKinguinProductToCreateInput(
     qty,
     isActive: false,
     isOffer: false,
+    isFeatured: false,
     isPreorder: product.isPreorder,
     ...metadata,
     kinguinSyncedAt: new Date(),

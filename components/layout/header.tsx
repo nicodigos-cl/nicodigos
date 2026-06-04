@@ -39,9 +39,13 @@ import {
   storeRoutes,
   type ShopMenuItem,
 } from "@/lib/store/navigation";
+import type { StorefrontNavCategory } from "@/lib/store/categories/queries";
 import type { CartView } from "@/lib/store/types";
 import { cn } from "@/lib/utils";
-import { DashboardUserMenu, type DashboardUserMenuUser } from "@/components/dashboard/dashboard-user-menu";
+import {
+  DashboardUserMenu,
+  type DashboardUserMenuUser,
+} from "@/components/dashboard/dashboard-user-menu";
 import { getUserInitials } from "@/lib/dashboard/format";
 import { signOut } from "@/lib/auth-client";
 
@@ -132,6 +136,7 @@ export type MarketplaceHeaderProps = {
   wishlistCount?: number;
   isAuthenticated?: boolean;
   user?: DashboardUserMenuUser | null;
+  navCategories?: StorefrontNavCategory[];
 };
 
 export function MarketplaceHeader({
@@ -140,6 +145,7 @@ export function MarketplaceHeader({
   wishlistCount = 0,
   isAuthenticated = false,
   user = null,
+  navCategories = [],
 }: MarketplaceHeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const router = useRouter();
@@ -185,6 +191,28 @@ export function MarketplaceHeader({
                         </li>
                       ))}
                     </ul>
+                    {navCategories.length > 0 ? (
+                      <>
+                        <Separator className="my-2" />
+                        <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                          Categorías
+                        </p>
+                        <ul className="grid gap-0.5 max-h-40 overflow-y-auto">
+                          {navCategories.map((category) => (
+                            <li key={category.slug}>
+                              <NavigationMenuLink asChild>
+                                <Link
+                                  href={storeRoutes.category(category.slug)}
+                                  className="block rounded-xl px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                                >
+                                  {category.name}
+                                </Link>
+                              </NavigationMenuLink>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    ) : null}
                     <Separator className="my-2" />
                     <div className="grid grid-cols-2 gap-1">
                       {shopQuickActions.map((action) => {
@@ -333,6 +361,23 @@ export function MarketplaceHeader({
                           </MobileNavLink>
                         );
                       })}
+                      {navCategories.length > 0 ? (
+                        <>
+                          <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                            Categorías
+                          </p>
+                          {navCategories.map((category) => (
+                            <MobileNavLink
+                              key={category.slug}
+                              href={storeRoutes.category(category.slug)}
+                              onNavigate={closeMobile}
+                              className="pl-5 text-sm"
+                            >
+                              {category.name}
+                            </MobileNavLink>
+                          ))}
+                        </>
+                      ) : null}
                     </CollapsibleContent>
                   </Collapsible>
 
@@ -370,21 +415,31 @@ export function MarketplaceHeader({
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-1.5">
-                        <Button className="h-10 w-full rounded-xl gap-2" asChild>
+                        <Button
+                          className="h-10 w-full rounded-xl gap-2"
+                          asChild
+                        >
                           <Link href="/dashboard" onClick={closeMobile}>
                             <IconUser className="size-4" />
                             Mi cuenta
                           </Link>
                         </Button>
-                        <Button variant="outline" className="h-10 w-full rounded-xl gap-2" asChild>
-                          <Link href={storeRoutes.support} onClick={closeMobile}>
+                        <Button
+                          variant="outline"
+                          className="h-10 w-full rounded-xl gap-2"
+                          asChild
+                        >
+                          <Link
+                            href={storeRoutes.support}
+                            onClick={closeMobile}
+                          >
                             Soporte
                           </Link>
                         </Button>
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           className="h-10 w-full rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive gap-2"
                           disabled={signingOut}
                           onClick={handleSignOut}

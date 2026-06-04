@@ -73,6 +73,7 @@ export const updateProductSchema = z.object({
   qty: z.coerce.number().int().nonnegative(),
   isActive: z.boolean(),
   isOffer: z.boolean(),
+  isFeatured: z.boolean(),
   isPreorder: z.boolean(),
   regionalLimitations: z.string().trim().optional(),
   activationDetails: z.string().trim().optional(),

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { IconBolt, IconChevronRight, IconClock } from "@tabler/icons-react";
 
+import { PlatformBadge } from "@/components/store/platform-badge";
 import { ProductGallery } from "@/components/store/product-gallery";
 import { ProductStoreActions } from "@/components/store/product-store-actions";
 import { ProductDetailsTabs } from "@/components/store/product-tabs";
@@ -18,18 +19,6 @@ import { isProductInWishlist } from "@/lib/store/wishlist/queries";
 import { cn } from "@/lib/utils";
 
 export const revalidate = 300;
-
-const platformConfig: Record<string, string> = {
-  steam: "bg-sky-500/10 text-sky-500 border-sky-500/20 dark:border-sky-500/30",
-  xbox: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 dark:border-emerald-500/30",
-  playstation:
-    "bg-blue-600/10 text-blue-500 border-blue-500/20 dark:border-blue-500/30",
-  ps5: "bg-blue-600/10 text-blue-500 border-blue-500/20 dark:border-blue-500/30",
-  nintendo:
-    "bg-rose-600/10 text-rose-500 border-rose-500/20 dark:border-rose-500/30",
-  epic: "bg-slate-500/10 text-slate-300 border-slate-500/20",
-  gog: "bg-purple-500/10 text-purple-400 border-purple-500/20 dark:border-purple-500/30",
-};
 
 type ProductPageProps = {
   params: Promise<{ slug: string }>;
@@ -76,11 +65,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
     session?.user != null
       ? await isProductInWishlist(session.user.id, product.id)
       : false;
-
-  const platformKey = product.platform.toLowerCase();
-  const platStyle =
-    platformConfig[platformKey] ||
-    "bg-muted text-muted-foreground border-border/20";
 
   return (
     <main className="flex-1 relative overflow-hidden bg-slate-50/50 dark:bg-background">
@@ -138,15 +122,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <div className="space-y-6 lg:sticky lg:top-24">
             <div className="space-y-3.5">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "font-bold text-[10px] uppercase tracking-wider rounded-md px-2 py-0.5",
-                    platStyle,
-                  )}
-                >
-                  {product.platform}
-                </Badge>
+                <PlatformBadge
+                  platform={product.platform}
+                  showLabel
+                  size="md"
+                />
                 {product.isOffer ? (
                   <Badge className="border-0 bg-rose-500 text-white font-bold text-[10px] tracking-wider uppercase px-2.5 py-0.5 shadow-sm animate-pulse">
                     <IconBolt className="size-3 mr-0.5 fill-current" />

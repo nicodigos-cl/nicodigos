@@ -265,6 +265,7 @@ model Product {
   qty                 Int            @default(0)
   isActive            Boolean        @default(false)
   isOffer             Boolean        @default(false)
+  isFeatured          Boolean        @default(false)
   isPreorder          Boolean        @default(false)
   regionalLimitations String?
   regionId            Int?
@@ -292,6 +293,7 @@ model Product {
   @@index([categoryId])
   @@index([isActive])
   @@index([isOffer])
+  @@index([isFeatured])
   @@index([platform])
   @@index([sellPrice])
   @@map("product")

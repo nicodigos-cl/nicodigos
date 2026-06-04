@@ -64,6 +64,29 @@ export async function getStorefrontProducts(
   return products.map(mapStorefrontProduct);
 }
 
+/** Carrusel de la home: productos con `isFeatured`, o los más recientes si no hay ninguno. */
+export async function getStorefrontFeaturedProducts(
+  limit = 16,
+): Promise<StorefrontProduct[]> {
+  const featuredWhere = {
+    ...storefrontProductWhere,
+    isFeatured: true,
+  };
+
+  const featured = await prisma.product.findMany({
+    where: featuredWhere,
+    orderBy: [{ updatedAt: "desc" }],
+    take: limit,
+    select: storefrontProductSelect,
+  });
+
+  if (featured.length > 0) {
+    return featured.map(mapStorefrontProduct);
+  }
+
+  return getStorefrontProducts(limit);
+}
+
 export async function getStorefrontProductsPage(
   page = 1,
   pageSize = CATALOG_PAGE_SIZE,
