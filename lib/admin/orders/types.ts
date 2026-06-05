@@ -22,7 +22,6 @@ export type AdminOrderKeyDetail = {
   kinguinKeyId: string;
   status: string;
   contentType: string;
-  serial: string;
   serialMasked: string;
 };
 

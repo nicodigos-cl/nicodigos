@@ -197,8 +197,8 @@ export function AdminOrderDetailView({ order }: AdminOrderDetailViewProps) {
                           {key.kinguinKeyId}
                         </TableCell>
                         <TableCell>{key.status}</TableCell>
-                        <TableCell className="max-w-xs break-all font-mono text-xs">
-                          {key.serial}
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {key.serialMasked}
                         </TableCell>
                       </TableRow>
                     ))}

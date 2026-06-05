@@ -77,7 +77,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   const balance = await getKinguinBalanceCached();
   const hasImmediateDelivery =
-    product.sourceCostPrice != null && balance >= product.sourceCostPrice;
+    product.sourceCostPrice != null &&
+    balance >= Number(product.sourceCostPrice);
   const deliveryMessage =
     product.qty > 0
       ? hasImmediateDelivery

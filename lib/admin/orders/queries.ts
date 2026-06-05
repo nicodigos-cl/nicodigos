@@ -134,7 +134,6 @@ export async function getAdminOrderById(
           kinguinKeyId: key.kinguinKeyId,
           status: key.status,
           contentType: key.contentType,
-          serial: key.serial,
           serialMasked: maskSerial(key.serial),
         })),
       };

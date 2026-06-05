@@ -183,7 +183,7 @@ export function CreateProductFromKinguinForm({
       return;
     }
 
-    handleImport(pendingImport.productId, importSlug);
+    handleImport(pendingImport.productId, normalizedSlug);
   }
 
   const importableResults = results.filter((item) => !item.alreadyImported);
@@ -693,7 +693,7 @@ export function CreateProductFromKinguinForm({
       <Dialog
         open={pendingImport != null}
         onOpenChange={(open) => {
-          if (!open && !isImporting) {
+          if (!open) {
             setPendingImport(null);
           }
         }}
@@ -752,10 +752,9 @@ export function CreateProductFromKinguinForm({
             <Button
               type="button"
               variant="outline"
-              disabled={isImporting}
               onClick={() => setPendingImport(null)}
             >
-              Cancelar
+              {isImporting ? "Cerrar" : "Cancelar"}
             </Button>
             <Button
               type="button"
