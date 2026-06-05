@@ -1,6 +1,20 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      allowedOrigins: [
+        "nicodigos.cl",
+        "www.nicodigos.cl",
+        "nicodigos.nicotordev.com",
+        "nicodigos.up.railway.app",
+        "nicodigos-production.up.railway.app",
+        "*.nicodigos.cl",
+        "*.railway.app",
+      ],
+      bodySizeLimit: "8mb",
+    },
+  },
   async redirects() {
     return [
       {

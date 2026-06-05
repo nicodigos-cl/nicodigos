@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useRef, useState, useTransition } from "react";
 import { CategoryMediaField } from "@/components/admin/category-media-field";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { upsertCategoryAction } from "@/lib/admin/categories/actions";
@@ -85,6 +85,9 @@ export function CategoryEditForm({
 
   const categoryId = form.id ?? category?.id;
   const displaySlug = draftSlug ?? category?.slug ?? null;
+  const ensureCategoryIdPromiseRef = useRef<Promise<string | null> | null>(
+    null,
+  );
 
   function buildPayload(): UpsertCategoryInput {
     return {
@@ -102,25 +105,39 @@ export function CategoryEditForm({
       return form.id;
     }
 
-    const name = form.name.trim();
-    if (!name) {
-      setError("Escribe un nombre antes de subir imágenes.");
-      return null;
+    if (ensureCategoryIdPromiseRef.current) {
+      return ensureCategoryIdPromiseRef.current;
     }
 
-    setError(null);
-    const result = await upsertCategoryAction(buildPayload());
-    if (!result.success) {
-      setError(result.error);
-      return null;
-    }
+    const createDraft = (async (): Promise<string | null> => {
+      const name = form.name.trim();
+      if (!name) {
+        setError("Escribe un nombre antes de subir imágenes.");
+        return null;
+      }
 
-    setForm((prev) => ({ ...prev, id: result.id }));
-    if (result.slug) {
-      setDraftSlug(result.slug);
+      setError(null);
+      const result = await upsertCategoryAction(buildPayload());
+      if (!result.success) {
+        setError(result.error);
+        return null;
+      }
+
+      setForm((prev) => ({ ...prev, id: result.id }));
+      if (result.slug) {
+        setDraftSlug(result.slug);
+      }
+      setMessage("Borrador guardado. Puedes seguir subiendo imágenes.");
+      return result.id;
+    })();
+
+    ensureCategoryIdPromiseRef.current = createDraft;
+
+    try {
+      return await createDraft;
+    } finally {
+      ensureCategoryIdPromiseRef.current = null;
     }
-    setMessage("Borrador guardado. Puedes seguir subiendo imágenes.");
-    return result.id;
   }, [
     form.id,
     form.name,

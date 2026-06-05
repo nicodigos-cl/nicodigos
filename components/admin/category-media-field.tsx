@@ -6,14 +6,12 @@ import { uploadCategoryImageAction } from "@/lib/admin/categories/actions";
 import type { CategoryImageKind } from "@/lib/r2/upload-category-image";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldDescription,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
 type CategoryMediaFieldProps = {
   label: string;
@@ -57,29 +55,46 @@ export function CategoryMediaField({
 
     setUploadError(null);
 
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setUploadError("La imagen no puede superar 8 MB.");
+      return;
+    }
+
     startUpload(async () => {
-      let targetId: string | undefined = categoryId;
-      if (!targetId && onEnsureCategoryId) {
-        const ensured = await onEnsureCategoryId();
-        if (!ensured) {
+      try {
+        let targetId: string | undefined = categoryId;
+        if (!targetId && onEnsureCategoryId) {
+          const ensured = await onEnsureCategoryId();
+          if (!ensured) {
+            return;
+          }
+          targetId = ensured;
+        }
+        if (!targetId) {
           return;
         }
-        targetId = ensured;
-      }
-      if (!targetId) {
-        return;
-      }
 
-      const formData = new FormData();
-      formData.set("file", file);
+        const formData = new FormData();
+        formData.set("file", file);
 
-      const result = await uploadCategoryImageAction(targetId, kind, formData);
-      if (!result.success) {
-        setUploadError(result.error);
-        return;
-      }
-      if (result.url) {
-        onChange(result.url);
+        const result = await uploadCategoryImageAction(
+          targetId,
+          kind,
+          formData,
+        );
+        if (!result.success) {
+          setUploadError(result.error);
+          return;
+        }
+        if (result.url) {
+          onChange(result.url);
+        }
+      } catch (error) {
+        setUploadError(
+          error instanceof Error
+            ? error.message
+            : "No se pudo subir la imagen. Intenta de nuevo.",
+        );
       }
     });
   }
@@ -158,7 +173,8 @@ export function CategoryMediaField({
 
       {!categoryId && onEnsureCategoryId ? (
         <p className="text-xs text-muted-foreground">
-          Escribe un nombre y usa «Subir a R2» (se guarda un borrador automático).
+          Escribe un nombre y usa «Subir a R2» (se guarda un borrador
+          automático).
         </p>
       ) : !categoryId ? (
         <p className="text-xs text-muted-foreground">
