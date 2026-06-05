@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useRef, useState, useTransition } from "react";
 import { IconPhoto, IconTrash, IconUpload } from "@tabler/icons-react";
 import { uploadCategoryImageAction } from "@/lib/admin/categories/actions";
@@ -97,13 +96,11 @@ export function CategoryMediaField({
         )}
       >
         {preview ? (
-          <Image
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={preview}
             alt=""
-            fill
-            className="object-cover"
-            sizes="(max-width: 480px) 100vw, 480px"
-            unoptimized
+            className="absolute inset-0 h-full w-full object-cover"
           />
         ) : (
           <div className="flex h-full min-h-[120px] flex-col items-center justify-center gap-2 text-muted-foreground">

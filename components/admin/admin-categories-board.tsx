@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
@@ -116,13 +115,11 @@ export function AdminCategoriesBoard({
                 <TableCell>
                   <div className="relative size-10 overflow-hidden rounded-lg border border-border bg-muted">
                     {category.imageUrl ? (
-                      <Image
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
                         src={category.imageUrl}
                         alt=""
-                        fill
-                        className="object-cover"
-                        sizes="40px"
-                        unoptimized
+                        className="absolute inset-0 h-full w-full object-cover"
                       />
                     ) : (
                       <span className="flex size-full items-center justify-center text-[10px] text-muted-foreground">
