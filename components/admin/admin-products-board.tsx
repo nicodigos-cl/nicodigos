@@ -17,6 +17,7 @@ import {
   IconX,
   IconChevronLeft,
   IconChevronRight,
+  IconCategory,
 } from "@tabler/icons-react";
 import {
   buildAdminProductsSearchParams,
@@ -70,7 +71,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { bulkUpdateProductsAction } from "@/lib/admin/products/actions";
+import {
+  bulkAssignProductsCategoryAction,
+  bulkUpdateProductsAction,
+} from "@/lib/admin/products/actions";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -115,6 +128,9 @@ export function AdminProductsBoard({
   const [query, setQuery] = useState(filters.search);
   const [prevSearch, setPrevSearch] = useState(filters.search);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [replaceCategories, setReplaceCategories] = useState(false);
   const [isPending, startTransition] = useTransition();
   const hasFilters = hasActiveAdminProductFilters(filters);
 
@@ -238,6 +254,37 @@ export function AdminProductsBoard({
           id: toastId,
         });
         setSelectedIds([]);
+      } else {
+        toast.error(res.error, { id: toastId });
+      }
+    });
+  }
+
+  function openCategoryDialog() {
+    setSelectedCategoryId(filterOptions.categories[0]?.id ?? "");
+    setReplaceCategories(false);
+    setCategoryDialogOpen(true);
+  }
+
+  function handleBulkAssignCategory() {
+    if (!selectedCategoryId) {
+      toast.error("Selecciona una categoría.");
+      return;
+    }
+
+    startTransition(async () => {
+      const toastId = toast.loading("Asignando categoría...");
+      const res = await bulkAssignProductsCategoryAction(
+        selectedIds,
+        selectedCategoryId,
+        { replace: replaceCategories },
+      );
+
+      if (res.success) {
+        toast.success(res.message ?? "Categoría asignada.", { id: toastId });
+        setCategoryDialogOpen(false);
+        setSelectedIds([]);
+        router.refresh();
       } else {
         toast.error(res.error, { id: toastId });
       }
@@ -780,6 +827,21 @@ export function AdminProductsBoard({
               Desactivar
             </Button>
 
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isPending || filterOptions.categories.length === 0}
+              onClick={openCategoryDialog}
+              className="h-8 gap-1.5 rounded-full text-xs font-semibold hover:bg-accent"
+            >
+              {isPending ? (
+                <IconLoader2 className="size-3.5 animate-spin" />
+              ) : (
+                <IconCategory className="size-3.5 text-violet-500" />
+              )}
+              Categoría
+            </Button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -852,6 +914,99 @@ export function AdminProductsBoard({
           </div>
         </div>
       )}
+
+      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Asignar categoría</DialogTitle>
+            <DialogDescription>
+              Aplica la categoría a los {selectedIds.length} producto
+              {selectedIds.length === 1 ? "" : "s"} seleccionado
+              {selectedIds.length === 1 ? "" : "s"}.
+            </DialogDescription>
+          </DialogHeader>
+
+          {filterOptions.categories.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No hay categorías creadas.{" "}
+              <Link href="/admin/categories/new" className="underline">
+                Crea una categoría
+              </Link>{" "}
+              antes de asignar productos.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              <Field>
+                <FieldLabel htmlFor="bulk-category">Categoría</FieldLabel>
+                <Select
+                  value={selectedCategoryId}
+                  onValueChange={setSelectedCategoryId}
+                  disabled={isPending}
+                >
+                  <SelectTrigger id="bulk-category" className="w-full">
+                    <SelectValue placeholder="Elige una categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filterOptions.categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="replace-categories"
+                  checked={replaceCategories}
+                  onCheckedChange={(checked) =>
+                    setReplaceCategories(checked === true)
+                  }
+                  disabled={isPending}
+                />
+                <div className="space-y-1">
+                  <label
+                    htmlFor="replace-categories"
+                    className="text-sm font-medium leading-none cursor-pointer select-none"
+                  >
+                    Reemplazar categorías actuales
+                  </label>
+                  <FieldDescription>
+                    Si está desmarcado, se añade la categoría sin quitar las que
+                    ya tenga cada producto.
+                  </FieldDescription>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCategoryDialogOpen(false)}
+              disabled={isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleBulkAssignCategory}
+              disabled={
+                isPending ||
+                !selectedCategoryId ||
+                filterOptions.categories.length === 0
+              }
+            >
+              {isPending ? (
+                <IconLoader2 className="size-4 animate-spin" />
+              ) : null}
+              Asignar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

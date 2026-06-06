@@ -562,3 +562,91 @@ export async function bulkUpdateProductsAction(
     };
   }
 }
+
+export async function bulkAssignProductsCategoryAction(
+  productIds: string[],
+  categoryId: string,
+  options?: { replace?: boolean },
+): Promise<AdminProductActionResult<{ updatedCount: number }>> {
+  await requireAdmin();
+
+  if (!productIds.length) {
+    return { success: false, error: "No se seleccionaron productos." };
+  }
+
+  const category = await prisma.category.findUnique({
+    where: { id: categoryId },
+    select: { id: true, name: true, slug: true },
+  });
+
+  if (!category) {
+    return { success: false, error: "Categoría no encontrada." };
+  }
+
+  const uniqueIds = [...new Set(productIds)];
+
+  try {
+    let updatedCount = 0;
+
+    if (options?.replace) {
+      await prisma.$transaction(
+        uniqueIds.map((id) =>
+          prisma.product.update({
+            where: { id },
+            data: {
+              categories: { set: [{ id: categoryId }] },
+            },
+          }),
+        ),
+      );
+      updatedCount = uniqueIds.length;
+    } else {
+      const products = await prisma.product.findMany({
+        where: { id: { in: uniqueIds } },
+        select: { id: true, categories: { select: { id: true } } },
+      });
+
+      const toConnect = products.filter(
+        (product) => !product.categories.some((item) => item.id === categoryId),
+      );
+
+      if (toConnect.length > 0) {
+        await prisma.$transaction(
+          toConnect.map((product) =>
+            prisma.product.update({
+              where: { id: product.id },
+              data: { categories: { connect: { id: categoryId } } },
+            }),
+          ),
+        );
+      }
+
+      updatedCount = toConnect.length;
+    }
+
+    revalidatePath("/admin/products");
+    revalidatePath("/");
+    revalidatePath(storeRoutes.offers);
+    revalidatePath(storeRoutes.category(category.slug));
+
+    const skippedCount = uniqueIds.length - updatedCount;
+    const message = options?.replace
+      ? `${uniqueIds.length} producto${uniqueIds.length === 1 ? "" : "s"} asignado${uniqueIds.length === 1 ? "" : "s"} a «${category.name}».`
+      : updatedCount === 0
+        ? `Los productos seleccionados ya estaban en «${category.name}».`
+        : skippedCount > 0
+          ? `${updatedCount} producto${updatedCount === 1 ? "" : "s"} añadido${updatedCount === 1 ? "" : "s"} a «${category.name}» (${skippedCount} ya estaban en la categoría).`
+          : `${updatedCount} producto${updatedCount === 1 ? "" : "s"} añadido${updatedCount === 1 ? "" : "s"} a «${category.name}».`;
+
+    return {
+      success: true,
+      data: { updatedCount },
+      message,
+    };
+  } catch {
+    return {
+      success: false,
+      error: "No se pudo asignar la categoría a los productos seleccionados.",
+    };
+  }
+}
