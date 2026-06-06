@@ -27,8 +27,8 @@ export default async function HomePage() {
     <main className="flex-1 relative overflow-hidden bg-background">
       <HeroSection products={data.heroProducts} hasOffers={hasOffers} />
       <CategoriesSection categories={data.categories} />
-      <FeaturedProductsSection products={data.featuredProducts} />
       <BenefitsSection />
+      <FeaturedProductsSection products={data.featuredProducts} />
       <OffersSection products={data.offerProducts} />
       {/* <ReviewsSection /> */}
       <HowItWorksSection />
