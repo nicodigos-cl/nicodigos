@@ -176,7 +176,7 @@ export function ProductDetailsTabs({
                 {regionalLimitations && <p>{regionalLimitations}</p>}
                 {countryLimitations.length > 0 && (
                   <p className="font-medium text-foreground">
-                    Países permitidos:{" "}
+                    Países excluidos:{" "}
                     <span className="font-bold">
                       {countryLimitations.join(", ")}
                     </span>
