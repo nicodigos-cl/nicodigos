@@ -2,6 +2,16 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+type AuthSession = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>;
+
+export type AdminSessionUser = AuthSession["user"] & {
+  role?: "USER" | "ADMIN" | null;
+};
+
+export type AdminSession = Omit<AuthSession, "user"> & {
+  user: AdminSessionUser;
+};
+
 function getAdminEmailAllowlist(): Set<string> {
   const raw = process.env.ADMIN_EMAILS ?? "";
   return new Set(
@@ -23,7 +33,7 @@ function isAdminUser(user: { email: string; role?: string | null }): boolean {
   return allowlist.has(email);
 }
 
-export async function requireAdmin() {
+export async function requireAdmin(): Promise<AdminSession> {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -36,5 +46,5 @@ export async function requireAdmin() {
     redirect("/");
   }
 
-  return session;
+  return session as AdminSession;
 }

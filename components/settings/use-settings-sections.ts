@@ -102,9 +102,10 @@ export function useSettingsSections(initialData: SettingsInitialData) {
       setSavingSection(null);
 
       if (!result.success) {
+        const error = result.error;
         setSectionErrors((prev) => ({
           ...prev,
-          [section]: result.error,
+          [section]: error,
         }));
         return;
       }
@@ -112,9 +113,10 @@ export function useSettingsSections(initialData: SettingsInitialData) {
       setSavedSnapshot(structuredClone(result.data));
       setData(result.data);
       if (result.message) {
+        const message = result.message;
         setSectionMessages((prev) => ({
           ...prev,
-          [section]: result.message,
+          [section]: message,
         }));
       }
       router.refresh();

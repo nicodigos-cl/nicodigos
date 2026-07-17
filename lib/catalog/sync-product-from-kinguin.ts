@@ -8,7 +8,10 @@ import {
 import { eurToClp, sellClpFromCostEur } from "@/lib/currency/convert";
 import { Prisma } from "@/lib/generated/prisma/client";
 import { getKinguinSdk } from "@/lib/kinguin/client";
-import { formatKinguinError } from "@/lib/kinguin/errors";
+import {
+  formatKinguinError,
+  isKinguinProductNotFoundError,
+} from "@/lib/kinguin/errors";
 import prisma from "@/lib/prisma";
 import type { KinguinProduct } from "@/types/kinguin";
 
@@ -134,6 +137,30 @@ export async function syncProductFromKinguin(
       previousQty: existing.qty,
     };
   } catch (error) {
+    if (isKinguinProductNotFoundError(error)) {
+      // Kinguin ya no tiene el producto: agotar stock, avanzar cursor de sync
+      // para que no monopolice el batch cada 15 min.
+      await prisma.$transaction(async (tx) => {
+        await tx.productOffer.deleteMany({ where: { productId } });
+        await tx.product.update({
+          where: { id: productId },
+          data: {
+            qty: 0,
+            kinguinSyncedAt: new Date(),
+          },
+        });
+      });
+
+      return {
+        ok: true,
+        productId,
+        qty: 0,
+        offersCount: 0,
+        hadStock: false,
+        previousQty: existing.qty,
+      };
+    }
+
     return {
       ok: false,
       productId,

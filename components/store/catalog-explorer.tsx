@@ -2,7 +2,11 @@
 
 import { useCallback, useMemo, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import { IconLoader2 } from "@tabler/icons-react";
 
 import { CatalogFiltersBar } from "@/components/store/catalog-filters";
@@ -68,13 +72,18 @@ export function CatalogExplorer({
     [searchParams],
   );
 
-  const { data, isFetching, isPending, isPlaceholderData } = useQuery({
+  const {
+    data,
+    isFetching,
+    isPending,
+    isPlaceholderData,
+  }: UseQueryResult<CatalogPageResult> = useQuery({
     queryKey: ["catalog", catalogFiltersKey(filters)],
-    queryFn: () => fetchCatalogAction(filters),
+    queryFn: (): Promise<CatalogPageResult> => fetchCatalogAction(filters),
     initialData: areCatalogFiltersEqual(filters, initialFilters)
       ? initialData
       : undefined,
-    placeholderData: (previousData) => previousData,
+    placeholderData: keepPreviousData,
   });
 
   const result = data ?? initialData;

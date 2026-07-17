@@ -55,14 +55,20 @@ export function CategoryProductsExplorer({
 
   const { data, isFetching, isPending, isPlaceholderData } = useQuery({
     queryKey: ["category-products", category.slug, categoryFiltersKey(filters)],
-    queryFn: () => fetchCategoryProductsAction(category.slug, filters),
+    queryFn: async (): Promise<StorefrontProductCardsPage> => {
+      const page = await fetchCategoryProductsAction(category.slug, filters);
+      if (!page) {
+        throw new Error(`Category products unavailable for ${category.slug}`);
+      }
+      return page;
+    },
     initialData: areCategoryFiltersEqual(filters, initialFilters)
       ? initialData
       : undefined,
     placeholderData: (previousData) => previousData,
   });
 
-  const result = data ?? initialData;
+  const result: StorefrontProductCardsPage = data ?? initialData;
   const isLoadingGrid = isFetching && (isPending || isPlaceholderData);
 
   const rangeStart =

@@ -40,3 +40,22 @@ export function isRetryableKinguinNameSearchError(error: unknown): boolean {
   const status = error.response?.status;
   return status === 500 || status === 502 || status === 503;
 }
+
+/** Producto borrado o inexistente en Kinguin — no reintentar como fallo transitorio. */
+export function isKinguinProductNotFoundError(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) {
+    return false;
+  }
+
+  if (error.response?.status !== 404) {
+    return false;
+  }
+
+  const data = error.response.data as KinguinErrorResponse | undefined;
+  const detail = data?.detail?.toLowerCase() ?? "";
+  return (
+    detail.includes("no product found") ||
+    detail.includes("not found") ||
+    detail.length === 0
+  );
+}

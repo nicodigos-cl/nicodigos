@@ -418,8 +418,24 @@ export async function bulkImportKinguinProductsAction(
       batchSize: BULK_IMPORT_BATCH_SIZE,
       batchCount: batches.length,
       batchConcurrency,
-      imported,
-      errors,
+      imported: imported.filter(
+        (
+          item,
+        ): item is {
+          kinguinProductId: string;
+          productId: string;
+          slug: string;
+        } =>
+          typeof item.kinguinProductId === "string" &&
+          typeof item.productId === "string" &&
+          typeof item.slug === "string",
+      ),
+      errors: errors.filter(
+        (item): item is { id: string; name: string; error: string } =>
+          typeof item.id === "string" &&
+          typeof item.name === "string" &&
+          typeof item.error === "string",
+      ),
     },
     message:
       errors.length > 0
