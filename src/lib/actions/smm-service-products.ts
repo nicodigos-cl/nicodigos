@@ -292,6 +292,7 @@ export async function convertSmmServicesToProductsAction(
             smmServiceType: service.type,
             smmCategory: service.category,
             smmRate: service.rate,
+            smmMarkupPct: item.markupPct,
             smmMin: service.min,
             smmMax: service.max,
             smmRefill: service.refill,

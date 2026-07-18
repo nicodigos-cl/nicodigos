@@ -89,7 +89,7 @@ function ProviderActions({ provider }: { provider: SmmProviderListItemDto }) {
                 return;
               }
               toast.success(
-                `Sincronizados ${result.data.synced} · retirados ${result.data.removed} · productos archivados ${result.data.archivedProducts}`,
+                `Sincronizados ${result.data.synced} · retirados ${result.data.removed} · archivados ${result.data.archivedProducts} · tasas cambiadas ${result.data.rateChanges}`,
               );
               router.refresh();
             })();

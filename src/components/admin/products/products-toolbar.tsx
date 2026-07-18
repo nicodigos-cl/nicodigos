@@ -20,6 +20,7 @@ import {
   HiOutlineX,
 } from "react-icons/hi";
 
+import { SsrSearchInput } from "@/components/admin/ssr-search-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +45,7 @@ type ProductsToolbarProps = {
 };
 
 type FilterOverrides = Partial<{
+  q: string | undefined;
   category: string | undefined;
   status: ProductsListQuery["status"] | undefined;
   deliveryMethod: ProductsListQuery["deliveryMethod"] | undefined;
@@ -115,7 +117,7 @@ function buildHref(
   overrides: FilterOverrides,
 ): string {
   const next = {
-    q: query.q,
+    q: "q" in overrides ? overrides.q : query.q,
     pageSize: query.pageSize,
     category: "category" in overrides ? overrides.category : query.category,
     status: "status" in overrides ? overrides.status : query.status,
@@ -227,6 +229,13 @@ export function ProductsToolbar({ query, categories }: ProductsToolbarProps) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        <SsrSearchInput
+          value={query.q ?? ""}
+          buildHref={(q) => buildHref(query, { q })}
+          placeholder="Buscar por nombre, slug o descripción..."
+          aria-label="Buscar productos"
+          className="w-full max-w-sm sm:w-72"
+        />
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger
             render={<Button type="button" variant="outline" size="sm" />}

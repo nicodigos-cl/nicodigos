@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 
+import { cleanupExpiredPriceChangeEvents } from "@/lib/events/cleanup-price-change-events";
+import { registerSmmProductPriceHandlers } from "@/lib/events/handlers/smm-product-price";
 import { createLogger } from "@/lib/logger";
 import { syncAllProvidersServices } from "@/lib/smm-providers/sync";
+
+registerSmmProductPriceHandlers();
 
 const log = createLogger({ module: "cron-sync-smm-services" });
 
@@ -40,12 +44,14 @@ async function handleSync(request: Request) {
 
   try {
     const result = await syncAllProvidersServices();
+    const cleanup = await cleanupExpiredPriceChangeEvents();
     const durationMs = Date.now() - startedAt;
 
     log.info(
       {
         providers: result.providers,
         totals: result.totals,
+        cleanup,
         durationMs,
       },
       "SMM providers sync cron finished",
@@ -55,6 +61,7 @@ async function handleSync(request: Request) {
       ok: true,
       durationMs,
       ...result,
+      cleanup,
     });
   } catch (error) {
     log.error({ err: error }, "SMM providers sync cron failed");

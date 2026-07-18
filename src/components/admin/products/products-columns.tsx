@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { HiOutlineClipboardCopy, HiOutlineDotsHorizontal, HiOutlinePencil, HiOutlineTrash } from "react-icons/hi";
+import {
+  HiOutlineClipboardCopy,
+  HiOutlineDotsHorizontal,
+  HiOutlinePencil,
+  HiOutlineTrash,
+} from "react-icons/hi";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 
 import { ProductStatusBadge } from "@/components/admin/products/product-status-badge";
 import { ProductThumbnail } from "@/components/admin/products/product-thumbnail";
+import { DataTableColumnHeader } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -104,7 +110,10 @@ export const productsColumns: ColumnDef<ProductListItemDto>[] = [
   },
   {
     accessorKey: "name",
-    header: "Producto",
+    enableHiding: false,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Producto" />
+    ),
     cell: ({ row }) => {
       const product = row.original;
       return (
@@ -159,10 +168,15 @@ export const productsColumns: ColumnDef<ProductListItemDto>[] = [
         </div>
       );
     },
+    enableSorting: false,
   },
   {
-    id: "basePrice",
-    header: "Precio base",
+    id: "price",
+    accessorFn: (row) => Number.parseFloat(row.price),
+    enableHiding: false,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Precio base" />
+    ),
     cell: ({ row }) => (
       <span className="font-medium tabular-nums">
         {formatMoney(row.original.basePrice, row.original.currency)}
@@ -183,10 +197,15 @@ export const productsColumns: ColumnDef<ProductListItemDto>[] = [
         </span>
       );
     },
+    enableSorting: false,
   },
   {
-    id: "stock",
-    header: "Stock",
+    id: "qty",
+    accessorFn: (row) => row.stockAvailable,
+    enableHiding: false,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Stock" />
+    ),
     cell: ({ row }) => (
       <span
         className={
@@ -200,8 +219,11 @@ export const productsColumns: ColumnDef<ProductListItemDto>[] = [
     ),
   },
   {
-    id: "status",
-    header: "Estado",
+    accessorKey: "status",
+    enableHiding: false,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Estado" />
+    ),
     cell: ({ row }) => (
       <ProductStatusBadge status={row.original.visualStatus} />
     ),
@@ -211,5 +233,6 @@ export const productsColumns: ColumnDef<ProductListItemDto>[] = [
     header: "",
     cell: ({ row }) => <ProductActions product={row.original} />,
     enableHiding: false,
+    enableSorting: false,
   },
 ];

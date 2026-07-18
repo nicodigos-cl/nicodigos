@@ -2,7 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { HiOutlineBell, HiOutlineQuestionMarkCircle, HiOutlineSearch } from "react-icons/hi";
+import {
+  HiOutlineBell,
+  HiOutlineQuestionMarkCircle,
+  HiOutlineSearch,
+} from "react-icons/hi";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -15,12 +19,39 @@ type AdminHeaderProps = {
   title?: string;
 };
 
-function ProductsSearchInput({
+type SearchTarget = {
+  listPath: string;
+  placeholder: string;
+  ariaLabel: string;
+};
+
+function resolveSearchTarget(pathname: string): SearchTarget {
+  if (pathname === "/admin/services" || pathname.startsWith("/admin/services/")) {
+    return {
+      listPath: "/admin/services",
+      placeholder: "Buscar servicios...",
+      ariaLabel: "Buscar servicios",
+    };
+  }
+
+  return {
+    listPath: "/admin/products",
+    placeholder:
+      pathname === "/admin/products" || pathname === "/admin/products/"
+        ? "Buscar productos..."
+        : "Buscar en productos...",
+    ariaLabel: "Buscar productos",
+  };
+}
+
+function AdminSearchInput({
   initialQuery,
-  isProductsList,
+  isOnList,
+  target,
 }: {
   initialQuery: string;
-  isProductsList: boolean;
+  isOnList: boolean;
+  target: SearchTarget;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -30,7 +61,7 @@ function ProductsSearchInput({
   function handleSearchSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!isProductsList) {
+    if (!isOnList) {
       const params = new URLSearchParams();
       if (searchValue.trim()) {
         params.set("q", searchValue.trim());
@@ -38,8 +69,8 @@ function ProductsSearchInput({
       startTransition(() => {
         router.push(
           params.size > 0
-            ? `/admin/products?${params.toString()}`
-            : "/admin/products",
+            ? `${target.listPath}?${params.toString()}`
+            : target.listPath,
         );
       });
       return;
@@ -56,7 +87,8 @@ function ProductsSearchInput({
     params.delete("page");
 
     startTransition(() => {
-      router.push(`/admin/products?${params.toString()}`);
+      const qs = params.toString();
+      router.push(qs ? `${target.listPath}?${qs}` : target.listPath);
     });
   }
 
@@ -70,11 +102,9 @@ function ProductsSearchInput({
       <Input
         value={searchValue}
         onChange={(event) => setSearchValue(event.target.value)}
-        placeholder={
-          isProductsList ? "Buscar productos..." : "Buscar en productos..."
-        }
+        placeholder={target.placeholder}
         className={cn("h-9 pl-9", isPending && "opacity-80")}
-        aria-label="Buscar productos"
+        aria-label={target.ariaLabel}
       />
     </form>
   );
@@ -85,8 +115,9 @@ export function AdminHeader({ title = "Administración" }: AdminHeaderProps) {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
 
-  const isProductsList =
-    pathname === "/admin/products" || pathname === "/admin/products/";
+  const target = resolveSearchTarget(pathname);
+  const isOnList =
+    pathname === target.listPath || pathname === `${target.listPath}/`;
   const urlQuery = searchParams.get("q") ?? "";
 
   const userName = session?.user?.name ?? "Admin";
@@ -102,10 +133,11 @@ export function AdminHeader({ title = "Administración" }: AdminHeaderProps) {
     <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/80 md:px-6">
       <SidebarTrigger className="-ml-1" />
 
-      <ProductsSearchInput
+      <AdminSearchInput
         key={`${pathname}:${urlQuery}`}
-        initialQuery={urlQuery}
-        isProductsList={isProductsList}
+        initialQuery={isOnList ? urlQuery : ""}
+        isOnList={isOnList}
+        target={target}
       />
 
       <div className="ml-auto flex items-center gap-1 sm:gap-2">

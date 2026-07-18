@@ -43,6 +43,9 @@ interface DataTableProps<TData, TValue> {
   enableRowSelection?: boolean;
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
+  /** Controlled sorting (use with `manual` for server-driven order). */
+  sorting?: SortingState;
+  onSortingChange?: OnChangeFn<SortingState>;
   getRowId?: (originalRow: TData, index: number) => string;
 }
 
@@ -59,9 +62,12 @@ export function DataTable<TData, TValue>({
   enableRowSelection,
   rowSelection: controlledRowSelection,
   onRowSelectionChange: controlledOnRowSelectionChange,
+  sorting: controlledSorting,
+  onSortingChange: controlledOnSortingChange,
   getRowId,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [uncontrolledSorting, setUncontrolledSorting] =
+    React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
   );
@@ -69,6 +75,11 @@ export function DataTable<TData, TValue>({
     React.useState<VisibilityState>({});
   const [uncontrolledRowSelection, setUncontrolledRowSelection] =
     React.useState<RowSelectionState>({});
+
+  const isSortingControlled = controlledSorting !== undefined;
+  const sorting = isSortingControlled ? controlledSorting : uncontrolledSorting;
+  const onSortingChange =
+    controlledOnSortingChange ?? setUncontrolledSorting;
 
   const isSelectionControlled = controlledRowSelection !== undefined;
   const rowSelection = isSelectionControlled
@@ -90,7 +101,7 @@ export function DataTable<TData, TValue>({
       rowSelection,
     },
     enableRowSelection: selectionEnabled,
-    onSortingChange: setSorting,
+    onSortingChange,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange,

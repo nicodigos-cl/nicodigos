@@ -67,11 +67,15 @@ export function DataTableColumnHeader<TData, TValue>({
             <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} />
             Desc
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => column.toggleVisibility(false)}>
-            <HugeiconsIcon icon={ViewOffIcon} strokeWidth={2} />
-            Hide
-          </DropdownMenuItem>
+          {column.getCanHide() ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => column.toggleVisibility(false)}>
+                <HugeiconsIcon icon={ViewOffIcon} strokeWidth={2} />
+                Hide
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

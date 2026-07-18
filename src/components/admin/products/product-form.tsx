@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 import { ProductMediaManager } from "@/components/admin/products/product-media-manager";
 import { ProductStatusBadge } from "@/components/admin/products/product-status-badge";
+import { SmmServicePicker } from "@/components/admin/products/smm-service-picker";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -41,8 +42,21 @@ import {
   createProductAction,
   updateProductAction,
 } from "@/lib/actions/products";
+import { applyMarkupPct } from "@/lib/fx/markup";
 import { calculateMarginPercent, slugify } from "@/lib/products/format";
 import type { CategoryOptionDto, ProductDetailDto } from "@/types/products";
+import type { SmmServiceListItemDto } from "@/types/smm-provider";
+
+type SmmPickerProps = {
+  items: SmmServiceListItemDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  q: string | undefined;
+  usdClpRate: number;
+  defaultMarkupPct: number;
+};
 
 type ProductFormProps = {
   mode: "create" | "edit";
@@ -50,6 +64,7 @@ type ProductFormProps = {
   product?: ProductDetailDto;
   archiveSlot?: React.ReactNode;
   keysSlot?: React.ReactNode;
+  smmPicker?: SmmPickerProps;
 };
 
 type FormState = {
@@ -162,12 +177,14 @@ export function ProductForm({
   product,
   archiveSlot,
   keysSlot,
+  smmPicker,
 }: ProductFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [slugTouched, setSlugTouched] = useState(mode === "edit");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [form, setForm] = useState<FormState>(() => toFormState(product));
+  const [smmServiceDbId, setSmmServiceDbId] = useState<string | null>(null);
 
   const margin = useMemo(() => {
     const price = Number.parseFloat(form.price.replace(",", "."));
@@ -183,6 +200,30 @@ export function ProductForm({
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function handleSelectSmmService(service: SmmServiceListItemDto) {
+    if (!smmPicker) return;
+    const rateUsd = Number.parseFloat(service.rate);
+    const baseClp = Number.isFinite(rateUsd)
+      ? Math.round(rateUsd * smmPicker.usdClpRate)
+      : 0;
+    const priceClp = applyMarkupPct(baseClp, smmPicker.defaultMarkupPct);
+
+    setSmmServiceDbId(service.id);
+    setForm((prev) => ({
+      ...prev,
+      deliveryMethod: "SMM",
+      name: prev.name.trim() ? prev.name : service.name,
+      slug: slugTouched ? prev.slug : slugify(service.name),
+      textQty: String(service.min),
+      price: String(priceClp),
+      sourceCostPrice: String(baseClp),
+    }));
+  }
+
+  function handleClearSmmService() {
+    setSmmServiceDbId(null);
   }
 
   function toggleCategory(categoryId: string) {
@@ -232,6 +273,8 @@ export function ProductForm({
       tags: csvToArray(form.tags),
       sourceCostPrice: form.sourceCostPrice || null,
       categoryIds: form.categoryIds,
+      smmServiceDbId:
+        form.deliveryMethod === "SMM" ? (smmServiceDbId ?? undefined) : undefined,
     };
 
     startTransition(() => {
@@ -406,6 +449,9 @@ export function ProductForm({
                         value === "MANUAL"
                       ) {
                         updateField("deliveryMethod", value);
+                        if (value !== "SMM") {
+                          setSmmServiceDbId(null);
+                        }
                       }
                     }}
                   >
@@ -420,6 +466,28 @@ export function ProductForm({
                   </Select>
                 </div>
               </div>
+
+              {mode === "create" &&
+              form.deliveryMethod === "SMM" &&
+              smmPicker ? (
+                <SmmServicePicker
+                  items={smmPicker.items}
+                  total={smmPicker.total}
+                  page={smmPicker.page}
+                  pageSize={smmPicker.pageSize}
+                  totalPages={smmPicker.totalPages}
+                  q={smmPicker.q}
+                  selectedId={smmServiceDbId}
+                  onSelect={handleSelectSmmService}
+                  onClear={handleClearSmmService}
+                />
+              ) : null}
+
+              {fieldError("smmServiceDbId") ? (
+                <p className="text-sm text-destructive">
+                  {fieldError("smmServiceDbId")}
+                </p>
+              ) : null}
 
               <Collapsible>
                 <CollapsibleTrigger className="flex w-full items-center justify-between rounded-2xl border border-border px-3 py-2 text-sm font-medium hover:bg-muted">

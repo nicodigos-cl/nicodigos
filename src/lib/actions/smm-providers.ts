@@ -199,7 +199,12 @@ export async function deleteSmmProviderAction(
 export async function syncSmmProviderServicesAction(
   rawInput: unknown,
 ): Promise<
-  ActionResult<{ synced: number; removed: number; archivedProducts: number }>
+  ActionResult<{
+    synced: number;
+    removed: number;
+    archivedProducts: number;
+    rateChanges: number;
+  }>
 > {
   const session = await requireSession();
   if (!session) {
@@ -231,6 +236,7 @@ export async function syncSmmProviderServicesAction(
       synced: result.synced,
       removed: result.removed,
       archivedProducts: result.archivedProducts,
+      rateChanges: result.rateChanges,
     },
   };
 }

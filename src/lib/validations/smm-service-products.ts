@@ -73,7 +73,7 @@ const productDraftItemSchema = z.object({
     .trim()
     .regex(/^\d+([.,]\d{1,4})?$/)
     .transform((value) => value.replace(",", ".")),
-  markupPct: z.coerce.number().min(0).max(1000).optional(),
+  markupPct: z.coerce.number().min(0).max(1000).default(DEFAULT_MARKUP_MAX_PCT),
   textQty: z.preprocess(
     emptyToUndefined,
     z.coerce.number().int().min(0).optional(),

@@ -11,6 +11,7 @@ import {
   HiOutlineX,
 } from "react-icons/hi";
 
+import { SsrSearchInput } from "@/components/admin/ssr-search-input";
 import { SyncServicesDialog } from "@/components/admin/smm-services/sync-services-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ type ServicesToolbarProps = {
 };
 
 type FilterOverrides = Partial<{
+  q: string | undefined;
   providerId: string | undefined;
   category: string | undefined;
   isActive: "true" | "false" | undefined;
@@ -43,7 +45,7 @@ type FilterOverrides = Partial<{
 
 function buildHref(query: ServicesListQuery, overrides: FilterOverrides) {
   const next = {
-    q: query.q,
+    q: "q" in overrides ? overrides.q : query.q,
     pageSize: query.pageSize,
     providerId:
       "providerId" in overrides ? overrides.providerId : query.providerId,
@@ -154,6 +156,13 @@ export function ServicesToolbar({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        <SsrSearchInput
+          value={query.q ?? ""}
+          buildHref={(q) => buildHref(query, { q })}
+          placeholder="Buscar por nombre, categoría, provider o ID..."
+          aria-label="Buscar servicios"
+          className="w-full max-w-sm sm:w-72"
+        />
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger
             render={<Button type="button" variant="outline" size="sm" />}
@@ -282,6 +291,28 @@ export function ServicesToolbar({
                     label="Categoría A–Z"
                     icon={HiOutlineCollection}
                     onClick={() => apply({ sort: "category", order: "asc" })}
+                  />
+                  <FilterOptionButton
+                    active={query.sort === "rate" && query.order === "desc"}
+                    label="Rate mayor"
+                    icon={HiOutlineCollection}
+                    onClick={() => apply({ sort: "rate", order: "desc" })}
+                  />
+                  <FilterOptionButton
+                    active={query.sort === "rate" && query.order === "asc"}
+                    label="Rate menor"
+                    icon={HiOutlineCollection}
+                    onClick={() => apply({ sort: "rate", order: "asc" })}
+                  />
+                  <FilterOptionButton
+                    active={
+                      query.sort === "remoteServiceId" && query.order === "asc"
+                    }
+                    label="ID remoto"
+                    icon={HiOutlineCollection}
+                    onClick={() =>
+                      apply({ sort: "remoteServiceId", order: "asc" })
+                    }
                   />
                 </div>
               </section>

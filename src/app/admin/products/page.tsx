@@ -91,7 +91,7 @@ export default async function ProductsPage({
       ) : (
         <>
           <div className="hidden md:block">
-            <ProductsTable data={result.items} />
+            <ProductsTable data={result.items} query={query} />
           </div>
           <div className="md:hidden">
             <ProductsMobileList data={result.items} />

@@ -1,10 +1,10 @@
 "use client";
 
-import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
+import type { OnChangeFn, RowSelectionState, SortingState } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import {
   HiOutlineClipboardCopy,
   HiOutlineDotsHorizontal,
@@ -12,7 +12,7 @@ import {
 } from "react-icons/hi";
 import { toast } from "sonner";
 
-import { DataTable } from "@/components/data-table";
+import { DataTable, DataTableColumnHeader } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,7 +25,36 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { deleteSmmServiceAction } from "@/lib/actions/smm-services";
 import { SMM_SERVICE_SELECTION_LIMIT } from "@/lib/smm-services/constants";
+import type {
+  ServicesListQuery,
+  ServicesSortField,
+} from "@/lib/validations/smm-providers";
 import type { SmmServiceListItemDto } from "@/types/smm-provider";
+
+const SORTABLE_COLUMNS = new Set<ServicesSortField>([
+  "remoteServiceId",
+  "name",
+  "category",
+  "rate",
+]);
+
+function buildServicesHref(
+  query: ServicesListQuery,
+  sort: ServicesSortField,
+  order: "asc" | "desc",
+): string {
+  const params = new URLSearchParams();
+  if (query.q) params.set("q", query.q);
+  if (query.pageSize !== 20) params.set("pageSize", String(query.pageSize));
+  if (query.providerId) params.set("providerId", query.providerId);
+  if (query.category) params.set("category", query.category);
+  if (query.isActive) params.set("isActive", query.isActive);
+  if (sort !== "updatedAt") params.set("sort", sort);
+  if (order !== "desc") params.set("order", order);
+
+  const qs = params.toString();
+  return qs ? `/admin/services?${qs}` : "/admin/services";
+}
 
 function ServiceActions({ service }: { service: SmmServiceListItemDto }) {
   const router = useRouter();
@@ -81,16 +110,47 @@ function ServiceActions({ service }: { service: SmmServiceListItemDto }) {
 
 type ServicesTableProps = {
   data: SmmServiceListItemDto[];
+  query: ServicesListQuery;
   rowSelection: RowSelectionState;
   onRowSelectionChange: OnChangeFn<RowSelectionState>;
 };
 
 export function ServicesTable({
   data,
+  query,
   rowSelection,
   onRowSelectionChange,
 }: ServicesTableProps) {
+  const router = useRouter();
   const selectedCount = Object.values(rowSelection).filter(Boolean).length;
+
+  const sorting = useMemo<SortingState>(() => {
+    if (!SORTABLE_COLUMNS.has(query.sort)) {
+      return [];
+    }
+    return [{ id: query.sort, desc: query.order === "desc" }];
+  }, [query.order, query.sort]);
+
+  const onSortingChange = useCallback<OnChangeFn<SortingState>>(
+    (updater) => {
+      const next = typeof updater === "function" ? updater(sorting) : updater;
+      const first = next[0];
+
+      if (!first || !SORTABLE_COLUMNS.has(first.id as ServicesSortField)) {
+        router.push(buildServicesHref(query, "updatedAt", "desc"));
+        return;
+      }
+
+      router.push(
+        buildServicesHref(
+          query,
+          first.id as ServicesSortField,
+          first.desc ? "desc" : "asc",
+        ),
+      );
+    },
+    [query, router, sorting],
+  );
 
   const columns = useMemo<ColumnDef<SmmServiceListItemDto>[]>(
     () => [
@@ -139,7 +199,10 @@ export function ServicesTable({
       },
       {
         accessorKey: "remoteServiceId",
-        header: "ID",
+        enableHiding: false,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="ID" />
+        ),
         cell: ({ row }) => (
           <span className="tabular-nums text-muted-foreground">
             {row.original.remoteServiceId}
@@ -148,7 +211,10 @@ export function ServicesTable({
       },
       {
         accessorKey: "name",
-        header: "Servicio",
+        enableHiding: false,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Servicio" />
+        ),
         cell: ({ row }) => (
           <div className="min-w-0 max-w-72">
             <p className="truncate font-medium">{row.original.name}</p>
@@ -161,6 +227,7 @@ export function ServicesTable({
       {
         accessorKey: "providerName",
         header: "Provider",
+        enableSorting: false,
         cell: ({ row }) => (
           <Link
             href={`/admin/providers/${row.original.providerId}`}
@@ -172,14 +239,21 @@ export function ServicesTable({
       },
       {
         accessorKey: "category",
-        header: "Categoría",
+        enableHiding: false,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Categoría" />
+        ),
         cell: ({ row }) => (
           <span className="block max-w-40 truncate">{row.original.category}</span>
         ),
       },
       {
-        accessorKey: "rate",
-        header: "Rate",
+        id: "rate",
+        accessorFn: (row) => Number.parseFloat(row.rate),
+        enableHiding: false,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Rate" />
+        ),
         cell: ({ row }) => (
           <span className="tabular-nums">{row.original.rate}</span>
         ),
@@ -187,6 +261,7 @@ export function ServicesTable({
       {
         id: "range",
         header: "Min–Max",
+        enableSorting: false,
         cell: ({ row }) => (
           <span className="tabular-nums text-muted-foreground">
             {row.original.min}–{row.original.max}
@@ -196,6 +271,7 @@ export function ServicesTable({
       {
         id: "flags",
         header: "Flags",
+        enableSorting: false,
         cell: ({ row }) => (
           <div className="flex flex-wrap gap-1">
             {row.original.isActive ? (
@@ -214,6 +290,8 @@ export function ServicesTable({
       },
       {
         id: "actions",
+        enableSorting: false,
+        enableHiding: false,
         cell: ({ row }) => <ServiceActions service={row.original} />,
       },
     ],
@@ -230,6 +308,8 @@ export function ServicesTable({
       enableRowSelection
       rowSelection={rowSelection}
       onRowSelectionChange={onRowSelectionChange}
+      sorting={sorting}
+      onSortingChange={onSortingChange}
       getRowId={(row) => row.id}
       emptyMessage="No hay servicios para mostrar."
     />

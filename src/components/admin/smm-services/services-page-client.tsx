@@ -155,6 +155,7 @@ export function ServicesPageClient({
       <div className="hidden md:block">
         <ServicesTable
           data={items}
+          query={query}
           rowSelection={rowSelection}
           onRowSelectionChange={handleRowSelectionChange}
         />

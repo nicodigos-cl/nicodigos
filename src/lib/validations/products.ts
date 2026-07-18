@@ -220,6 +220,11 @@ const productBaseFields = {
   tags: stringArrayFromCsv.optional(),
   sourceCostPrice: optionalDecimalStringSchema,
   categoryIds: z.array(z.string().cuid()).default([]),
+  /** DB id of `SmmService` to link when deliveryMethod is SMM. */
+  smmServiceDbId: z.preprocess(
+    emptyToUndefined,
+    z.string().cuid().optional(),
+  ),
 };
 
 function refineOfferPricing<

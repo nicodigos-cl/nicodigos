@@ -5,6 +5,7 @@ import {
   SmmProviderStatus,
 } from "@/generated/prisma/client";
 
+import { emitSmmServiceRateChanged } from "@/lib/events/handlers/smm-product-price";
 import { createLogger } from "@/lib/logger";
 import prisma from "@/lib/prisma";
 import { SmmService as SmmApiClient } from "@/lib/smm-service";
@@ -41,18 +42,24 @@ function normalizeApiUrl(url: string): string {
   return url.trim().replace(/\/+$/, "");
 }
 
+function ratesEqual(a: Prisma.Decimal, b: Prisma.Decimal): boolean {
+  return a.equals(b);
+}
+
 export type SyncProviderResult = {
   providerId: string;
   providerName: string;
   synced: number;
   removed: number;
   archivedProducts: number;
+  rateChanges: number;
   error?: string;
 };
 
 /**
  * Sync one provider: upsert remote services, delete missing ones,
- * and archive SMM products linked to removed remote service ids.
+ * archive products for removed services, and emit rate-change events
+ * so linked product prices can be recalculated.
  */
 export async function syncProviderServices(
   providerId: string,
@@ -74,6 +81,7 @@ export async function syncProviderServices(
       synced: 0,
       removed: 0,
       archivedProducts: 0,
+      rateChanges: 0,
       error: "Provider no encontrado.",
     };
   }
@@ -89,11 +97,37 @@ export async function syncProviderServices(
     const remoteIds = remoteServices.map((item) => item.service);
     const remoteIdSet = new Set(remoteIds);
 
+    const existingBefore = await prisma.smmService.findMany({
+      where: { providerId: provider.id },
+      select: { remoteServiceId: true, rate: true },
+    });
+    const previousRates = new Map(
+      existingBefore.map((service) => [
+        service.remoteServiceId,
+        service.rate,
+      ]),
+    );
+
+    const rateChanges: Array<{
+      remoteServiceId: number;
+      oldRate: string;
+      newRate: string;
+    }> = [];
+
     const result = await prisma.$transaction(async (tx) => {
       for (const item of remoteServices) {
         const rate = parseSmmRate(item.rate);
         const min = parseSmmInt(item.min);
         const max = parseSmmInt(item.max);
+
+        const previous = previousRates.get(item.service);
+        if (previous && !ratesEqual(previous, rate)) {
+          rateChanges.push({
+            remoteServiceId: item.service,
+            oldRate: previous.toString(),
+            newRate: rate.toString(),
+          });
+        }
 
         await tx.smmService.upsert({
           where: {
@@ -180,8 +214,20 @@ export async function syncProviderServices(
         synced: remoteServices.length,
         removed: toRemove.length,
         archivedProducts,
+        rateChanges: rateChanges.length,
       };
     });
+
+    // Emit after commit so handlers read consistent DB state.
+    for (const change of rateChanges) {
+      await emitSmmServiceRateChanged({
+        providerId: provider.id,
+        providerApiUrl: provider.apiUrl,
+        remoteServiceId: change.remoteServiceId,
+        oldRate: change.oldRate,
+        newRate: change.newRate,
+      });
+    }
 
     return {
       providerId: provider.id,
@@ -210,6 +256,7 @@ export async function syncProviderServices(
       synced: 0,
       removed: 0,
       archivedProducts: 0,
+      rateChanges: 0,
       error: message,
     };
   }
@@ -222,6 +269,7 @@ export type SyncAllProvidersResult = {
     synced: number;
     removed: number;
     archivedProducts: number;
+    rateChanges: number;
     errors: number;
   };
 };
@@ -246,10 +294,17 @@ export async function syncAllProvidersServices(): Promise<SyncAllProvidersResult
       acc.synced += item.synced;
       acc.removed += item.removed;
       acc.archivedProducts += item.archivedProducts;
+      acc.rateChanges += item.rateChanges;
       if (item.error) acc.errors += 1;
       return acc;
     },
-    { synced: 0, removed: 0, archivedProducts: 0, errors: 0 },
+    {
+      synced: 0,
+      removed: 0,
+      archivedProducts: 0,
+      rateChanges: 0,
+      errors: 0,
+    },
   );
 
   return {

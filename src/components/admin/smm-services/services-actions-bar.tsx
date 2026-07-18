@@ -73,18 +73,24 @@ export function ServicesActionsBar({
           type="button"
           variant="outline"
           size="sm"
-          disabled={isPending}
+          disabled={isPending || undefined}
           onClick={handleSelectAll}
         >
           <HiOutlineCheckCircle className="size-4" />
-          {isPending ? "Seleccionando..." : `Seleccionar todos (máx. ${SMM_SERVICE_SELECTION_LIMIT})`}
+          {isPending
+            ? "Seleccionando..."
+            : `Seleccionar todos (máx. ${SMM_SERVICE_SELECTION_LIMIT})`}
         </Button>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          disabled={!canAct}
-          onClick={onExport}
+          aria-disabled={!canAct}
+          className={!canAct ? "pointer-events-none opacity-50" : undefined}
+          onClick={() => {
+            if (!canAct) return;
+            onExport();
+          }}
         >
           <HiOutlineDownload className="size-4" />
           Exportar JSON
@@ -92,8 +98,12 @@ export function ServicesActionsBar({
         <Button
           type="button"
           size="sm"
-          disabled={!canAct}
-          onClick={onConvert}
+          aria-disabled={!canAct}
+          className={!canAct ? "pointer-events-none opacity-50" : undefined}
+          onClick={() => {
+            if (!canAct) return;
+            onConvert();
+          }}
         >
           <HiOutlineTemplate className="size-4" />
           Convertir a producto

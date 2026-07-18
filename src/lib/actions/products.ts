@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { flattenError } from "zod";
 
-import { Prisma, ProductKeyStatus } from "@/generated/prisma/client";
+import { Prisma, ProductKeyStatus, DeliveryMethod } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/actions/types";
 import { requireSession } from "@/lib/auth/session";
 import prisma from "@/lib/prisma";
+import { DEFAULT_MARKUP_MIN_PCT } from "@/lib/smm-services/constants";
 import {
   addProductImageSchema,
   addProductKeysSchema,
@@ -94,6 +95,52 @@ async function syncProductCategories(
   }
 }
 
+async function resolveSmmLinkFields(input: {
+  deliveryMethod: DeliveryMethod;
+  smmServiceDbId?: string;
+  textQty?: number | null;
+}) {
+  if (input.deliveryMethod !== DeliveryMethod.SMM || !input.smmServiceDbId) {
+    return null;
+  }
+
+  const service = await prisma.smmService.findUnique({
+    where: { id: input.smmServiceDbId },
+    select: {
+      remoteServiceId: true,
+      name: true,
+      type: true,
+      category: true,
+      rate: true,
+      min: true,
+      max: true,
+      refill: true,
+      cancel: true,
+      provider: { select: { apiUrl: true } },
+    },
+  });
+
+  if (!service) {
+    throw new Error("SMM_SERVICE_NOT_FOUND");
+  }
+
+  return {
+    smmApiUrl: service.provider.apiUrl,
+    smmServiceId: service.remoteServiceId,
+    smmServiceType: service.type,
+    smmCategory: service.category,
+    smmRate: service.rate,
+    smmMarkupPct: DEFAULT_MARKUP_MIN_PCT,
+    smmMin: service.min,
+    smmMax: service.max,
+    smmRefill: service.refill,
+    smmCancel: service.cancel,
+    smmServiceName: service.name,
+    smmSyncedAt: new Date(),
+    textQty: input.textQty ?? service.min,
+  };
+}
+
 export async function createProductAction(
   rawInput: unknown,
 ): Promise<ActionResult<{ id: string }>> {
@@ -111,6 +158,12 @@ export async function createProductAction(
   const pricing = normalizeOfferFields(data);
 
   try {
+    const smmFields = await resolveSmmLinkFields({
+      deliveryMethod: data.deliveryMethod,
+      smmServiceDbId: data.smmServiceDbId,
+      textQty: data.textQty,
+    });
+
     const product = await prisma.$transaction(async (tx) => {
       const created = await tx.product.create({
         data: {
@@ -124,7 +177,7 @@ export async function createProductAction(
           compareAtPrice: pricing.compareAtPrice,
           currency: data.currency.toUpperCase(),
           qty: data.qty,
-          textQty: data.textQty ?? null,
+          textQty: smmFields?.textQty ?? data.textQty ?? null,
           isFeatured: data.isFeatured,
           isOffer: pricing.isOffer,
           isPreorder: data.isPreorder,
@@ -141,6 +194,22 @@ export async function createProductAction(
           publishers: data.publishers ?? [],
           tags: data.tags ?? [],
           sourceCostPrice: data.sourceCostPrice ?? null,
+          ...(smmFields
+            ? {
+                smmApiUrl: smmFields.smmApiUrl,
+                smmServiceId: smmFields.smmServiceId,
+                smmServiceType: smmFields.smmServiceType,
+                smmCategory: smmFields.smmCategory,
+                smmRate: smmFields.smmRate,
+                smmMarkupPct: smmFields.smmMarkupPct,
+                smmMin: smmFields.smmMin,
+                smmMax: smmFields.smmMax,
+                smmRefill: smmFields.smmRefill,
+                smmCancel: smmFields.smmCancel,
+                smmServiceName: smmFields.smmServiceName,
+                smmSyncedAt: smmFields.smmSyncedAt,
+              }
+            : {}),
         },
         select: { id: true },
       });
@@ -168,6 +237,14 @@ export async function createProductAction(
         success: false,
         message: "Una o más categorías no existen.",
         fieldErrors: { categoryIds: ["Categoría inválida"] },
+      };
+    }
+
+    if (error instanceof Error && error.message === "SMM_SERVICE_NOT_FOUND") {
+      return {
+        success: false,
+        message: "El servicio SMM seleccionado no existe.",
+        fieldErrors: { smmServiceDbId: ["Servicio inválido"] },
       };
     }
 

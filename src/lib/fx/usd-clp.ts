@@ -1,8 +1,12 @@
+import "server-only";
+
 import {
   FX_USD_CLP_CACHE_KEY,
   FX_USD_CLP_TTL_SECONDS,
 } from "@/lib/smm-services/constants";
 import { getRedis } from "@/lib/redis";
+
+export { applyMarkupPct } from "@/lib/fx/markup";
 
 type MindicadorDolarResponse = {
   serie?: Array<{ valor?: number }>;
@@ -72,12 +76,4 @@ export async function usdToClp(amountUsd: number): Promise<number> {
   }
   const rate = await getUsdToClpRate();
   return Math.round(amountUsd * rate);
-}
-
-export function applyMarkupPct(baseClp: number, markupPct: number): number {
-  if (!Number.isFinite(baseClp) || baseClp < 0) {
-    return 0;
-  }
-  const pct = Number.isFinite(markupPct) ? markupPct : 0;
-  return Math.round(baseClp * (1 + pct / 100));
 }
