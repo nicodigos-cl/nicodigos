@@ -1,8 +1,6 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
-import { Package01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 
+import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 
 type AuthShellProps = {
@@ -23,17 +21,9 @@ export function AuthShell({
       <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-sm lg:w-96">
           <div>
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2.5 text-foreground"
-            >
-              <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                <HugeiconsIcon icon={Package01Icon} strokeWidth={2} />
-              </span>
-              <span className="font-heading text-xl font-bold tracking-tight">
-                Nicodigos
-              </span>
-            </Link>
+            <div className="flex justify-start">
+              <Logo size={72} priority />
+            </div>
             <h1 className="mt-8 text-2xl font-bold tracking-tight text-foreground">
               {title}
             </h1>

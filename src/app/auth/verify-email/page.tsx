@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
-import { AuthShell } from "@/components/auth/auth-shell";
-import { VerifyEmailForm } from "@/components/auth/verify-email-form";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AuthOtpShell } from "@/components/auth/auth-otp-shell";
 import { Button } from "@/components/ui/button";
+import { AUTH_HOME_PATH, buildAuthOtpPath } from "@/lib/auth/otp";
 
 export const metadata: Metadata = {
   title: "Verificar correo",
@@ -21,49 +21,34 @@ export default async function VerifyEmailPage({
   searchParams,
 }: VerifyEmailPageProps) {
   const params = await searchParams;
-  const isSuccess = params.status === "success";
 
-  if (isSuccess) {
+  if (params.status === "success") {
     return (
-      <AuthShell
+      <AuthOtpShell
         title="Correo verificado"
-        description="Tu cuenta ya está lista. Bienvenido a Nicodigos."
+        description="Tu cuenta ya está lista."
       >
-        <div className="space-y-6">
-          <Alert>
-            <AlertTitle>Listo</AlertTitle>
-            <AlertDescription>
-              Ya puedes comprar productos digitales y acceder a tus entregas.
-            </AlertDescription>
-          </Alert>
-          <Button
-            render={<Link href="/" />}
-            nativeButton={false}
-            className="w-full rounded-xl"
-          >
-            Ir a la tienda
-          </Button>
-        </div>
-      </AuthShell>
+        <Button
+          render={<Link href={AUTH_HOME_PATH} />}
+          nativeButton={false}
+          className="w-full rounded-xl"
+        >
+          Ir al dashboard
+        </Button>
+      </AuthOtpShell>
     );
   }
 
-  return (
-    <AuthShell
-      title="Verifica tu correo"
-      description={
-        <>
-          ¿Ya lo verificaste?{" "}
-          <Link
-            href="/auth/login"
-            className="font-semibold text-primary hover:text-primary/80"
-          >
-            Inicia sesión
-          </Link>
-        </>
-      }
-    >
-      <VerifyEmailForm defaultEmail={params.email} />
-    </AuthShell>
+  const email = params.email?.trim().toLowerCase() ?? "";
+  if (!email) {
+    redirect("/auth/login");
+  }
+
+  redirect(
+    buildAuthOtpPath({
+      email,
+      type: "email-verification",
+      from: "login",
+    }),
   );
 }

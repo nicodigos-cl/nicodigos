@@ -16,6 +16,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 
+import { Logo } from "@/components/logo";
 import {
   Sidebar,
   SidebarContent,
@@ -103,9 +104,7 @@ export function AdminSidebar() {
               render={<Link href="/admin" />}
               className="gap-3"
             >
-              <span className="flex size-8 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground">
-                <HugeiconsIcon icon={Package01Icon} strokeWidth={2} />
-              </span>
+              <Logo size={32} href={false} className="shrink-0" />
               <span className="flex min-w-0 flex-col text-left">
                 <span className="truncate font-heading text-sm font-semibold">
                   Nicodigos

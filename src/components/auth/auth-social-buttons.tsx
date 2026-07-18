@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { AUTH_HOME_PATH } from "@/lib/auth/otp";
 import { authClient } from "@/lib/auth-client";
 
 type AuthSocialButtonsProps = {
@@ -12,7 +13,7 @@ type AuthSocialButtonsProps = {
 };
 
 export function AuthSocialButtons({
-  callbackURL = "/",
+  callbackURL = AUTH_HOME_PATH,
 }: AuthSocialButtonsProps) {
   const [pending, setPending] = useState<"google" | "github" | null>(null);
 

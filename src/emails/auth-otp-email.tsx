@@ -12,31 +12,57 @@ import {
   Text,
 } from "@react-email/components";
 
-type ResetPasswordEmailProps = {
-  userName: string;
+import type { AuthOtpType } from "@/lib/auth/otp";
+import { authOtpCopy } from "@/lib/auth/otp";
+
+type AuthOtpEmailProps = {
+  userName?: string;
+  email: string;
+  otp: string;
   url: string;
+  type: AuthOtpType;
 };
 
 const brand = "#b91c3c";
 
-export function ResetPasswordEmail({ userName, url }: ResetPasswordEmailProps) {
+export function AuthOtpEmail({
+  userName,
+  email,
+  otp,
+  url,
+  type,
+}: AuthOtpEmailProps) {
+  const copy = authOtpCopy(type);
+  const greeting = userName?.trim() || "hola";
+
+  const intro =
+    type === "forget-password"
+      ? `Hola ${greeting}, recibimos una solicitud para cambiar la contraseña de ${email}. Puedes usar el código o el botón; el acceso expira pronto por seguridad.`
+      : type === "sign-in"
+        ? `Hola ${greeting}, usa el código o el enlace para iniciar sesión en Nicodigos.`
+        : `Hola ${greeting}, confirma ${email} para activar tu cuenta. Puedes usar el código o el botón.`;
+
   return (
     <Html lang="es">
       <Head />
-      <Preview>Restablece tu contraseña de Nicodigos</Preview>
+      <Preview>{copy.emailPreview}</Preview>
       <Body style={main}>
         <Container style={container}>
           <Text style={brandMark}>Nicodigos</Text>
-          <Heading style={heading}>Restablecer contraseña</Heading>
-          <Text style={text}>
-            Hola {userName || "hola"}, recibimos una solicitud para cambiar la
-            contraseña de tu cuenta. El enlace expira pronto por seguridad.
-          </Text>
+          <Heading style={heading}>{copy.emailHeading}</Heading>
+          <Text style={text}>{intro}</Text>
+
+          <Section style={otpSection}>
+            <Text style={otpLabel}>Tu código</Text>
+            <Text style={otpCode}>{otp}</Text>
+          </Section>
+
           <Section style={buttonSection}>
             <Button href={url} style={button}>
-              Elegir nueva contraseña
+              {copy.emailCta}
             </Button>
           </Section>
+
           <Text style={textMuted}>
             Si el botón no funciona, copia y pega este enlace en tu navegador:
           </Text>
@@ -45,8 +71,9 @@ export function ResetPasswordEmail({ userName, url }: ResetPasswordEmailProps) {
           </Link>
           <Hr style={hr} />
           <Text style={footer}>
-            Si no pediste este cambio, ignora este correo. Tu contraseña no se
-            modificará.
+            {type === "forget-password"
+              ? "Si no pediste este cambio, ignora este correo. Tu contraseña no se modificará."
+              : "Si no solicitaste este correo, puedes ignorarlo."}
           </Text>
         </Container>
       </Body>
@@ -54,7 +81,7 @@ export function ResetPasswordEmail({ userName, url }: ResetPasswordEmailProps) {
   );
 }
 
-export default ResetPasswordEmail;
+export default AuthOtpEmail;
 
 const main = {
   backgroundColor: "#f7f8fa",
@@ -97,6 +124,32 @@ const textMuted = {
   ...text,
   color: "#6b7280",
   fontSize: "13px",
+};
+
+const otpSection = {
+  backgroundColor: "#f3f4f6",
+  borderRadius: "12px",
+  margin: "24px 0",
+  padding: "20px 16px",
+  textAlign: "center" as const,
+};
+
+const otpLabel = {
+  color: "#6b7280",
+  fontSize: "12px",
+  fontWeight: 600,
+  letterSpacing: "0.08em",
+  margin: "0 0 8px",
+  textTransform: "uppercase" as const,
+};
+
+const otpCode = {
+  color: "#111827",
+  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+  fontSize: "32px",
+  fontWeight: 700,
+  letterSpacing: "0.35em",
+  margin: 0,
 };
 
 const buttonSection = {

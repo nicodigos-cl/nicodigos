@@ -1,17 +1,49 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
+import { captcha, emailOTP } from "better-auth/plugins";
 
-import { ResetPasswordEmail } from "@/emails/reset-password-email";
-import { VerificationEmail } from "@/emails/verification-email";
+import { AuthOtpEmail } from "@/emails/auth-otp-email";
+import {
+  authOtpCopy,
+  buildAuthOtpUrl,
+  isAuthOtpType,
+  type AuthOtpType,
+} from "@/lib/auth/otp";
 import { makeUserAdminByEnv } from "@/lib/auth/admin";
 import { sendReactEmail } from "@/lib/email/resend";
 import prisma from "@/lib/prisma";
+import { turnstileSecretKey } from "@/lib/turnstile";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const githubClientId = process.env.GITHUB_CLIENT_ID;
 const githubClientSecret = process.env.GITHUB_CLIENT_SECRET;
+
+function sendAuthOtpEmail({
+  email,
+  otp,
+  type,
+  userName,
+}: {
+  email: string;
+  otp: string;
+  type: AuthOtpType;
+  userName?: string;
+}) {
+  const copy = authOtpCopy(type);
+  void sendReactEmail({
+    to: email,
+    subject: copy.emailSubject,
+    react: AuthOtpEmail({
+      email,
+      otp,
+      type,
+      userName,
+      url: buildAuthOtpUrl({ email, otp, type }),
+    }),
+  });
+}
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -43,30 +75,10 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true,
     minPasswordLength: 8,
-    sendResetPassword: async ({ user, url }) => {
-      void sendReactEmail({
-        to: user.email,
-        subject: "Restablece tu contraseña — Nicodigos",
-        react: ResetPasswordEmail({
-          userName: user.name,
-          url,
-        }),
-      });
-    },
   },
   emailVerification: {
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
-    sendVerificationEmail: async ({ user, url }) => {
-      void sendReactEmail({
-        to: user.email,
-        subject: "Verifica tu correo — Nicodigos",
-        react: VerificationEmail({
-          userName: user.name,
-          url,
-        }),
-      });
-    },
   },
   socialProviders: {
     ...(googleClientId && googleClientSecret
@@ -96,5 +108,39 @@ export const auth = betterAuth({
       },
     },
   },
-  plugins: [nextCookies()],
+  plugins: [
+    captcha({
+      provider: "cloudflare-turnstile",
+      secretKey: turnstileSecretKey,
+      endpoints: [
+        "/sign-up/email",
+        "/sign-in/email",
+        "/request-password-reset",
+        "/email-otp/request-password-reset",
+      ],
+    }),
+    emailOTP({
+      otpLength: 6,
+      expiresIn: 60 * 10,
+      overrideDefaultEmailVerification: true,
+      sendVerificationOnSignUp: true,
+      disableSignUp: true,
+      async sendVerificationOTP({ email, otp, type }) {
+        if (!isAuthOtpType(type)) return;
+
+        const user = await prisma.user.findUnique({
+          where: { email },
+          select: { name: true },
+        });
+
+        sendAuthOtpEmail({
+          email,
+          otp,
+          type,
+          userName: user?.name,
+        });
+      },
+    }),
+    nextCookies(),
+  ],
 });

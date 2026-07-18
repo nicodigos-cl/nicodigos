@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
+import { AUTH_HOME_PATH } from "@/lib/auth/otp";
 
 export async function getSession() {
   return auth.api.getSession({
@@ -27,7 +28,7 @@ export async function requireAdminSession() {
   }
 
   if (session.user.role !== "ADMIN") {
-    redirect("/");
+    redirect(AUTH_HOME_PATH);
   }
 
   return session;
