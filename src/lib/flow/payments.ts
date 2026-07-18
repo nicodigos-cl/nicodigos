@@ -22,6 +22,17 @@ function toFlowAmount(amount: { toString(): string } | number): number {
 }
 
 export async function createFlowPaymentForOrder(orderId: string): Promise<FlowPaymentLinkResult> {
+  const { getOperationalSettings } = await import("@/lib/settings/runtime");
+  const settings = await getOperationalSettings();
+
+  if (!settings.flowEnabled) {
+    throw new Error("Flow.cl está desactivado en los ajustes de la tienda.");
+  }
+
+  if (settings.storeStatus === "CLOSED" || settings.storeStatus === "MAINTENANCE") {
+    throw new Error("No se pueden crear pagos mientras la tienda no está abierta.");
+  }
+
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: {
@@ -54,21 +65,53 @@ export async function createFlowPaymentForOrder(orderId: string): Promise<FlowPa
     throw new Error("Solo se puede generar un link de pago para órdenes pendientes.");
   }
 
+  const currency = order.currency || "CLP";
+  if (
+    settings.strictCurrencyValidation &&
+    currency.toUpperCase() !== settings.acceptedCurrency.toUpperCase()
+  ) {
+    throw new Error(
+      `La moneda del pedido (${currency}) no coincide con la aceptada (${settings.acceptedCurrency}).`,
+    );
+  }
+
+  const amount = toFlowAmount(order.total);
+  if (
+    settings.minPaymentAmount !== null &&
+    amount < settings.minPaymentAmount
+  ) {
+    throw new Error("El monto del pedido es inferior al mínimo permitido.");
+  }
+  if (
+    settings.maxPaymentAmount !== null &&
+    amount > settings.maxPaymentAmount
+  ) {
+    throw new Error("El monto del pedido supera el máximo permitido.");
+  }
+
+  if (!settings.reusePendingPaymentIntent && order.payments.length > 0) {
+    throw new Error(
+      "Ya existe una intención de pago pendiente para esta orden.",
+    );
+  }
+
   const flow = getFlowClient();
   const baseUrl = getAppBaseUrl();
-  const amount = toFlowAmount(order.total);
+  // commerceOrder must remain the order id — Flow reconciliation matches orderId.
+  const commerceOrder = order.id;
+  const subjectPrefix = settings.commerceOrderPrefix.trim();
   const subject =
     order.items.length === 0
-      ? `Orden Nicodigos ${order.id.slice(-8)}`
+      ? `${subjectPrefix ? `${subjectPrefix} ` : ""}Orden Nicodigos ${order.id.slice(-8)}`
       : order.items
           .map((item) => `${item.quantity}× ${item.productName}`)
           .join(", ")
           .slice(0, 100);
 
   const created = await flow.payments.create({
-    commerceOrder: order.id,
+    commerceOrder,
     subject,
-    currency: order.currency || "CLP",
+    currency,
     amount,
     email: order.email,
     urlReturn: `${baseUrl}/checkout/return?orderId=${encodeURIComponent(order.id)}`,

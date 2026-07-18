@@ -19,6 +19,16 @@ export async function ensureDeliveriesForOrder(
   orderId: string,
   tx?: Tx,
 ): Promise<{ created: number }> {
+  const { getOperationalSettings } = await import("@/lib/settings/runtime");
+  const settings = await getOperationalSettings();
+  if (!settings.automaticDeliveryEnabled) {
+    log.info(
+      { orderId },
+      "automatic deliveries disabled — skipping ensureDeliveriesForOrder",
+    );
+    return { created: 0 };
+  }
+
   const client = tx;
   if (!client) {
     const prisma = (await import("@/lib/prisma")).default;

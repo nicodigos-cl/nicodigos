@@ -35,6 +35,7 @@ function sendAuthOtpEmail({
   void sendReactEmail({
     to: email,
     subject: copy.emailSubject,
+    category: "auth",
     react: AuthOtpEmail({
       email,
       otp,

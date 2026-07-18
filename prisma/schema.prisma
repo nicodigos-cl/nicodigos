@@ -108,15 +108,18 @@ model User {
   city             String?
   region           String?
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  sessions  Session[]
-  accounts  Account[]
-  orders    Order[]
-  cart      Cart?
-  wishlist  Wishlist?
-  adminNotes  UserAdminNote[]
-  adminEvents UserAdminEvent[]
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  sessions                Session[]
+  accounts                Account[]
+  orders                  Order[]
+  cart                    Cart?
+  wishlist                Wishlist?
+  adminNotes              UserAdminNote[]
+  adminEvents             UserAdminEvent[]
+  communicationThreads    CommunicationThread[]
+  communicationPreference CommunicationPreference?
+  webPushSubscriptions    WebPushSubscription[]
 
   @@unique([email])
   @@index([rut])
@@ -648,19 +651,20 @@ model ProductOffer {
 // ---------------------------------------------------------------------------
 
 model Order {
-  id           String      @id @default(cuid())
-  userId       String
-  user         User        @relation(fields: [userId], references: [id], onDelete: Restrict)
-  status       OrderStatus @default(PENDING)
-  subtotal     Decimal     @db.Decimal(12, 2)
-  total        Decimal     @db.Decimal(12, 2)
-  currency     String      @default("CLP")
-  email        String
-  customerName String?
-  items        OrderItem[]
-  payments     Payment[]
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id                   String                @id @default(cuid())
+  userId               String
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status               OrderStatus           @default(PENDING)
+  subtotal             Decimal               @db.Decimal(12, 2)
+  total                Decimal               @db.Decimal(12, 2)
+  currency             String                @default("CLP")
+  email                String
+  customerName         String?
+  items                OrderItem[]
+  payments             Payment[]
+  communicationThreads CommunicationThread[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
   @@index([userId, status])
   @@index([status])
@@ -740,10 +744,11 @@ model Delivery {
   smmCurrency   String?
   smmRefillId   String?
 
-  keys          DeliveryKey[]
-  credentials   DeliveryCredential[]
-  events        DeliveryEvent[]
-  notifications DeliveryNotification[]
+  keys                 DeliveryKey[]
+  credentials          DeliveryCredential[]
+  events               DeliveryEvent[]
+  notifications        DeliveryNotification[]
+  communicationThreads CommunicationThread[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1020,4 +1025,593 @@ model WishlistItem {
   @@unique([wishlistId, productId])
   @@index([productId])
   @@map("wishlist_item")
+}
+
+// ---------------------------------------------------------------------------
+// Admin operational settings (single-row, typed — secrets stay in env)
+// ---------------------------------------------------------------------------
+
+enum StoreStatus {
+  OPEN
+  READ_ONLY
+  MAINTENANCE
+  CLOSED
+}
+
+model StoreSettings {
+  id String @id @default("default")
+
+  // General / brand
+  storeName        String  @default("Nicodigos")
+  legalName        String?
+  shortDescription String?
+  supportEmail     String  @default("soporte@nicodigos.com")
+  senderName       String  @default("Nicodigos")
+  replyToEmail     String?
+  primaryColor     String  @default("#E15707")
+  timezone         String  @default("America/Santiago")
+  locale           String  @default("es")
+  country          String  @default("CL")
+  defaultCurrency  String  @default("CLP")
+  logoUrl          String?
+  faviconUrl       String?
+
+  // Store
+  storeStatus               StoreStatus @default(OPEN)
+  showOutOfStock            Boolean     @default(true)
+  allowPurchaseWithoutStock Boolean     @default(false)
+  pricesIncludeTax          Boolean     @default(true)
+  minOrderAmount            Decimal?    @db.Decimal(12, 2)
+  maxOrderAmount            Decimal?    @db.Decimal(12, 2)
+  maxQuantityPerProduct     Int         @default(99)
+  maxProductsPerOrder       Int         @default(50)
+  supportVisible            Boolean     @default(true)
+  availabilityMessage       String?
+
+  // Checkout
+  checkoutEnabled           Boolean @default(true)
+  requireVerifiedEmail      Boolean @default(false)
+  requireRut                Boolean @default(false)
+  requireBillingData        Boolean @default(false)
+  allowBoleta               Boolean @default(true)
+  allowFactura              Boolean @default(true)
+  orderExpirationMinutes    Int     @default(60)
+  paymentExpirationMinutes  Int     @default(30)
+  requireTermsAcceptance    Boolean @default(true)
+  termsUrl                  String?
+  privacyUrl                String?
+  maxPaymentAttempts        Int     @default(5)
+  reusePendingPaymentIntent Boolean @default(true)
+  preventDuplicateOrders    Boolean @default(true)
+
+  // Payments (Flow secrets remain in env)
+  flowEnabled              Boolean  @default(true)
+  acceptedCurrency         String   @default("CLP")
+  refundsEnabled           Boolean  @default(true)
+  minPaymentAmount         Decimal? @db.Decimal(12, 2)
+  maxPaymentAmount         Decimal? @db.Decimal(12, 2)
+  commerceOrderPrefix      String   @default("")
+  strictAmountValidation   Boolean  @default(true)
+  strictCurrencyValidation Boolean  @default(true)
+
+  // Deliveries
+  automaticDeliveryEnabled           Boolean @default(true)
+  manualDeliveryEnabled              Boolean @default(true)
+  autoSendAfterPayment               Boolean @default(false)
+  deliveryRetryMax                   Int     @default(3)
+  deliveryRetryIntervalMinutes       Int     @default(15)
+  allowPartialDeliveries             Boolean @default(true)
+  allowEmailResend                   Boolean @default(true)
+  requireRecentSessionForCredentials Boolean @default(true)
+  sensitiveLinkExpirationMinutes     Int     @default(60)
+  hideCredentialsByDefault           Boolean @default(true)
+
+  // Keys
+  keysAutoAssign             Boolean @default(true)
+  keysReserveDuringCheckout  Boolean @default(false)
+  keysReserveDurationMinutes Int     @default(15)
+  keysLowStockThreshold      Int     @default(5)
+  keysStockAlertsEnabled     Boolean @default(true)
+  keysAllowManualReplace     Boolean @default(true)
+
+  // Accounts
+  accountsAutoAssign           Boolean @default(false)
+  accountsRequireRecentSession Boolean @default(true)
+  accountsHideCredentials      Boolean @default(true)
+  accountsAllowReplace         Boolean @default(true)
+
+  // SMM (API keys live on SmmProvider / env)
+  smmAutoSend          Boolean @default(false)
+  smmManualSend        Boolean @default(true)
+  smmMaxRetries        Int     @default(3)
+  smmAllowPartials     Boolean @default(true)
+  smmValidateUrl       Boolean @default(true)
+  smmStuckAlertMinutes Int     @default(1440)
+
+  // Email (Resend API key stays in env)
+  resendEnabled              Boolean @default(true)
+  transactionalEmailsEnabled Boolean @default(true)
+  adminEmailsEnabled         Boolean @default(true)
+  emailOrderCreated          Boolean @default(true)
+  emailPaymentApproved       Boolean @default(true)
+  emailPaymentRejected       Boolean @default(true)
+  emailDeliveryAvailable     Boolean @default(true)
+  emailDeliveryFailed        Boolean @default(true)
+  emailPasswordReset         Boolean @default(true)
+  emailEmailVerification     Boolean @default(true)
+
+  // Security (session duration remains Better Auth config)
+  requireEmailVerifiedForCheckout Boolean @default(false)
+  reauthForCredentialReveal       Boolean @default(true)
+  auditSettingsChanges            Boolean @default(true)
+
+  // Maintenance (storeStatus=MAINTENANCE is the source of truth for public mode)
+  maintenanceMessage                      String?
+  estimatedReturnAt                       DateTime?
+  allowAdminDuringMaintenance             Boolean   @default(true)
+  allowWebhooksDuringMaintenance          Boolean   @default(true)
+  allowJobsDuringMaintenance              Boolean   @default(true)
+  allowOngoingDeliveriesDuringMaintenance Boolean   @default(true)
+
+  // Admin notifications
+  notifyPaymentFailed       Boolean  @default(true)
+  notifyPaymentInconsistent Boolean  @default(true)
+  notifyDeliveryFailed      Boolean  @default(true)
+  notifyPaidWithoutDelivery Boolean  @default(true)
+  notifyLowStock            Boolean  @default(true)
+  notifyOutOfStock          Boolean  @default(true)
+  notifySmmStuck            Boolean  @default(true)
+  notifyProviderError       Boolean  @default(true)
+  notifyWebhookFailed       Boolean  @default(true)
+  notifyHighValueSale       Boolean  @default(true)
+  highValueSaleThreshold    Decimal? @db.Decimal(12, 2)
+  adminNotificationEmails   String?
+
+  /// Optimistic concurrency for partial section updates
+  version Int @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("store_settings")
+}
+
+model AdminSettingsEvent {
+  id          String   @id @default(cuid())
+  section     String
+  action      String
+  actorUserId String?
+  actorEmail  String?
+  changes     Json?
+  message     String?
+  result      String   @default("success")
+  createdAt   DateTime @default(now())
+
+  @@index([section, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([createdAt])
+  @@map("admin_settings_events")
+}
+
+// ---------------------------------------------------------------------------
+// Operational communications (email, web push, templates and consent)
+// ---------------------------------------------------------------------------
+
+enum CommunicationChannel {
+  EMAIL
+  WEB_PUSH
+}
+
+enum CommunicationDirection {
+  INBOUND
+  OUTBOUND
+  INTERNAL
+}
+
+enum CommunicationKind {
+  OPERATIONAL
+  MARKETING
+  SECURITY
+  SUPPORT
+  SYSTEM
+}
+
+enum CommunicationThreadStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  ARCHIVED
+  SPAM
+}
+
+enum CommunicationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum EmailMessageStatus {
+  DRAFT
+  QUEUED
+  ACCEPTED
+  SENT
+  DELIVERED
+  DELAYED
+  BOUNCED
+  COMPLAINED
+  FAILED
+  CANCELLED
+}
+
+enum WebPushStatus {
+  DRAFT
+  SCHEDULED
+  QUEUED
+  SENDING
+  SENT
+  PARTIALLY_SENT
+  FAILED
+  CANCELLED
+  ARCHIVED
+}
+
+enum CommunicationAudienceType {
+  ALL_ELIGIBLE
+  SPECIFIC_USERS
+  INTERNAL_SEGMENT
+  ONESIGNAL_SEGMENT
+}
+
+enum CommunicationTemplateChannel {
+  EMAIL
+  WEB_PUSH
+}
+
+enum CommunicationTemplateStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum WebPushPermissionStatus {
+  UNSUPPORTED
+  DEFAULT
+  GRANTED
+  DENIED
+  UNAVAILABLE
+}
+
+model CommunicationThread {
+  id             String                      @id @default(cuid())
+  subject        String
+  status         CommunicationThreadStatus   @default(OPEN)
+  priority       CommunicationPriority       @default(NORMAL)
+  category       String?
+  userId         String?
+  user           User?                       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  orderId        String?
+  order          Order?                      @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  deliveryId     String?
+  delivery       Delivery?                   @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
+  assignedUserId String?
+  assignedEmail  String?
+  unreadCount    Int                         @default(0)
+  lastMessageAt  DateTime
+  lastInboundAt  DateTime?
+  lastOutboundAt DateTime?
+  resolvedAt     DateTime?
+  archivedAt     DateTime?
+  spamAt         DateTime?
+  deletedAt      DateTime?
+  messages       CommunicationMessage[]
+  notes          CommunicationInternalNote[]
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+
+  @@index([status, lastMessageAt])
+  @@index([userId, lastMessageAt])
+  @@index([assignedUserId, status])
+  @@index([orderId])
+  @@index([deliveryId])
+  @@map("communication_threads")
+}
+
+model CommunicationMessage {
+  id                String                        @id @default(cuid())
+  threadId          String?
+  thread            CommunicationThread?          @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  channel           CommunicationChannel          @default(EMAIL)
+  direction         CommunicationDirection
+  kind              CommunicationKind             @default(SUPPORT)
+  status            EmailMessageStatus
+  provider          String?
+  externalId        String?
+  idempotencyKey    String?                       @unique
+  fromAddress       String?
+  fromName          String?
+  toAddresses       Json
+  ccAddresses       Json?
+  bccAddresses      Json?
+  replyToAddress    String?
+  subject           String
+  textContent       String
+  sanitizedHtml     String?
+  remoteImages      Boolean                       @default(false)
+  providerMetadata  Json?
+  sentByUserId      String?
+  sentByEmail       String?
+  templateVersionId String?
+  templateVersion   CommunicationTemplateVersion? @relation(fields: [templateVersionId], references: [id], onDelete: SetNull)
+  scheduledAt       DateTime?
+  queuedAt          DateTime?
+  acceptedAt        DateTime?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  failedAt          DateTime?
+  deletedAt         DateTime?
+  attachments       CommunicationAttachment[]
+  events            CommunicationEmailEvent[]
+  createdAt         DateTime                      @default(now())
+  updatedAt         DateTime                      @updatedAt
+
+  @@unique([provider, externalId])
+  @@index([threadId, createdAt])
+  @@index([status, createdAt])
+  @@index([scheduledAt, status])
+  @@map("communication_messages")
+}
+
+model CommunicationInternalNote {
+  id           String              @id @default(cuid())
+  threadId     String
+  thread       CommunicationThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorUserId String
+  authorEmail  String
+  content      String
+  deletedAt    DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([threadId, createdAt])
+  @@map("communication_internal_notes")
+}
+
+model CommunicationAttachment {
+  id         String               @id @default(cuid())
+  messageId  String
+  message    CommunicationMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  providerId String?
+  objectKey  String?
+  fileName   String
+  mimeType   String
+  sizeBytes  BigInt
+  contentId  String?
+  inline     Boolean              @default(false)
+  scanStatus String               @default("NOT_AVAILABLE")
+  createdAt  DateTime             @default(now())
+
+  @@index([messageId])
+  @@map("communication_attachments")
+}
+
+model CommunicationEmailEvent {
+  id              String               @id @default(cuid())
+  messageId       String
+  message         CommunicationMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  providerEventId String               @unique
+  type            String
+  occurredAt      DateTime
+  safeMetadata    Json?
+  createdAt       DateTime             @default(now())
+
+  @@index([messageId, occurredAt])
+  @@index([type, occurredAt])
+  @@map("communication_email_events")
+}
+
+model WebPushNotification {
+  id                     String                        @id @default(cuid())
+  name                   String
+  title                  String
+  body                   String
+  kind                   CommunicationKind
+  status                 WebPushStatus                 @default(DRAFT)
+  targetUrl              String?
+  iconUrl                String?
+  imageUrl               String?
+  buttons                Json?
+  data                   Json
+  language               String                        @default("es")
+  timezone               String                        @default("America/Santiago")
+  priority               Int                           @default(5)
+  ttlSeconds             Int?
+  audienceType           CommunicationAudienceType
+  audienceDefinition     Json
+  estimatedRecipients    Int?
+  excludedRecipients     Int                           @default(0)
+  externalId             String?                       @unique
+  idempotencyKey         String?                       @unique
+  scheduledAt            DateTime?
+  queuedAt               DateTime?
+  sendingAt              DateTime?
+  sentAt                 DateTime?
+  cancelledAt            DateTime?
+  archivedAt             DateTime?
+  deletedAt              DateTime?
+  recipients             Int                           @default(0)
+  successful             Int                           @default(0)
+  failed                 Int                           @default(0)
+  delivered              Int                           @default(0)
+  clicked                Int                           @default(0)
+  lastProviderSyncAt     DateTime?
+  providerError          String?
+  replacedNotificationId String?
+  createdByUserId        String
+  createdByEmail         String
+  updatedByUserId        String?
+  updatedByEmail         String?
+  templateVersionId      String?
+  templateVersion        CommunicationTemplateVersion? @relation(fields: [templateVersionId], references: [id], onDelete: SetNull)
+  createdAt              DateTime                      @default(now())
+  updatedAt              DateTime                      @updatedAt
+
+  @@index([status, scheduledAt])
+  @@index([createdByUserId, createdAt])
+  @@index([createdAt])
+  @@map("web_push_notifications")
+}
+
+model CommunicationTemplate {
+  id              String                         @id @default(cuid())
+  name            String
+  slug            String                         @unique
+  channel         CommunicationTemplateChannel
+  kind            CommunicationKind
+  status          CommunicationTemplateStatus    @default(DRAFT)
+  currentVersion  Int                            @default(1)
+  createdByUserId String
+  createdByEmail  String
+  updatedByUserId String?
+  updatedByEmail  String?
+  archivedAt      DateTime?
+  deletedAt       DateTime?
+  versions        CommunicationTemplateVersion[]
+  createdAt       DateTime                       @default(now())
+  updatedAt       DateTime                       @updatedAt
+
+  @@index([channel, status])
+  @@map("communication_templates")
+}
+
+model CommunicationTemplateVersion {
+  id              String                 @id @default(cuid())
+  templateId      String
+  template        CommunicationTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  version         Int
+  subject         String?
+  title           String?
+  content         String
+  textContent     String?
+  variables       String[]               @default([])
+  changeReason    String?
+  createdByUserId String
+  createdByEmail  String
+  messages        CommunicationMessage[]
+  notifications   WebPushNotification[]
+  createdAt       DateTime               @default(now())
+
+  @@unique([templateId, version])
+  @@index([templateId, createdAt])
+  @@map("communication_template_versions")
+}
+
+model CommunicationAudienceSegment {
+  id                  String    @id @default(cuid())
+  name                String
+  description         String?
+  definition          Json
+  estimatedRecipients Int?
+  excludedRecipients  Int       @default(0)
+  estimatedAt         DateTime?
+  createdByUserId     String
+  createdByEmail      String
+  updatedByUserId     String?
+  updatedByEmail      String?
+  archivedAt          DateTime?
+  deletedAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([archivedAt, updatedAt])
+  @@map("communication_audience_segments")
+}
+
+model CommunicationPreference {
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  marketingEmail     Boolean   @default(false)
+  webPushEnabled     Boolean   @default(false)
+  orders             Boolean   @default(true)
+  payments           Boolean   @default(true)
+  deliveries         Boolean   @default(true)
+  smm                Boolean   @default(true)
+  security           Boolean   @default(true)
+  newProducts        Boolean   @default(false)
+  promotions         Boolean   @default(false)
+  marketingConsentAt DateTime?
+  marketingOptOutAt  DateTime?
+  consentSource      String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([marketingEmail])
+  @@index([webPushEnabled])
+  @@map("communication_preferences")
+}
+
+model WebPushSubscription {
+  id                       String                  @id @default(cuid())
+  userId                   String?
+  user                     User?                   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  provider                 String                  @default("ONESIGNAL")
+  providerSubscriptionId   String?                 @unique
+  providerSubscriptionHash String?                 @unique
+  permissionStatus         WebPushPermissionStatus @default(DEFAULT)
+  optedIn                  Boolean                 @default(false)
+  browser                  String?
+  platform                 String?
+  lastSeenAt               DateTime?
+  subscribedAt             DateTime?
+  unsubscribedAt           DateTime?
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+
+  @@index([userId, optedIn])
+  @@index([permissionStatus])
+  @@map("web_push_subscriptions")
+}
+
+model CommunicationAuditEvent {
+  id                  String                @id @default(cuid())
+  actorUserId         String?
+  actorEmail          String?
+  action              String
+  channel             CommunicationChannel?
+  resourceType        String
+  resourceId          String
+  statusBefore        String?
+  statusAfter         String?
+  audienceSummary     Json?
+  estimatedRecipients Int?
+  affectedRecipients  Int?
+  maskedRecipient     String?
+  externalIdSuffix    String?
+  result              String                @default("SUCCESS")
+  errorCode           String?
+  safeMetadata        Json?
+  createdAt           DateTime              @default(now())
+
+  @@index([resourceType, resourceId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
+  @@map("communication_audit_events")
+}
+
+model CommunicationWebhookEvent {
+  id                 String    @id @default(cuid())
+  provider           String
+  externalEventId    String
+  eventType          String
+  resourceExternalId String?
+  status             String    @default("PROCESSED")
+  errorCode          String?
+  receivedAt         DateTime  @default(now())
+  processedAt        DateTime?
+
+  @@unique([provider, externalEventId])
+  @@index([provider, eventType, receivedAt])
+  @@index([status, receivedAt])
+  @@map("communication_webhook_events")
 }

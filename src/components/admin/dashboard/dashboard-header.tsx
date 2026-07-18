@@ -6,6 +6,7 @@ import { useTransition } from "react";
 import { HiOutlineRefresh } from "react-icons/hi";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   dashboardRangeLabel,
   dashboardRangeValues,
@@ -13,7 +14,7 @@ import {
 import type { AdminDashboardDto } from "@/types/dashboard";
 
 const selectClass =
-  "h-9 rounded-xl border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30";
+  "h-9 rounded-sm border border-border/80 bg-muted/10 px-3 font-mono text-xs outline-none focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary shadow-inner";
 
 export function DashboardHeader({
   data,
@@ -27,25 +28,30 @@ export function DashboardHeader({
   const [pending, startTransition] = useTransition();
 
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-      <div className="space-y-1">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">
-          Dashboard
-        </h1>
-        <p className="text-sm text-muted-foreground">
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-border/40 pb-4">
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] text-primary font-bold px-1.5 py-0.5 border border-primary bg-primary/10 rounded-sm select-none">
+            SYS_MONITOR
+          </span>
+          <h1 className="font-mono text-lg font-bold uppercase tracking-tight">
+            Dashboard / Resumen
+          </h1>
+        </div>
+        <p className="text-xs text-muted-foreground font-mono">
           {data.greetingName}. Resumen operativo y comercial de Nicodigos.
         </p>
-        <p className="text-xs text-muted-foreground">
-          Periodo: {data.period.label} · Comparado con{" "}
-          {data.period.previousLabel}
+        <p className="text-[10px] text-muted-foreground font-mono tracking-wider">
+          [PERIODO: {data.period.label.toUpperCase()} · COMPARATIVA:{" "}
+          {data.period.previousLabel.toUpperCase()}
           {data.salesBasis === "net"
-            ? " · Ventas netas (aprobadas − reembolsos)"
-            : " · Ventas brutas aprobadas"}
+            ? " · BASE: VENTAS NETAS]"
+            : " · BASE: VENTAS BRUTAS]"}
         </p>
       </div>
 
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="grid gap-1 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="grid gap-1 font-mono text-[10px] uppercase text-muted-foreground">
           Periodo
           <select
             className={selectClass}
@@ -66,6 +72,7 @@ export function DashboardHeader({
                 key={value}
                 value={value}
                 disabled={value === "custom"}
+                className="bg-background text-foreground"
               >
                 {dashboardRangeLabel[value]}
               </option>
@@ -86,7 +93,7 @@ export function DashboardHeader({
             });
           }}
         >
-          <label className="grid gap-1 text-xs text-muted-foreground">
+          <label className="grid gap-1 font-mono text-[10px] uppercase text-muted-foreground">
             Desde
             <input
               type="date"
@@ -95,7 +102,7 @@ export function DashboardHeader({
               defaultValue={data.period.from}
             />
           </label>
-          <label className="grid gap-1 text-xs text-muted-foreground">
+          <label className="grid gap-1 font-mono text-[10px] uppercase text-muted-foreground">
             Hasta
             <input
               type="date"
@@ -104,7 +111,13 @@ export function DashboardHeader({
               defaultValue={data.period.toInclusive}
             />
           </label>
-          <Button type="submit" size="sm" variant="outline" disabled={pending}>
+          <Button
+            type="submit"
+            size="sm"
+            variant="outline"
+            disabled={pending}
+            className="rounded-sm font-mono text-xs"
+          >
             Aplicar
           </Button>
         </form>
@@ -116,9 +129,10 @@ export function DashboardHeader({
           disabled={pending}
           aria-label="Actualizar dashboard"
           onClick={() => startTransition(() => router.refresh())}
+          className="rounded-sm font-mono text-xs gap-1.5"
         >
-          <HiOutlineRefresh className="size-4" />
-          {pending ? "Actualizando…" : "Actualizar"}
+          <HiOutlineRefresh className={cn("size-3.5", pending && "animate-spin")} />
+          {pending ? "RUNNING…" : "REFRESH"}
         </Button>
 
         <Button
@@ -126,8 +140,9 @@ export function DashboardHeader({
           variant="ghost"
           render={<Link href="/admin/orders" />}
           nativeButton={false}
+          className="rounded-sm font-mono text-xs border border-border/40 hover:bg-muted/50"
         >
-          Pedidos
+          PEDIDOS
         </Button>
       </div>
     </div>

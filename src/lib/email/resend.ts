@@ -23,11 +23,48 @@ export async function sendReactEmail({
   to,
   subject,
   react,
+  category = "transactional",
 }: {
   to: string;
   subject: string;
   react: ReactElement;
+  category?: "transactional" | "auth" | "admin" | "test";
 }) {
+  try {
+    const { getOperationalSettings } = await import("@/lib/settings/runtime");
+    const settings = await getOperationalSettings();
+
+    if (!settings.resendEnabled && category !== "test") {
+      log.warn({ to, subject, category }, "Resend disabled in settings — skip");
+      return null;
+    }
+
+    if (category === "transactional" && !settings.transactionalEmailsEnabled) {
+      log.warn({ to, subject }, "Transactional emails disabled — skip");
+      return null;
+    }
+
+    if (category === "admin" && !settings.adminEmailsEnabled) {
+      log.warn({ to, subject }, "Admin emails disabled — skip");
+      return null;
+    }
+
+    if (category === "auth") {
+      const isReset = /contraseña|password|reset/i.test(subject);
+      const isVerify = /verific/i.test(subject);
+      if (isReset && !settings.emailPasswordReset) {
+        log.warn({ to, subject }, "Password reset emails disabled — skip");
+        return null;
+      }
+      if (isVerify && !settings.emailEmailVerification) {
+        log.warn({ to, subject }, "Email verification disabled — skip");
+        return null;
+      }
+    }
+  } catch (error) {
+    log.warn({ err: error }, "Could not load email settings — sending anyway");
+  }
+
   const resend = getResendClient();
   const from = getEmailFromAddress();
 

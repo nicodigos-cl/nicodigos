@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 
+import { sendCustomerOrderStatusEmail } from "@/lib/customer-dashboard/emails";
 import { getFlowClient } from "@/lib/flow/client";
 import { createLogger } from "@/lib/logger";
+import prisma from "@/lib/prisma";
 import { processVerifiedFlowPayment } from "@/lib/transactions/processing";
 import { mapFlowStatus } from "@/lib/transactions/status";
+import { PaymentStatus } from "@/generated/prisma/client";
 
 const log = createLogger({ module: "flow-confirmation" });
 
@@ -26,9 +29,15 @@ export async function POST(request: Request) {
     }
 
     const flow = getFlowClient();
+    const { getOperationalSettings } = await import("@/lib/settings/runtime");
+    const settings = await getOperationalSettings();
     const result = await flow.webhooks.verifyPaymentConfirmation(
       { token },
-      { expectedCurrency: "CLP" },
+      {
+        expectedCurrency: settings.strictCurrencyValidation
+          ? settings.acceptedCurrency
+          : undefined,
+      },
     );
 
     if (!result.valid || !result.payment) {
@@ -40,11 +49,12 @@ export async function POST(request: Request) {
     }
 
     const payment = result.payment;
-    await processVerifiedFlowPayment({
+    const mappedStatus = mapFlowStatus(payment.status);
+    const processed = await processVerifiedFlowPayment({
       token,
       source: "CALLBACK",
       snapshot: {
-        status: mapFlowStatus(payment.status),
+        status: mappedStatus,
         providerStatus: payment.statusStr,
         flowOrder: payment.flowOrder,
         commerceOrder: payment.commerceOrder,
@@ -57,6 +67,34 @@ export async function POST(request: Request) {
           : null,
       },
     });
+
+    if (processed.changed) {
+      const localPayment = await prisma.payment.findUnique({
+        where: { id: processed.paymentId },
+        select: { orderId: true, status: true },
+      });
+      if (localPayment) {
+        if (localPayment.status === PaymentStatus.PAID) {
+          void sendCustomerOrderStatusEmail({
+            orderId: localPayment.orderId,
+            kind: "PAID",
+          });
+        } else if (
+          localPayment.status === PaymentStatus.REJECTED ||
+          localPayment.status === PaymentStatus.FAILED
+        ) {
+          void sendCustomerOrderStatusEmail({
+            orderId: localPayment.orderId,
+            kind: "REJECTED",
+          });
+        } else if (localPayment.status === PaymentStatus.REFUNDED) {
+          void sendCustomerOrderStatusEmail({
+            orderId: localPayment.orderId,
+            kind: "REFUNDED",
+          });
+        }
+      }
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -320,6 +320,24 @@ export async function checkoutFromCartAction(
   const parsed = checkoutFromCartSchema.safeParse(input ?? {});
   if (!parsed.success) return validationError(parsed.error);
 
+  const { assertStoreAllowsCheckout, getOperationalSettings } = await import(
+    "@/lib/settings/runtime"
+  );
+  const storeGate = await assertStoreAllowsCheckout();
+  if (!storeGate.ok) {
+    return { success: false, message: storeGate.message };
+  }
+
+  const operational = await getOperationalSettings();
+  if (operational.requireVerifiedEmail || operational.requireEmailVerifiedForCheckout) {
+    if (!session.user.emailVerified) {
+      return {
+        success: false,
+        message: "Debes verificar tu email antes de comprar.",
+      };
+    }
+  }
+
   const cart = await getCartForUser(session.user.id);
   if (!cart || cart.items.length === 0) {
     return { success: false, message: "Tu carrito está vacío." };

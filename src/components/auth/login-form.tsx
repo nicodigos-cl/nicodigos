@@ -31,7 +31,11 @@ import {
   type LoginFormValues,
 } from "@/lib/validations/auth";
 
-export function LoginForm() {
+export function LoginForm({
+  callbackURL = AUTH_HOME_PATH,
+}: {
+  callbackURL?: string;
+}) {
   const router = useRouter();
   const turnstileRef = useRef<TurnstileInstance | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -91,7 +95,7 @@ export function LoginForm() {
       email: values.email,
       password: values.password,
       rememberMe: values.rememberMe,
-      callbackURL: AUTH_HOME_PATH,
+      callbackURL,
       fetchOptions: turnstileFetchOptions(captchaToken),
     });
 
@@ -120,7 +124,7 @@ export function LoginForm() {
 
     await makeUserAdminByEnv(values.email);
     toast.success("Sesión iniciada");
-    router.push(AUTH_HOME_PATH);
+    router.push(callbackURL);
     router.refresh();
   }
 
@@ -211,7 +215,7 @@ export function LoginForm() {
 
       <div className="mt-10 space-y-6">
         <AuthDivider />
-        <AuthSocialButtons callbackURL={AUTH_HOME_PATH} />
+        <AuthSocialButtons callbackURL={callbackURL} />
       </div>
     </div>
   );

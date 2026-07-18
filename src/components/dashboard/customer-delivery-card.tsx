@@ -71,8 +71,12 @@ function CustomerSecret({
         size="sm"
         variant="outline"
         onClick={() => {
-          void navigator.clipboard.writeText(value ?? masked);
-          toast.success(value ? "Copiado" : "Valor enmascarado copiado");
+          if (!value) {
+            toast.message("Revela el valor antes de copiarlo");
+            return;
+          }
+          void navigator.clipboard.writeText(value);
+          toast.success("Copiado");
         }}
       >
         Copiar

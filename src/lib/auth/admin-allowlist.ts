@@ -1,8 +1,12 @@
-function getAdminAllowlist() {
+export function getAdminEmailsFromEnv() {
   return (process.env.ADMIN_EMAILS ?? "")
     .split(",")
     .map((entry) => entry.trim().toLowerCase())
     .filter(Boolean);
+}
+
+function getAdminAllowlist() {
+  return getAdminEmailsFromEnv();
 }
 
 /** True if email matches an allowlisted address or domain in ADMIN_EMAILS. */

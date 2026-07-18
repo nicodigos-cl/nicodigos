@@ -3,12 +3,22 @@ import Link from "next/link";
 
 import { AuthShell } from "@/components/auth/auth-shell";
 import { LoginForm } from "@/components/auth/login-form";
+import { resolveSafeCallbackUrl } from "@/lib/auth/callback-url";
 
 export const metadata: Metadata = {
   title: "Iniciar sesión",
 };
 
-export default function LoginPage() {
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function LoginPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const callbackURL = resolveSafeCallbackUrl(
+    params.callbackUrl ?? params.next,
+  );
+
   return (
     <AuthShell
       title="Inicia sesión en tu cuenta"
@@ -24,7 +34,7 @@ export default function LoginPage() {
         </>
       }
     >
-      <LoginForm />
+      <LoginForm callbackURL={callbackURL} />
     </AuthShell>
   );
 }

@@ -17,15 +17,28 @@ function Trend({
   return (
     <p
       className={cn(
-        "mt-2 flex items-center gap-1 text-xs",
-        trend === "up" && "text-primary",
+        "mt-2.5 flex items-center gap-1.5 font-mono text-[10px] tracking-wide",
+        trend === "up" && "text-emerald-500",
         trend === "down" && "text-destructive",
         trend === "neutral" && "text-muted-foreground",
       )}
     >
-      {trend === "up" ? <HiOutlineArrowUp className="size-3" /> : null}
-      {trend === "down" ? <HiOutlineArrowDown className="size-3" /> : null}
-      <span>{label}</span>
+      {trend === "up" ? (
+        <span className="px-1 py-0.5 bg-emerald-500/10 border border-emerald-500/35 text-emerald-500 rounded-sm font-bold text-[9px]">
+          ▲ UP
+        </span>
+      ) : null}
+      {trend === "down" ? (
+        <span className="px-1 py-0.5 bg-destructive/10 border border-destructive/35 text-destructive rounded-sm font-bold text-[9px]">
+          ▼ DN
+        </span>
+      ) : null}
+      {trend === "neutral" ? (
+        <span className="px-1 py-0.5 bg-muted/40 border border-border/60 text-muted-foreground rounded-sm font-bold text-[9px]">
+          ■ NC
+        </span>
+      ) : null}
+      <span className="text-muted-foreground text-[10px] font-normal">{label}</span>
     </p>
   );
 }
@@ -46,13 +59,16 @@ function MetricCard({
   href?: string;
 }) {
   const content = (
-    <div className="rounded-2xl border border-border bg-card px-4 py-3">
-      <p className="text-xs text-muted-foreground">{title}</p>
-      <p className="mt-1 font-heading text-xl font-semibold tabular-nums">
+    <div className="rounded-sm border border-border/80 bg-muted/5 px-4 py-3 relative overflow-hidden group hover:border-border transition-colors">
+      <div className="absolute top-0 right-0 p-1 font-mono text-[8px] text-muted-foreground/30 select-none group-hover:text-muted-foreground/50 transition-colors">
+        [SYS_VAL]
+      </div>
+      <p className="font-mono text-[10px] tracking-wider uppercase text-muted-foreground">{title}</p>
+      <p className="mt-1.5 font-mono text-xl font-bold tracking-tight tabular-nums text-foreground">
         {value}
       </p>
       {context ? (
-        <p className="mt-1 text-xs text-muted-foreground">{context}</p>
+        <p className="mt-1 font-mono text-[10px] text-muted-foreground/80">{context}</p>
       ) : null}
       <Trend trend={trend} label={comparisonLabel} />
     </div>
@@ -60,7 +76,7 @@ function MetricCard({
 
   if (!href) return content;
   return (
-    <Link href={href} className="transition-opacity hover:opacity-90">
+    <Link href={href} className="transition-opacity hover:opacity-95">
       {content}
     </Link>
   );

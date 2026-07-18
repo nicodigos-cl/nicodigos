@@ -14,7 +14,6 @@ import {
   DASHBOARD_ACTIVITY_LIMIT,
   DASHBOARD_RECENT_LIMIT,
   DASHBOARD_TOP_PRODUCTS_LIMIT,
-  LOW_STOCK_THRESHOLD,
 } from "@/lib/dashboard/constants";
 import { buildCountMetric, buildMoneyMetric } from "@/lib/dashboard/metrics";
 import {
@@ -419,6 +418,9 @@ async function getOperationalSnapshot() {
 }
 
 async function getInventoryHealth() {
+  const { getLowStockThreshold } = await import("@/lib/settings/runtime");
+  const lowStockThreshold = await getLowStockThreshold();
+
   const [keyGroups, activeManual] = await Promise.all([
     prisma.productKey.groupBy({
       by: ["status"],
@@ -452,7 +454,7 @@ async function getInventoryHealth() {
   const lowStockProducts = activeManual.filter(
     (product) =>
       product._count.keys > 0 &&
-      product._count.keys < LOW_STOCK_THRESHOLD,
+      product._count.keys < lowStockThreshold,
   ).length;
 
   return {
@@ -653,6 +655,9 @@ async function getRecentLists() {
 }
 
 async function getTopProducts(from: Date, to: Date) {
+  const { getLowStockThreshold } = await import("@/lib/settings/runtime");
+  const lowStockThreshold = await getLowStockThreshold();
+
   const items = await prisma.orderItem.findMany({
     where: {
       order: {
@@ -676,7 +681,7 @@ async function getTopProducts(from: Date, to: Date) {
           keys: {
             where: { status: ProductKeyStatus.AVAILABLE },
             select: { id: true },
-            take: LOW_STOCK_THRESHOLD + 1,
+            take: lowStockThreshold + 1,
           },
         },
       },

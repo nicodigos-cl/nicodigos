@@ -7,7 +7,14 @@ export async function proxy(request: NextRequest) {
     })
     
     if(!session) {
-        return NextResponse.redirect(new URL("/auth/login", request.url));
+        const login = new URL("/auth/login", request.url);
+        const pathname = request.nextUrl.pathname;
+        const search = request.nextUrl.search;
+        const callbackUrl = `${pathname}${search}`;
+        if (callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")) {
+          login.searchParams.set("callbackUrl", callbackUrl);
+        }
+        return NextResponse.redirect(login);
     }
 
     return NextResponse.next();

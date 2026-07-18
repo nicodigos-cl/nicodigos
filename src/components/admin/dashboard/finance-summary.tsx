@@ -41,16 +41,19 @@ export function FinanceSummary({
   const marginLabel =
     finance.marginPercentage == null
       ? "Sin margen"
-      : `${finance.marginPercentage.toFixed(1)}% margen`;
+      : `${finance.marginPercentage.toFixed(1)}% MARGEN`;
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
+    <section className="rounded-sm border border-border/80 bg-muted/5 p-4 sm:p-5 font-mono text-xs relative overflow-hidden">
+      <div className="absolute top-0 right-0 p-1 text-[8px] text-muted-foreground/30 select-none">
+        [SYS_FINANCE]
+      </div>
       <div className="mb-4">
-        <h2 className="font-heading text-lg font-semibold">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">
           Resultado del periodo
         </h2>
-        <p className="text-sm text-muted-foreground">
-          Bruto → reembolsos → neto → costo estimado → ganancia. {marginLabel}.
+        <p className="text-[10px] text-muted-foreground mt-0.5">
+          BRUTO → REEMBOLSOS → NETO → COSTO EST. → GANANCIA EST. | {marginLabel}.
         </p>
       </div>
 
@@ -64,26 +67,34 @@ export function FinanceSummary({
             ["Ganancia est.", finance.estimatedProfit],
           ] as const
         ).map(([title, metric]) => (
-          <div key={title} className="rounded-xl border border-border px-3 py-2">
-            <p className="text-xs text-muted-foreground">{title}</p>
-            <p className="mt-1 font-heading text-base font-semibold tabular-nums">
+          <div key={title} className="rounded-sm border border-border/60 bg-background/50 px-3 py-2">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{title}</p>
+            <p className="mt-1 font-mono text-sm font-bold tabular-nums text-foreground">
               {metric.formattedValue}
             </p>
-            <p className="mt-1 text-[11px] text-muted-foreground">
+            <p className="mt-1 text-[9px] text-muted-foreground/80">
               {metric.comparisonLabel}
             </p>
           </div>
         ))}
       </div>
 
-      <ChartContainer config={chartConfig} className="aspect-[16/6] w-full">
+      <ChartContainer config={chartConfig} className="aspect-16/6 w-full">
         <BarChart data={chartData} accessibilityLayer>
-          <CartesianGrid vertical={false} />
-          <XAxis dataKey="name" tickLine={false} axisLine={false} />
+          <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="oklch(from var(--border) l c h / 0.4)" />
+          <XAxis
+            dataKey="name"
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            className="font-mono text-[9px] fill-muted-foreground"
+          />
           <YAxis
             tickLine={false}
             axisLine={false}
             width={64}
+            tickMargin={8}
+            className="font-mono text-[9px] fill-muted-foreground"
             tickFormatter={(value: number) =>
               formatMoney(value, currency).replace(/\s/g, "")
             }
@@ -91,13 +102,14 @@ export function FinanceSummary({
           <ChartTooltip
             content={
               <ChartTooltipContent
+                className="font-mono text-[10px] rounded-sm border border-border/80 bg-background/95"
                 formatter={(value) => (
                   <span>{formatMoney(Number(value), currency)}</span>
                 )}
               />
             }
           />
-          <Bar dataKey="value" radius={[6, 6, 0, 0]} isAnimationActive={false}>
+          <Bar dataKey="value" radius={0} isAnimationActive={false}>
             {chartData.map((entry) => (
               <Cell
                 key={entry.name}
@@ -108,10 +120,10 @@ export function FinanceSummary({
         </BarChart>
       </ChartContainer>
 
-      <p className="mt-3 text-xs text-muted-foreground">{finance.costNote}</p>
+      <p className="mt-3 text-[10px] text-muted-foreground/90">[NOTA: {finance.costNote.toUpperCase()}]</p>
       {finance.eurClpRate != null ? (
-        <p className="mt-1 text-xs text-muted-foreground">
-          Tipo de cambio EUR/CLP usado: {finance.eurClpRate.toFixed(2)}.
+        <p className="mt-1 text-[10px] text-muted-foreground/90">
+          [TIPO DE CAMBIO EUR/CLP USADO: {finance.eurClpRate.toFixed(2)}]
         </p>
       ) : null}
     </section>
