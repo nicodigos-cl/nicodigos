@@ -11,7 +11,7 @@ type StorePopularProductsProps = {
   className?: string;
 };
 
-export function StorePopularProducts({
+export default function StorePopularProducts({
   products,
   className,
 }: StorePopularProductsProps) {

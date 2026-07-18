@@ -38,7 +38,7 @@ type StoreHeroProps = {
   className?: string;
 };
 
-export function StoreHero({ className }: StoreHeroProps) {
+export default function StoreHero({ className }: StoreHeroProps) {
   return (
     <section
       aria-label="Inicio"
@@ -165,5 +165,3 @@ export function StoreHero({ className }: StoreHeroProps) {
     </section>
   );
 }
-
-export default StoreHero;

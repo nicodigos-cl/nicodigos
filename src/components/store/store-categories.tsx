@@ -121,7 +121,7 @@ function resolveTiles(categories: StoreHeroCategory[]): HeroTile[] {
   ];
 }
 
-export function StoreCategories({ categories = [], className }: StoreHeroProps) {
+export default function StoreCategories({ categories = [], className }: StoreHeroProps) {
   const tiles = resolveTiles(categories);
 
   return (
@@ -134,7 +134,7 @@ export function StoreCategories({ categories = [], className }: StoreHeroProps) 
       <div className="absolute bottom-0 right-0 -z-10 h-[350px] w-[350px] rounded-full bg-sidebar-accent/5 blur-[130px] pointer-events-none" />
 
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        
+
         {/* Encabezado Premium de Sección */}
         <div className="mx-auto max-w-2xl text-center mb-12 sm:mb-16">
           <h2 className="text-xs font-bold uppercase tracking-widest text-primary">
@@ -173,7 +173,7 @@ export function StoreCategories({ categories = [], className }: StoreHeroProps) 
                     sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="object-cover transition-transform duration-700 ease-out group-hover:scale-105 opacity-90 group-hover:opacity-100"
                   />
-                  
+
                   {/* Capa de Oscurecimiento Uniforme para Contraste Impecable */}
                   <div className="absolute inset-0 bg-black/45 z-0 transition-opacity duration-300 group-hover:bg-black/50" />
 
@@ -193,4 +193,3 @@ export function StoreCategories({ categories = [], className }: StoreHeroProps) 
   );
 }
 
-export default StoreCategories;
