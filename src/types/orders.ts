@@ -1,0 +1,105 @@
+import type {
+  DeliveryMethod,
+  OrderStatus,
+  PaymentProvider,
+  PaymentStatus,
+} from "@/lib/validations/orders";
+
+export type OrderListItemDto = {
+  id: string;
+  status: OrderStatus;
+  email: string;
+  customerName: string | null;
+  subtotal: string;
+  total: string;
+  currency: string;
+  itemsCount: number;
+  userId: string;
+  userName: string;
+  createdAt: string;
+  updatedAt: string;
+  latestPaymentStatus: PaymentStatus | null;
+};
+
+export type OrdersPageResult = {
+  items: OrderListItemDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export type OrderItemDto = {
+  id: string;
+  productId: string;
+  productName: string;
+  productSlug: string | null;
+  coverImageUrl: string | null;
+  unitPrice: string;
+  quantity: number;
+  lineTotal: string;
+  deliveryMethod: DeliveryMethod;
+};
+
+export type OrderPaymentDto = {
+  id: string;
+  provider: PaymentProvider;
+  status: PaymentStatus;
+  amount: string;
+  currency: string;
+  externalId: string | null;
+  failureCode: string | null;
+  failureMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type OrderDetailDto = {
+  id: string;
+  status: OrderStatus;
+  email: string;
+  customerName: string | null;
+  subtotal: string;
+  total: string;
+  currency: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  createdAt: string;
+  updatedAt: string;
+  items: OrderItemDto[];
+  payments: OrderPaymentDto[];
+  checkoutUrl: string;
+};
+
+export type OrderProductOptionDto = {
+  id: string;
+  name: string;
+  slug: string;
+  price: string;
+  currency: string;
+  coverImageUrl: string | null;
+  deliveryMethod: DeliveryMethod;
+  status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+};
+
+export type CartLineDto = {
+  id: string;
+  productId: string;
+  quantity: number;
+  productName: string;
+  productSlug: string;
+  unitPrice: string;
+  currency: string;
+  coverImageUrl: string | null;
+  lineTotal: string;
+  inStock: boolean;
+};
+
+export type CartDto = {
+  id: string;
+  items: CartLineDto[];
+  subtotal: string;
+  currency: string;
+  itemsCount: number;
+};
