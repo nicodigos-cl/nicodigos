@@ -3,12 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { flattenError } from "zod";
 
-import { Prisma, SmmProviderStatus } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/actions/types";
 import { requireSession } from "@/lib/auth/session";
 import prisma from "@/lib/prisma";
 import { slugify } from "@/lib/products/format";
-import { SmmService as SmmApiClient } from "@/lib/smm-service";
+import { syncProviderServices } from "@/lib/smm-providers/sync";
 import {
   createSmmProviderSchema,
   deleteSmmProviderSchema,
@@ -198,7 +198,9 @@ export async function deleteSmmProviderAction(
 
 export async function syncSmmProviderServicesAction(
   rawInput: unknown,
-): Promise<ActionResult<{ synced: number }>> {
+): Promise<
+  ActionResult<{ synced: number; removed: number; archivedProducts: number }>
+> {
   const session = await requireSession();
   if (!session) {
     return unauthorized();
@@ -209,98 +211,26 @@ export async function syncSmmProviderServicesAction(
     return validationError(parsed.error);
   }
 
-  const provider = await prisma.smmProvider.findUnique({
-    where: { id: parsed.data.id },
-    select: {
-      id: true,
-      apiUrl: true,
-      apiKey: true,
-    },
-  });
+  const result = await syncProviderServices(parsed.data.id);
 
-  if (!provider) {
-    return { success: false, message: "Provider no encontrado." };
-  }
+  revalidatePath("/admin/providers");
+  revalidatePath(`/admin/providers/${parsed.data.id}`);
+  revalidatePath("/admin/services");
+  revalidatePath("/admin/products");
 
-  try {
-    const client = new SmmApiClient({
-      apiUrl: provider.apiUrl,
-      apiKey: provider.apiKey,
-    });
-    const remoteServices = await client.services();
-
-    await prisma.$transaction(async (tx) => {
-      for (const item of remoteServices) {
-        const rate = Number.parseFloat(item.rate);
-        const min = Number.parseInt(item.min, 10);
-        const max = Number.parseInt(item.max, 10);
-
-        await tx.smmService.upsert({
-          where: {
-            providerId_remoteServiceId: {
-              providerId: provider.id,
-              remoteServiceId: item.service,
-            },
-          },
-          create: {
-            providerId: provider.id,
-            remoteServiceId: item.service,
-            name: item.name,
-            type: item.type,
-            category: item.category,
-            rate: Number.isFinite(rate) ? rate : 0,
-            min: Number.isFinite(min) ? min : 0,
-            max: Number.isFinite(max) ? max : 0,
-            refill: Boolean(item.refill),
-            cancel: Boolean(item.cancel),
-            isActive: true,
-          },
-          update: {
-            name: item.name,
-            type: item.type,
-            category: item.category,
-            rate: Number.isFinite(rate) ? rate : 0,
-            min: Number.isFinite(min) ? min : 0,
-            max: Number.isFinite(max) ? max : 0,
-            refill: Boolean(item.refill),
-            cancel: Boolean(item.cancel),
-            isActive: true,
-          },
-        });
-      }
-
-      await tx.smmProvider.update({
-        where: { id: provider.id },
-        data: {
-          lastSyncedAt: new Date(),
-          lastError: null,
-          status: SmmProviderStatus.ACTIVE,
-        },
-      });
-    });
-
-    revalidatePath("/admin/providers");
-    revalidatePath(`/admin/providers/${provider.id}`);
-    return { success: true, data: { synced: remoteServices.length } };
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message.slice(0, 500)
-        : "Error al sincronizar servicios.";
-
-    await prisma.smmProvider.update({
-      where: { id: provider.id },
-      data: {
-        lastError: message,
-        status: SmmProviderStatus.ERROR,
-      },
-    });
-
-    revalidatePath("/admin/providers");
-    revalidatePath(`/admin/providers/${provider.id}`);
+  if (result.error) {
     return {
       success: false,
-      message: `No se pudieron sincronizar los servicios: ${message}`,
+      message: `No se pudieron sincronizar los servicios: ${result.error}`,
     };
   }
+
+  return {
+    success: true,
+    data: {
+      synced: result.synced,
+      removed: result.removed,
+      archivedProducts: result.archivedProducts,
+    },
+  };
 }

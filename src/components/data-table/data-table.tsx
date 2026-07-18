@@ -10,6 +10,8 @@ import {
   useReactTable,
   type ColumnDef,
   type ColumnFiltersState,
+  type OnChangeFn,
+  type RowSelectionState,
   type SortingState,
   type VisibilityState,
 } from "@tanstack/react-table";
@@ -38,6 +40,10 @@ interface DataTableProps<TData, TValue> {
   hidePagination?: boolean;
   emptyMessage?: string;
   className?: string;
+  enableRowSelection?: boolean;
+  rowSelection?: RowSelectionState;
+  onRowSelectionChange?: OnChangeFn<RowSelectionState>;
+  getRowId?: (originalRow: TData, index: number) => string;
 }
 
 export function DataTable<TData, TValue>({
@@ -50,6 +56,10 @@ export function DataTable<TData, TValue>({
   hidePagination = false,
   emptyMessage = "No results.",
   className,
+  enableRowSelection,
+  rowSelection: controlledRowSelection,
+  onRowSelectionChange: controlledOnRowSelectionChange,
+  getRowId,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -57,7 +67,18 @@ export function DataTable<TData, TValue>({
   );
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = React.useState({});
+  const [uncontrolledRowSelection, setUncontrolledRowSelection] =
+    React.useState<RowSelectionState>({});
+
+  const isSelectionControlled = controlledRowSelection !== undefined;
+  const rowSelection = isSelectionControlled
+    ? controlledRowSelection
+    : uncontrolledRowSelection;
+  const onRowSelectionChange =
+    controlledOnRowSelectionChange ?? setUncontrolledRowSelection;
+
+  const selectionEnabled =
+    enableRowSelection ?? (!manual || isSelectionControlled);
 
   const table = useReactTable({
     data,
@@ -68,11 +89,12 @@ export function DataTable<TData, TValue>({
       columnVisibility,
       rowSelection,
     },
-    enableRowSelection: !manual,
+    enableRowSelection: selectionEnabled,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange,
+    getRowId,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: manual ? undefined : getFilteredRowModel(),
     getPaginationRowModel: manual ? undefined : getPaginationRowModel(),

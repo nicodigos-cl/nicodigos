@@ -40,12 +40,33 @@ export type SmmServiceDto = {
   updatedAt: string;
 };
 
+export type SmmServiceListItemDto = SmmServiceDto & {
+  providerId: string;
+  providerName: string;
+  providerSlug: string;
+  providerApiUrl: string;
+};
+
 export type SmmServicesPageResult = {
   items: SmmServiceDto[];
   total: number;
   page: number;
   pageSize: number;
   totalPages: number;
+};
+
+export type SmmServicesListPageResult = {
+  items: SmmServiceListItemDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export type SmmProviderOptionDto = {
+  id: string;
+  name: string;
+  slug: string;
 };
 
 export type SmmProviderDetailDto = SmmProviderListItemDto & {

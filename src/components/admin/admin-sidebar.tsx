@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  CatalogueIcon,
   CreditCardIcon,
   DashboardSquare01Icon,
   DeliveryTruck01Icon,
@@ -58,6 +59,12 @@ const mainNav: NavItem[] = [
     href: "/admin/providers",
     icon: ServerStack01Icon,
     match: (pathname) => pathname.startsWith("/admin/providers"),
+  },
+  {
+    title: "Servicios SMM",
+    href: "/admin/services",
+    icon: CatalogueIcon,
+    match: (pathname) => pathname.startsWith("/admin/services"),
   },
   {
     title: "Categorías",

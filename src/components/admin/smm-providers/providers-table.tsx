@@ -88,7 +88,9 @@ function ProviderActions({ provider }: { provider: SmmProviderListItemDto }) {
                 toast.error(result.message);
                 return;
               }
-              toast.success(`Sincronizados ${result.data.synced} servicios`);
+              toast.success(
+                `Sincronizados ${result.data.synced} · retirados ${result.data.removed} · productos archivados ${result.data.archivedProducts}`,
+              );
               router.refresh();
             })();
           }}

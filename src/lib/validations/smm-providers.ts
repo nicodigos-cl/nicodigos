@@ -100,6 +100,61 @@ export const providerServicesQuerySchema = z.object({
 
 export type ProviderServicesQuery = z.infer<typeof providerServicesQuerySchema>;
 
+const servicesSortFields = [
+  "name",
+  "category",
+  "rate",
+  "remoteServiceId",
+  "updatedAt",
+  "createdAt",
+] as const;
+
+export const servicesSortSchema = z.enum(servicesSortFields);
+export type ServicesSortField = z.infer<typeof servicesSortSchema>;
+
+export const servicesListQuerySchema = z.object({
+  page: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().min(1).default(1),
+  ),
+  pageSize: z.preprocess(
+    emptyToUndefined,
+    z.coerce
+      .number()
+      .int()
+      .refine((value) => value === 10 || value === 20 || value === 50, {
+        message: "pageSize debe ser 10, 20 o 50",
+      })
+      .default(20),
+  ),
+  q: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .max(200)
+      .transform((value) => value.replace(/\s+/g, " "))
+      .optional(),
+  ),
+  providerId: z.preprocess(emptyToUndefined, z.string().cuid().optional()),
+  category: z.preprocess(
+    emptyToUndefined,
+    z.string().trim().max(200).optional(),
+  ),
+  isActive: z.preprocess(emptyToUndefined, z.enum(["true", "false"]).optional()),
+  sort: z.preprocess(emptyToUndefined, servicesSortSchema.default("updatedAt")),
+  order: z.preprocess(
+    emptyToUndefined,
+    z.enum(["asc", "desc"]).default("desc"),
+  ),
+});
+
+export type ServicesListQuery = z.infer<typeof servicesListQuerySchema>;
+
+export const deleteSmmServiceSchema = z.object({
+  id: z.string().cuid(),
+});
+
 const providerBaseFields = {
   name: z.string().trim().min(1, "El nombre es obligatorio").max(200),
   slug: z
