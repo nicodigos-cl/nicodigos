@@ -251,7 +251,7 @@ describe("admin settings validations", () => {
 describe("settings secret masking helpers", () => {
   test("integrations module masks secrets for UI payloads", async () => {
     const source = await Bun.file(
-      new URL("../integrations.ts", import.meta.url),
+      new URL("../../src/lib/settings/integrations.ts", import.meta.url),
     ).text();
     expect(source).toContain("maskSecret");
     expect(source).toContain("••••");
