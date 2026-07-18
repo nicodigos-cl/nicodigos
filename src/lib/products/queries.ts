@@ -1,8 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
-import {
-  ProductKeyStatus,
-  type ProductStatus,
-} from "@/generated/prisma/client";
+import { ProductKeyStatus, ProductStatus } from "@/generated/prisma/client";
 
 import prisma from "@/lib/prisma";
 import { decimalToString, productCodeFromSlug } from "@/lib/products/format";
@@ -14,6 +11,7 @@ import type {
   ProductKeysPageResult,
   ProductListItemDto,
   ProductsPageResult,
+  StoreProductCardDto,
 } from "@/types/products";
 import type {
   ProductKeysQuery,
@@ -76,34 +74,32 @@ function buildProductsWhere(
   return where;
 }
 
-function toListItemDto(
-  product: {
-    id: string;
-    name: string;
-    slug: string;
-    description: string | null;
-    coverImageUrl: string | null;
-    status: ProductStatus;
-    deliveryMethod: "SMM" | "KINGUIN" | "MANUAL";
-    price: { toString(): string };
-    compareAtPrice: { toString(): string } | null;
-    currency: string;
-    qty: number;
-    textQty: number | null;
-    isFeatured: boolean;
-    isOffer: boolean;
-    isPreorder: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-    categories: {
-      category: { id: string; name: string; slug: string };
-    }[];
-    assets: { url: string; thumbnailUrl: string | null; sortOrder: number }[];
-    _count: { keys: number };
-    availableKeysCount: number;
-    defaultOfferAvailableQty: number | null;
-  },
-): ProductListItemDto {
+function toListItemDto(product: {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  coverImageUrl: string | null;
+  status: ProductStatus;
+  deliveryMethod: "SMM" | "KINGUIN" | "MANUAL";
+  price: { toString(): string };
+  compareAtPrice: { toString(): string } | null;
+  currency: string;
+  qty: number;
+  textQty: number | null;
+  isFeatured: boolean;
+  isOffer: boolean;
+  isPreorder: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  categories: {
+    category: { id: string; name: string; slug: string };
+  }[];
+  assets: { url: string; thumbnailUrl: string | null; sortOrder: number }[];
+  _count: { keys: number };
+  availableKeysCount: number;
+  defaultOfferAvailableQty: number | null;
+}): ProductListItemDto {
   const stock = getProductStock({
     deliveryMethod: product.deliveryMethod,
     qty: product.qty,
@@ -388,12 +384,14 @@ export async function getProductById(
       name: item.category.name,
       slug: item.category.slug,
     })),
-    images: product.assets.filter((asset) => asset.type === "IMAGE").map((image) => ({
-      id: image.id,
-      url: image.url,
-      thumbnailUrl: image.thumbnailUrl,
-      sortOrder: image.sortOrder,
-    })),
+    images: product.assets
+      .filter((asset) => asset.type === "IMAGE")
+      .map((image) => ({
+        id: image.id,
+        url: image.url,
+        thumbnailUrl: image.thumbnailUrl,
+        sortOrder: image.sortOrder,
+      })),
     assets: product.assets.map((asset) => ({
       ...asset,
       localId: asset.id,
@@ -482,4 +480,99 @@ export async function getCategoryOptions(): Promise<CategoryOptionDto[]> {
   });
 
   return categories;
+}
+
+function toStoreProductCard(product: {
+  id: string;
+  name: string;
+  slug: string;
+  coverImageUrl: string | null;
+  price: { toString(): string };
+  compareAtPrice: { toString(): string } | null;
+  currency: string;
+  isOffer: boolean;
+  deliveryMethod: "SMM" | "KINGUIN" | "MANUAL";
+  categories: {
+    category: { name: string };
+  }[];
+  assets: Array<{ url: string; thumbnailUrl: string | null }>;
+}): StoreProductCardDto {
+  const imageUrl =
+    product.coverImageUrl ??
+    product.assets[0]?.thumbnailUrl ??
+    product.assets[0]?.url ??
+    null;
+
+  return {
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    href: `/productos/${product.slug}`,
+    imageUrl,
+    price: decimalToString(product.price) ?? "0",
+    compareAtPrice: decimalToString(product.compareAtPrice),
+    currency: product.currency,
+    isOffer: product.isOffer,
+    categoryName: product.categories[0]?.category.name ?? null,
+    deliveryMethod: product.deliveryMethod,
+  };
+}
+
+const storeProductCardSelect = {
+  id: true,
+  name: true,
+  slug: true,
+  coverImageUrl: true,
+  price: true,
+  compareAtPrice: true,
+  currency: true,
+  isOffer: true,
+  deliveryMethod: true,
+  categories: {
+    take: 1,
+    orderBy: { createdAt: "asc" as const },
+    select: { category: { select: { name: true } } },
+  },
+  assets: {
+    where: { type: "IMAGE" as const },
+    orderBy: { sortOrder: "asc" as const },
+    take: 1,
+    select: { url: true, thumbnailUrl: true },
+  },
+} as const;
+
+/**
+ * Popular storefront products: featured first, then recent ACTIVE to fill.
+ */
+export async function getPopularStoreProducts(
+  limit = 8,
+): Promise<StoreProductCardDto[]> {
+  const featured = await prisma.product.findMany({
+    where: {
+      status: ProductStatus.ACTIVE,
+      isFeatured: true,
+    },
+    orderBy: { updatedAt: "desc" },
+    take: limit,
+    select: storeProductCardSelect,
+  });
+
+  if (featured.length >= limit) {
+    return featured.map(toStoreProductCard);
+  }
+
+  const remaining = limit - featured.length;
+  const featuredIds = featured.map((product) => product.id);
+
+  const fillers = await prisma.product.findMany({
+    where: {
+      status: ProductStatus.ACTIVE,
+      id: featuredIds.length > 0 ? { notIn: featuredIds } : undefined,
+    },
+    orderBy: [{ isOffer: "desc" }, { updatedAt: "desc" }],
+    take: remaining,
+    select: storeProductCardSelect,
+  });
+
+  return [...featured, ...fillers].map(toStoreProductCard);
 }

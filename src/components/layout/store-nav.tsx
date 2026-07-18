@@ -13,6 +13,7 @@ import {
 
 import { Logo } from "@/components/logo";
 import { StoreCartDrawer } from "@/components/store/store-cart-drawer";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Accordion,
   AccordionContent,
@@ -34,7 +35,6 @@ import {
   MenubarContent,
   MenubarItem,
   MenubarSeparator,
-  MenubarLabel,
 } from "@/components/ui/menubar";
 import {
   Sheet,
@@ -61,6 +61,9 @@ const staticPages = [
   { name: "Soporte", href: "/dashboard/support" },
 ] as const;
 
+/** Max root categories shown inline in the desktop header before "Más". */
+const HEADER_CATEGORY_LIMIT = 5;
+
 function CategoryMenuItems({ category }: { category: StoreNavCategoryDto }) {
   return (
     <>
@@ -68,9 +71,9 @@ function CategoryMenuItems({ category }: { category: StoreNavCategoryDto }) {
       {category.children.length > 0 ? (
         <>
           <MenubarSeparator />
-          <MenubarLabel className="text-xs uppercase text-muted-foreground">
+          <div className="px-3 py-2 text-xs uppercase text-muted-foreground">
             Subcategorías
-          </MenubarLabel>
+          </div>
           {category.children.map((child) => (
             <MenubarItem key={child.id} render={<Link href={child.href} />}>
               {child.name}
@@ -119,7 +122,10 @@ function UserAccountMenu({
               <DrawerTitle className="text-lg font-bold">Mi cuenta</DrawerTitle>
               {isAuthenticated && user?.email ? (
                 <DrawerDescription className="text-xs truncate text-muted-foreground mt-1">
-                  Conectado como <span className="font-semibold text-foreground">{user.name || user.email}</span>
+                  Conectado como{" "}
+                  <span className="font-semibold text-foreground">
+                    {user.name || user.email}
+                  </span>
                 </DrawerDescription>
               ) : (
                 <DrawerDescription className="text-xs text-muted-foreground mt-1">
@@ -213,7 +219,10 @@ function UserAccountMenu({
         <HiOutlineUser className="size-5 text-sidebar-foreground" />
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-56 rounded-xl shadow-lg border border-border bg-popover text-popover-foreground">
+      <DropdownMenuContent
+        align="end"
+        className="w-56 rounded-xl shadow-lg border border-border bg-popover text-popover-foreground"
+      >
         {isAuthenticated ? (
           <>
             <div className="px-3 py-2.5">
@@ -269,6 +278,9 @@ export default function StoreNav() {
     useStoreNavCategories();
   const { count: cartCount } = useCartItemsCount();
 
+  const headerCategories = categories.slice(0, HEADER_CATEGORY_LIMIT);
+  const overflowCategories = categories.slice(HEADER_CATEGORY_LIMIT);
+
   const isAuthenticated = Boolean(session?.user);
   const cartBadge = cartCount > 99 ? "99+" : String(cartCount);
 
@@ -312,10 +324,7 @@ export default function StoreNav() {
                   No hay categorías aún.
                 </p>
               ) : (
-                <Accordion
-                  multiple
-                  className="w-full space-y-1"
-                >
+                <Accordion multiple className="w-full space-y-1">
                   {categories.map((category) => (
                     <AccordionItem
                       key={category.id}
@@ -459,34 +468,57 @@ export default function StoreNav() {
             <Logo size="sm" href="/" priority />
           </div>
 
-          <div className="hidden h-full flex-1 items-center justify-center gap-1 lg:flex">
-            <Menubar className="h-full space-x-1 border-0 bg-transparent p-0 shadow-none">
+          <div className="hidden h-full min-w-0 flex-1 items-center justify-center gap-1 overflow-hidden lg:flex">
+            <Menubar className="h-full max-w-full space-x-1 border-0 bg-transparent p-0 shadow-none">
               {categoriesPending
                 ? null
-                : categories.map((category) => (
+                : headerCategories.map((category) => (
                     <MenubarMenu key={category.id}>
                       <MenubarTrigger
                         className={cn(
-                          "inline-flex items-center gap-1 rounded-xl px-3.5 py-1.5 text-sm font-medium text-sidebar-foreground/80 cursor-pointer transition-all duration-200",
+                          "inline-flex max-w-[9.5rem] items-center gap-1 rounded-xl px-3.5 py-1.5 text-sm font-medium text-sidebar-foreground/80 cursor-pointer transition-all duration-200",
                           "hover:text-sidebar-foreground hover:bg-sidebar-accent/50 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-foreground",
                         )}
                       >
-                        {category.name}
+                        <span className="truncate">{category.name}</span>
                         {category.children.length > 0 ? (
-                          <HiOutlineChevronDown className="ml-0.5 size-3.5 opacity-60 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                          <HiOutlineChevronDown className="ml-0.5 size-3.5 shrink-0 opacity-60 transition-transform duration-200 group-data-[state=open]:rotate-180" />
                         ) : null}
                       </MenubarTrigger>
-                      <MenubarContent className="min-w-[220px] rounded-xl shadow-lg border border-border bg-popover text-popover-foreground">
+                      <MenubarContent className="min-w-[220px] rounded-xl border border-border bg-popover text-popover-foreground shadow-lg">
                         <CategoryMenuItems category={category} />
                       </MenubarContent>
                     </MenubarMenu>
                   ))}
+              {!categoriesPending && overflowCategories.length > 0 ? (
+                <MenubarMenu>
+                  <MenubarTrigger
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-xl px-3.5 py-1.5 text-sm font-medium text-sidebar-foreground/80 cursor-pointer transition-all duration-200",
+                      "hover:text-sidebar-foreground hover:bg-sidebar-accent/50 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-foreground",
+                    )}
+                  >
+                    Más
+                    <HiOutlineChevronDown className="ml-0.5 size-3.5 shrink-0 opacity-60" />
+                  </MenubarTrigger>
+                  <MenubarContent className="min-w-[220px] rounded-xl border border-border bg-popover text-popover-foreground shadow-lg">
+                    {overflowCategories.map((category) => (
+                      <MenubarItem
+                        key={category.id}
+                        render={<Link href={category.href} />}
+                      >
+                        {category.name}
+                      </MenubarItem>
+                    ))}
+                  </MenubarContent>
+                </MenubarMenu>
+              ) : null}
             </Menubar>
             {staticPages.map((page) => (
               <Link
                 key={page.name}
                 href={page.href}
-                className="rounded-xl px-3.5 py-1.5 text-sm font-medium text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all duration-200"
+                className="shrink-0 rounded-xl px-3.5 py-1.5 text-sm font-medium text-sidebar-foreground/80 transition-all duration-200 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
               >
                 {page.name}
               </Link>
@@ -494,6 +526,8 @@ export default function StoreNav() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
+            <ThemeToggle />
+
             <UserAccountMenu
               isPending={sessionPending}
               isAuthenticated={isAuthenticated}

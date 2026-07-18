@@ -123,3 +123,18 @@ export type CategoryOptionDto = {
   name: string;
   slug: string;
 };
+
+/** Lightweight product card for the storefront home grid. */
+export type StoreProductCardDto = {
+  id: string;
+  name: string;
+  slug: string;
+  href: string;
+  imageUrl: string | null;
+  price: string;
+  compareAtPrice: string | null;
+  currency: string;
+  isOffer: boolean;
+  categoryName: string | null;
+  deliveryMethod: DeliveryMethod;
+};
