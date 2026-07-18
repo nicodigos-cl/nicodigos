@@ -43,10 +43,6 @@ export function captureException(
     initObservability();
   }
 
-  if (!H.isInitialized()) {
-    return;
-  }
-
   const attrs: Record<string, string | number | boolean> = {};
   if (metadata) {
     for (const [key, value] of Object.entries(metadata)) {
