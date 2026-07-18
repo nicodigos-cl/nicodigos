@@ -77,30 +77,34 @@ export async function createFlowPaymentForOrder(orderId: string): Promise<FlowPa
   });
 
   const existing = order.payments[0];
-  const payment = existing
-    ? await prisma.payment.update({
-        where: { id: existing.id },
-        data: {
-          amount,
-          currency: order.currency || "CLP",
-          externalId: created.token,
-          status: PaymentStatus.PENDING,
-          failureCode: null,
-          failureMessage: null,
-        },
-        select: { id: true },
-      })
-    : await prisma.payment.create({
-        data: {
-          orderId: order.id,
-          provider: PaymentProvider.FLOW,
-          status: PaymentStatus.PENDING,
-          amount,
-          currency: order.currency || "CLP",
-          externalId: created.token,
-        },
-        select: { id: true },
-      });
+  const payment = await prisma.$transaction(async (tx) => {
+    const data = {
+      amount,
+      currency: order.currency || "CLP",
+      externalId: created.token,
+      flowOrder: created.flowOrder,
+      commerceOrder: order.id,
+      payerEmail: order.email,
+      providerStatus: "Pendiente",
+      lastProviderCheckAt: new Date(),
+      status: PaymentStatus.PENDING,
+      failureCode: null,
+      failureMessage: null,
+    };
+    const row = existing
+      ? await tx.payment.update({ where: { id: existing.id }, data, select: { id: true } })
+      : await tx.payment.create({ data: { ...data, orderId: order.id, provider: PaymentProvider.FLOW }, select: { id: true } });
+    await tx.paymentEvent.create({ data: {
+      paymentId: row.id,
+      type: "SESSION_STARTED",
+      source: "SYSTEM",
+      statusAfter: PaymentStatus.PENDING,
+      message: "Sesión de pago iniciada en Flow.",
+      providerRef: String(created.flowOrder),
+      idempotencyKey: `flow-session:${created.token}`,
+    } });
+    return row;
+  });
 
   return {
     paymentId: payment.id,

@@ -1,0 +1,94 @@
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { usersHref } from "@/lib/users/url";
+import type { UsersListQuery } from "@/lib/validations/users";
+
+function pages(page: number, total: number): Array<number | "e"> {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const result: Array<number | "e"> = [1];
+  if (page > 3) result.push("e");
+  for (let n = Math.max(2, page - 1); n <= Math.min(total - 1, page + 1); n++) {
+    result.push(n);
+  }
+  if (page < total - 2) result.push("e");
+  result.push(total);
+  return result;
+}
+
+export function UsersPagination({
+  page,
+  pageSize,
+  total,
+  totalPages,
+  query,
+}: {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  query: UsersListQuery;
+}) {
+  if (!total) return null;
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-muted-foreground">
+        Mostrando{" "}
+        <span className="font-medium text-foreground">
+          {from}–{to}
+        </span>{" "}
+        de <span className="font-medium text-foreground">{total}</span>{" "}
+        usuarios
+      </p>
+      <Pagination className="mx-0 w-auto justify-start sm:justify-end">
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious
+              href={usersHref(query, { page: Math.max(1, page - 1) })}
+              text="Anterior"
+              aria-disabled={page <= 1}
+              className={page <= 1 ? "pointer-events-none opacity-50" : undefined}
+            />
+          </PaginationItem>
+          {pages(page, totalPages).map((item, index) =>
+            item === "e" ? (
+              <PaginationItem key={`e-${index}`}>
+                <PaginationEllipsis />
+              </PaginationItem>
+            ) : (
+              <PaginationItem key={item}>
+                <PaginationLink
+                  href={usersHref(query, { page: item })}
+                  isActive={page === item}
+                >
+                  {item}
+                </PaginationLink>
+              </PaginationItem>
+            ),
+          )}
+          <PaginationItem>
+            <PaginationNext
+              href={usersHref(query, {
+                page: Math.min(totalPages, page + 1),
+              })}
+              text="Siguiente"
+              aria-disabled={page >= totalPages}
+              className={
+                page >= totalPages ? "pointer-events-none opacity-50" : undefined
+              }
+            />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+    </div>
+  );
+}

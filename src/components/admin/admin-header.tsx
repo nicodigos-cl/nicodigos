@@ -42,6 +42,36 @@ function resolveSearchTarget(pathname: string): SearchTarget {
     };
   }
 
+  if (
+    pathname === "/admin/deliveries" ||
+    pathname.startsWith("/admin/deliveries/")
+  ) {
+    return {
+      listPath: "/admin/deliveries",
+      placeholder: "Buscar entregas...",
+      ariaLabel: "Buscar entregas",
+    };
+  }
+
+  if (
+    pathname === "/admin/users" ||
+    pathname.startsWith("/admin/users/")
+  ) {
+    return {
+      listPath: "/admin/users",
+      placeholder: "Buscar usuarios...",
+      ariaLabel: "Buscar usuarios",
+    };
+  }
+
+  if (pathname === "/admin/orders" || pathname.startsWith("/admin/orders/")) {
+    return {
+      listPath: "/admin/orders",
+      placeholder: "Buscar órdenes...",
+      ariaLabel: "Buscar órdenes",
+    };
+  }
+
   return {
     listPath: "/admin/products",
     placeholder:

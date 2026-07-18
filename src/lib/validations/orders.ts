@@ -12,8 +12,13 @@ export const orderStatusValues = [
 
 export const paymentStatusValues = [
   "PENDING",
+  "PROCESSING",
   "PAID",
   "FAILED",
+  "REJECTED",
+  "CANCELLED",
+  "EXPIRED",
+  "PARTIALLY_REFUNDED",
   "REFUNDED",
 ] as const;
 
@@ -181,8 +186,13 @@ export const orderStatusLabel: Record<OrderStatus, string> = {
 
 export const paymentStatusLabel: Record<PaymentStatus, string> = {
   PENDING: "Pendiente",
+  PROCESSING: "Procesando",
   PAID: "Pagado",
   FAILED: "Fallido",
+  REJECTED: "Rechazado",
+  CANCELLED: "Cancelado",
+  EXPIRED: "Expirado",
+  PARTIALLY_REFUNDED: "Reembolso parcial",
   REFUNDED: "Reembolsado",
 };
 

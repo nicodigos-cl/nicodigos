@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Logo } from "@/components/logo";
+import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
@@ -23,8 +25,15 @@ export default async function DashboardPage() {
           Hola, {session.user.name || "bienvenido"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Tu cuenta está lista. Aquí estará tu biblioteca y pedidos.
+          Revisa tus pedidos y el contenido digital entregado.
         </p>
+        <Button
+          className="mt-6"
+          render={<Link href="/dashboard/orders" />}
+          nativeButton={false}
+        >
+          Ver mis pedidos
+        </Button>
       </div>
     </div>
   );

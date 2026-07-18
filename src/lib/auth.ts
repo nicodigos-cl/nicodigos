@@ -59,6 +59,38 @@ export const auth = betterAuth({
     },
     session: {
       create: {
+        async before(session) {
+          const user = await prisma.user.findUnique({
+            where: { id: session.userId },
+            select: { accountStatus: true, suspensionEndsAt: true },
+          });
+          if (!user) {
+            return false;
+          }
+          if (
+            user.accountStatus === "SUSPENDED" ||
+            user.accountStatus === "ANONYMIZED"
+          ) {
+            if (
+              user.accountStatus === "SUSPENDED" &&
+              user.suspensionEndsAt &&
+              user.suspensionEndsAt.getTime() <= Date.now()
+            ) {
+              await prisma.user.update({
+                where: { id: session.userId },
+                data: {
+                  accountStatus: "ACTIVE",
+                  suspensionReason: null,
+                  suspendedAt: null,
+                  suspendedByUserId: null,
+                  suspensionEndsAt: null,
+                },
+              });
+              return;
+            }
+            return false;
+          }
+        },
         async after(session) {
           const user = await prisma.user.findUnique({
             where: { id: session.userId },
@@ -67,6 +99,10 @@ export const auth = betterAuth({
           if (user) {
             await makeUserAdminByEnv(user.email);
           }
+          await prisma.user.update({
+            where: { id: session.userId },
+            data: { lastActivityAt: new Date() },
+          });
         },
       },
     },

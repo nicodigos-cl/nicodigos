@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { getOrderById } from "@/lib/orders/queries";
 import { formatMoney } from "@/lib/products/format";
 import { getFlowClient } from "@/lib/flow/client";
-import { markOrderPaidFromFlow } from "@/lib/actions/orders";
+import { processVerifiedFlowPayment } from "@/lib/transactions/processing";
+import { mapFlowStatus } from "@/lib/transactions/status";
 
 type ReturnPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -29,9 +30,22 @@ export default async function CheckoutReturnPage({
       const flow = getFlowClient();
       const status = await flow.payments.status.byToken(token);
       if (status.status === 2) {
-        await markOrderPaidFromFlow({
-          orderId: status.commerceOrder || orderId,
+        await processVerifiedFlowPayment({
           token,
+          source: "CALLBACK",
+          snapshot: {
+            status: mapFlowStatus(status.status),
+            providerStatus: status.statusStr,
+            flowOrder: status.flowOrder,
+            commerceOrder: status.commerceOrder,
+            amount: status.amount,
+            currency: status.currency,
+            payerEmail: status.payer,
+            paymentMethod: status.paymentData?.media ?? null,
+            paidAt: status.paymentData?.date
+              ? new Date(status.paymentData.date.replace(" ", "T"))
+              : null,
+          },
         });
         paid = true;
       }

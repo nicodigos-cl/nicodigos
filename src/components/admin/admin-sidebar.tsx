@@ -92,10 +92,10 @@ const mainNav: NavItem[] = [
     match: (pathname) => pathname.startsWith("/admin/deliveries"),
   },
   {
-    title: "Pagos",
-    href: "/admin/payments",
+    title: "Transacciones",
+    href: "/admin/transactions",
     icon: CreditCardIcon,
-    match: (pathname) => pathname.startsWith("/admin/payments"),
+    match: (pathname) => pathname.startsWith("/admin/transactions"),
   },
   {
     title: "Usuarios",

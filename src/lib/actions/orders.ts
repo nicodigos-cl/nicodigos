@@ -5,8 +5,6 @@ import { flattenError } from "zod";
 
 import {
   OrderStatus,
-  PaymentProvider,
-  PaymentStatus,
   ProductStatus,
   UserRole,
 } from "@/generated/prisma/client";
@@ -270,6 +268,19 @@ export async function updateOrderStatusAction(
       where: { id: parsed.data.id },
       data: { status: parsed.data.status },
     });
+
+    if (
+      parsed.data.status === OrderStatus.PAID ||
+      parsed.data.status === OrderStatus.PROCESSING ||
+      parsed.data.status === OrderStatus.FULFILLED
+    ) {
+      const { ensureDeliveriesForOrder } = await import(
+        "@/lib/deliveries/ensure"
+      );
+      await ensureDeliveriesForOrder(parsed.data.id);
+      revalidatePath("/admin/deliveries");
+    }
+
     revalidatePath("/admin/orders");
     revalidatePath(`/admin/orders/${parsed.data.id}`);
     return { success: true, data: { id: parsed.data.id } };
@@ -516,57 +527,4 @@ export async function removeCartItemAction(
   revalidatePath("/cart");
   revalidatePath("/checkout");
   return { success: true, data: { cartItemId: item.id } };
-}
-
-export async function markOrderPaidFromFlow(params: {
-  orderId: string;
-  token: string;
-}): Promise<boolean> {
-  const payment = await prisma.payment.findFirst({
-    where: {
-      orderId: params.orderId,
-      provider: PaymentProvider.FLOW,
-      OR: [{ externalId: params.token }, { externalId: { not: null } }],
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  await prisma.$transaction(async (tx) => {
-    if (payment) {
-      await tx.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: PaymentStatus.PAID,
-          externalId: params.token,
-          failureCode: null,
-          failureMessage: null,
-        },
-      });
-    } else {
-      const order = await tx.order.findUnique({
-        where: { id: params.orderId },
-        select: { total: true, currency: true },
-      });
-      if (!order) return;
-      await tx.payment.create({
-        data: {
-          orderId: params.orderId,
-          provider: PaymentProvider.FLOW,
-          status: PaymentStatus.PAID,
-          amount: order.total,
-          currency: order.currency,
-          externalId: params.token,
-        },
-      });
-    }
-
-    await tx.order.update({
-      where: { id: params.orderId },
-      data: { status: OrderStatus.PAID },
-    });
-  });
-
-  revalidatePath(`/admin/orders/${params.orderId}`);
-  revalidatePath("/admin/orders");
-  return true;
 }

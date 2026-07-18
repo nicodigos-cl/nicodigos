@@ -7,10 +7,16 @@ const options: LoggerOptions = {
   base: {
     service: process.env.SERVICE_NAME ?? "nicodigos",
   },
-  redact: {
+    redact: {
     paths: [
       "apiKey",
       "*.apiKey",
+      "password",
+      "*.password",
+      "serial",
+      "*.serial",
+      "token",
+      "*.token",
       "headers['X-Api-Key']",
       "headers['x-api-key']",
       "config.headers['X-Api-Key']",

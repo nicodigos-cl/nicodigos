@@ -15,7 +15,9 @@
     "cron:cleanup-price-events:once": "bun scripts/dev-cron-cleanup-price-events.ts --once",
     "build": "bun --bun next build",
     "start": "bun --bun next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "bun test src/lib/deliveries/__tests__ src/lib/transactions/__tests__ src/lib/users/__tests__",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",

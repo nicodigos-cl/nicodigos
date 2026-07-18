@@ -20,6 +20,55 @@ enum UserRole {
   ADMIN
 }
 
+/// Administrative access state (independent of Better Auth session validity).
+enum UserAccountStatus {
+  ACTIVE
+  RESTRICTED
+  SUSPENDED
+  ANONYMIZED
+}
+
+enum UserAdminNoteCategory {
+  SUPPORT
+  RISK
+  FRAUD
+  BILLING
+  DELIVERY
+  REFUND
+  OTHER
+}
+
+enum UserAdminNotePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum UserAdminEventType {
+  ACCOUNT_CREATED
+  EMAIL_VERIFIED
+  PROFILE_UPDATED
+  BILLING_UPDATED
+  ROLE_CHANGED
+  ACCOUNT_RESTRICTED
+  ACCOUNT_SUSPENDED
+  ACCOUNT_RESTORED
+  SESSION_REVOKED
+  SESSIONS_REVOKED_ALL
+  PASSWORD_RESET_SENT
+  EMAIL_VERIFICATION_SENT
+  NOTE_ADDED
+  NOTE_UPDATED
+  NOTE_RESOLVED
+  NOTE_REOPENED
+  NOTE_DELETED
+  REVIEW_MARKED
+  REVIEW_RESOLVED
+  ANONYMIZED
+  OAUTH_UNLINKED
+}
+
 /// Preferred Chilean tax document for checkout (SII DTE).
 enum InvoiceDocumentType {
   BOLETA
@@ -33,6 +82,16 @@ model User {
   emailVerified Boolean  @default(false)
   image         String?
   role          UserRole @default(USER)
+
+  accountStatus     UserAccountStatus @default(ACTIVE)
+  suspensionReason  String?
+  suspendedAt       DateTime?
+  suspendedByUserId String?
+  suspensionEndsAt  DateTime?
+  requiresReview    Boolean           @default(false)
+  reviewReason      String?
+  lastActivityAt    DateTime?
+  anonymizedAt      DateTime?
 
   /// Chilean RUT normalized as "12345678-9" (optional for boleta; required for factura / >135 UF).
   rut              String?
@@ -56,10 +115,51 @@ model User {
   orders    Order[]
   cart      Cart?
   wishlist  Wishlist?
+  adminNotes  UserAdminNote[]
+  adminEvents UserAdminEvent[]
 
   @@unique([email])
   @@index([rut])
+  @@index([role])
+  @@index([accountStatus])
+  @@index([createdAt])
+  @@index([lastActivityAt])
+  @@index([requiresReview])
   @@map("user")
+}
+
+model UserAdminNote {
+  id           String                @id @default(cuid())
+  userId       String
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  authorUserId String?
+  authorEmail  String?
+  category     UserAdminNoteCategory
+  priority     UserAdminNotePriority @default(MEDIUM)
+  content      String
+  resolvedAt   DateTime?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([userId, resolvedAt])
+  @@map("user_admin_notes")
+}
+
+model UserAdminEvent {
+  id          String             @id @default(cuid())
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        UserAdminEventType
+  actorUserId String?
+  actorEmail  String?
+  message     String?
+  metadata    Json?
+  createdAt   DateTime           @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+  @@map("user_admin_events")
 }
 
 model Session {
@@ -150,6 +250,31 @@ enum DeliveryEventSource {
   ADMIN
 }
 
+enum DeliveryContentType {
+  PRODUCT_KEY
+  CODE
+  PIN
+  USERNAME_PASSWORD
+  EMAIL_PASSWORD
+  TOKEN
+  URL
+  INSTRUCTIONS
+  FREE_TEXT
+  OTHER
+}
+
+enum DeliveryNotificationType {
+  COMPLETED
+  FAILED
+  PROCESSING
+}
+
+enum DeliveryNotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 enum ProductKeyStatus {
   AVAILABLE
   RESERVED
@@ -159,8 +284,13 @@ enum ProductKeyStatus {
 
 enum PaymentStatus {
   PENDING
+  PROCESSING
   PAID
   FAILED
+  REJECTED
+  CANCELLED
+  EXPIRED
+  PARTIALLY_REFUNDED
   REFUNDED
 }
 
@@ -168,6 +298,58 @@ enum PaymentProvider {
   MANUAL
   FLOW
   OTHER
+}
+
+enum PaymentEventType {
+  CREATED
+  SESSION_STARTED
+  CALLBACK_RECEIVED
+  WEBHOOK_RECEIVED
+  PROVIDER_STATUS_CHECKED
+  STATUS_CHANGED
+  ORDER_MARKED_PAID
+  FULFILLMENT_STARTED
+  RECONCILED
+  CONFIRMATION_REPROCESSED
+  REVIEW_MARKED
+  REVIEW_RESOLVED
+  NOTE_ADDED
+  REFUND_REQUESTED
+  REFUND_STATUS_CHECKED
+  REFUND_COMPLETED
+  MANUAL_CORRECTION
+  ERROR
+}
+
+enum PaymentEventSource {
+  SYSTEM
+  CALLBACK
+  WEBHOOK
+  PROVIDER
+  ADMIN
+}
+
+enum PaymentEventResult {
+  SUCCESS
+  PARTIAL
+  FAILED
+  IGNORED
+}
+
+enum PaymentReviewPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum PaymentRefundStatus {
+  CREATED
+  ACCEPTED
+  REJECTED
+  REFUNDED
+  CANCELLED
+  ERROR
 }
 
 enum SmmProviderStatus {
@@ -533,13 +715,15 @@ model OrderItemSmm {
 }
 
 model Delivery {
-  id             String         @id @default(cuid())
-  orderItemId    String         @unique
-  orderItem      OrderItem      @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
-  status         DeliveryStatus @default(PENDING)
-  deliveryMethod DeliveryMethod
-  errorMessage   String?
-  deliveredAt    DateTime?
+  id              String         @id @default(cuid())
+  orderItemId     String         @unique
+  orderItem       OrderItem      @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  status          DeliveryStatus @default(PENDING)
+  deliveryMethod  DeliveryMethod
+  errorMessage    String?
+  deliveredAt     DateTime?
+  customerMessage String?
+  lastSyncedAt    DateTime?
 
   // Remote order refs (Kinguin / SMM)
   externalOrderId String?
@@ -555,8 +739,10 @@ model Delivery {
   smmCurrency   String?
   smmRefillId   String?
 
-  keys   DeliveryKey[]
-  events DeliveryEvent[]
+  keys          DeliveryKey[]
+  credentials   DeliveryCredential[]
+  events        DeliveryEvent[]
+  notifications DeliveryNotification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -564,38 +750,92 @@ model Delivery {
   @@index([status])
   @@index([deliveryMethod])
   @@index([externalOrderId])
+  @@index([createdAt])
+  @@index([updatedAt])
   @@map("delivery")
 }
 
 model DeliveryKey {
-  id            String      @id @default(cuid())
+  id            String              @id @default(cuid())
   deliveryId    String
-  delivery      Delivery    @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  delivery      Delivery            @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
   serial        String
+  /// Legacy / remote type string (e.g. Kinguin key type). Prefer `contentType`.
   type          String?
+  contentType   DeliveryContentType @default(PRODUCT_KEY)
+  label         String?
+  instructions  String?
+  isSecret      Boolean             @default(true)
   externalKeyId String?
   productKeyId  String?
-  productKey    ProductKey? @relation(fields: [productKeyId], references: [id], onDelete: SetNull)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  productKey    ProductKey?         @relation(fields: [productKeyId], references: [id], onDelete: SetNull)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 
+  @@unique([productKeyId])
+  @@unique([externalKeyId])
   @@index([deliveryId])
-  @@index([externalKeyId])
-  @@index([productKeyId])
   @@map("delivery_key")
 }
 
+/// Structured credentials for MANUAL deliveries (passwords/tokens encrypted at rest).
+model DeliveryCredential {
+  id                String              @id @default(cuid())
+  deliveryId        String
+  delivery          Delivery            @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  contentType       DeliveryContentType @default(USERNAME_PASSWORD)
+  label             String?
+  username          String?
+  email             String?
+  /// AES-256-GCM ciphertext (base64): iv.authTag.ciphertext
+  passwordEncrypted String?
+  tokenEncrypted    String?
+  url               String?
+  notes             String?
+  instructions      String?
+  isSecret          Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([deliveryId])
+  @@map("delivery_credential")
+}
+
 model DeliveryEvent {
-  id         String              @id @default(cuid())
-  deliveryId String
-  delivery   Delivery            @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
-  status     DeliveryStatus
-  message    String?
-  source     DeliveryEventSource @default(SYSTEM)
-  createdAt  DateTime            @default(now())
+  id          String              @id @default(cuid())
+  deliveryId  String
+  delivery    Delivery            @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  status      DeliveryStatus
+  message     String?
+  source      DeliveryEventSource @default(SYSTEM)
+  actorUserId String?
+  actorEmail  String?
+  createdAt   DateTime            @default(now())
 
   @@index([deliveryId, createdAt])
+  @@index([actorUserId])
   @@map("delivery_event")
+}
+
+/// Idempotent email notification log for delivery lifecycle emails.
+model DeliveryNotification {
+  id             String                     @id @default(cuid())
+  deliveryId     String
+  delivery       Delivery                   @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  type           DeliveryNotificationType
+  status         DeliveryNotificationStatus @default(PENDING)
+  recipient      String
+  idempotencyKey String                     @unique
+  resendId       String?
+  errorMessage   String?
+  isResend       Boolean                    @default(false)
+  sentAt         DateTime?
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  @@index([deliveryId, type])
+  @@index([status])
+  @@map("delivery_notification")
 }
 
 // ---------------------------------------------------------------------------
@@ -603,23 +843,95 @@ model DeliveryEvent {
 // ---------------------------------------------------------------------------
 
 model Payment {
-  id             String          @id @default(cuid())
-  orderId        String
-  order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  provider       PaymentProvider @default(OTHER)
-  status         PaymentStatus   @default(PENDING)
-  amount         Decimal         @db.Decimal(12, 2)
-  currency       String          @default("CLP")
-  externalId     String?
-  failureCode    String?
-  failureMessage String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id                  String                 @id @default(cuid())
+  orderId             String
+  order               Order                  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider            PaymentProvider        @default(OTHER)
+  status              PaymentStatus          @default(PENDING)
+  amount              Decimal                @db.Decimal(12, 2)
+  currency            String                 @default("CLP")
+  externalId          String?
+  flowOrder           Int?
+  commerceOrder       String?
+  paymentMethod       String?
+  payerEmail          String?
+  providerStatus      String?
+  paidAt              DateTime?
+  expiresAt           DateTime?
+  confirmedAt         DateTime?
+  lastProviderCheckAt DateTime?
+  refundAmount        Decimal                @default(0) @db.Decimal(12, 2)
+  safeMetadata        Json?
+  requiresReview      Boolean                @default(false)
+  reviewPriority      PaymentReviewPriority?
+  reviewReason        String?
+  reviewNote          String?
+  reviewActorUserId   String?
+  reviewActorEmail    String?
+  reviewCreatedAt     DateTime?
+  reviewResolvedAt    DateTime?
+  failureCode         String?
+  failureMessage      String?
+  events              PaymentEvent[]
+  refunds             PaymentRefund[]
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
 
+  @@unique([provider, externalId])
   @@index([orderId])
   @@index([externalId])
+  @@index([flowOrder])
+  @@index([commerceOrder])
   @@index([status])
+  @@index([requiresReview, reviewPriority])
+  @@index([createdAt])
   @@map("payment")
+}
+
+model PaymentEvent {
+  id             String             @id @default(cuid())
+  paymentId      String
+  payment        Payment            @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  type           PaymentEventType
+  source         PaymentEventSource @default(SYSTEM)
+  result         PaymentEventResult @default(SUCCESS)
+  statusBefore   PaymentStatus?
+  statusAfter    PaymentStatus?
+  message        String?
+  actorUserId    String?
+  actorEmail     String?
+  providerRef    String?
+  errorCode      String?
+  idempotencyKey String?            @unique
+  createdAt      DateTime           @default(now())
+
+  @@index([paymentId, createdAt])
+  @@index([type, createdAt])
+  @@index([actorUserId])
+  @@map("payment_event")
+}
+
+model PaymentRefund {
+  id                  String              @id @default(cuid())
+  paymentId           String
+  payment             Payment             @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  amount              Decimal             @db.Decimal(12, 2)
+  currency            String
+  reason              String
+  status              PaymentRefundStatus @default(CREATED)
+  refundCommerceOrder String              @unique
+  flowRefundOrder     String?
+  providerToken       String?             @unique
+  providerMessage     String?
+  actorUserId         String?
+  actorEmail          String?
+  requestedAt         DateTime            @default(now())
+  completedAt         DateTime?
+  updatedAt           DateTime            @updatedAt
+
+  @@index([paymentId, status])
+  @@index([status, requestedAt])
+  @@map("payment_refund")
 }
 
 // ---------------------------------------------------------------------------
