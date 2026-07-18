@@ -36,8 +36,8 @@ export function DeliveryProcessingEmail({
           <Heading style={heading}>Procesando tu entrega</Heading>
           <Text style={text}>
             Hola {customerName}, estamos preparando{" "}
-            <strong>{productName}</strong> para el pedido{" "}
-            {orderId.slice(0, 8)}…. Te avisaremos cuando esté lista.
+            <strong>{productName}</strong> para el pedido {orderId.slice(0, 8)}
+            …. Te avisaremos cuando esté lista.
           </Text>
           <Section style={buttonSection}>
             <Button href={orderUrl} style={button}>
@@ -45,7 +45,7 @@ export function DeliveryProcessingEmail({
             </Button>
           </Section>
           <Hr style={hr} />
-          <Text style={footer}>Nicodigos · soporte@nicodigos.com</Text>
+          <Text style={footer}>Nicodigos · soporte@nicodigos.cl</Text>
         </Container>
       </Body>
     </Html>

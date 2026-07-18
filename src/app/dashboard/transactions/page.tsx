@@ -83,7 +83,7 @@ export default async function CustomerTransactionsPage({
           </EmptyHeader>
           <EmptyContent>
             <Button
-              render={<Link href="/dashboard/orders" />}
+              render={<Link href="/dashboard/pedidos" />}
               nativeButton={false}
             >
               Ver mis pedidos

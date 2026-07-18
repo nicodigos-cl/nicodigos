@@ -30,7 +30,7 @@ describe("admin settings validations", () => {
     const result = generalSettingsSchema.safeParse({
       version: 1,
       storeName: "Nicodigos",
-      supportEmail: "soporte@nicodigos.com",
+      supportEmail: "soporte@nicodigos.cl",
       senderName: "Nicodigos",
       primaryColor: "#E15707",
       timezone: "America/Santiago",
@@ -45,7 +45,7 @@ describe("admin settings validations", () => {
     const result = generalSettingsSchema.safeParse({
       version: 1,
       storeName: "Nicodigos",
-      supportEmail: "soporte@nicodigos.com",
+      supportEmail: "soporte@nicodigos.cl",
       senderName: "Nicodigos",
       primaryColor: "#E15707",
       timezone: "America/Santiago",
@@ -61,7 +61,7 @@ describe("admin settings validations", () => {
     const result = generalSettingsSchema.safeParse({
       version: 1,
       storeName: "Nicodigos",
-      supportEmail: "soporte@nicodigos.com",
+      supportEmail: "soporte@nicodigos.cl",
       senderName: "Nicodigos",
       primaryColor: "#E15707",
       timezone: "America/Santiago",
@@ -142,7 +142,7 @@ describe("admin settings validations", () => {
     ).toBeFalse();
     expect(
       sendTestEmailSchema.safeParse({
-        to: "qa@nicodigos.com",
+        to: "qa@nicodigos.cl",
         template: "order-lifecycle",
       }).success,
     ).toBeTrue();
@@ -216,7 +216,7 @@ describe("admin settings validations", () => {
       notifyProviderError: true,
       notifyWebhookFailed: true,
       notifyHighValueSale: true,
-      adminNotificationEmails: "ops@nicodigos.com, not-valid",
+      adminNotificationEmails: "ops@nicodigos.cl, not-valid",
     });
     expect(bad.success).toBeFalse();
 
@@ -242,7 +242,7 @@ describe("admin settings validations", () => {
       notifyProviderError: true,
       notifyWebhookFailed: true,
       notifyHighValueSale: true,
-      adminNotificationEmails: "ops@nicodigos.com, alerts@nicodigos.com",
+      adminNotificationEmails: "ops@nicodigos.cl, alerts@nicodigos.cl",
     });
     expect(good.success).toBeTrue();
   });

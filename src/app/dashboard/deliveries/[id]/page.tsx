@@ -75,7 +75,7 @@ export default async function CustomerDeliveryDetailPage({
           <Button
             variant="outline"
             size="sm"
-            render={<Link href={`/dashboard/orders/${delivery.orderId}`} />}
+            render={<Link href={`/dashboard/pedidos/${delivery.orderId}`} />}
             nativeButton={false}
           >
             Ver pedido

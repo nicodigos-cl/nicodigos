@@ -66,7 +66,7 @@ export function TransactionSummary({
         {transactions.map((tx) => (
           <li key={tx.id}>
             <Link
-              href={`/dashboard/orders/${tx.orderId}`}
+              href={`/dashboard/pedidos/${tx.orderId}`}
               className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-muted/10 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="space-y-1">

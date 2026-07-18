@@ -1,10 +1,22 @@
 import { describe, expect, test } from "bun:test";
 
 import { buildCustomerDashboardAlerts } from "@/lib/customer-dashboard/alerts";
-import { formatCustomerOrderNumber } from "@/lib/customer-dashboard/format";
+import { deriveCustomerOrderDeliverySummary } from "@/lib/customer-dashboard/delivery-summary";
+import {
+  formatCustomerOrderNumber,
+  parseOrderSearchToken,
+} from "@/lib/customer-dashboard/format";
+import {
+  buildCustomerOrdersOrderBy,
+  buildCustomerOrdersWhere,
+} from "@/lib/customer-dashboard/order-filters";
+import { deriveCustomerPaymentSummary } from "@/lib/customer-dashboard/payment-summary";
+import { customerOrderPath } from "@/lib/customer-dashboard/paths";
 import {
   computeSmmProgressPercent,
+  getCustomerDeliveryMethodLabel,
   getCustomerOrderStatusView,
+  getCustomerPaymentMethodLabel,
   getCustomerPaymentStatusView,
   getCustomerSmmStatusView,
   resolveOrderPrimaryAction,
@@ -19,7 +31,7 @@ describe("customer dashboard status mapping", () => {
   test("maps order statuses to friendly labels", () => {
     expect(getCustomerOrderStatusView("PENDING").label).toBe("Esperando pago");
     expect(getCustomerOrderStatusView("FULFILLED").tone).toBe("success");
-    expect(getCustomerPaymentStatusView("PAID").label).toBe("Aprobada");
+    expect(getCustomerPaymentStatusView("PAID").label).toBe("Pago confirmado");
     expect(getCustomerPaymentStatusView("REJECTED").tone).toBe("danger");
   });
 
@@ -27,6 +39,12 @@ describe("customer dashboard status mapping", () => {
     const view = getCustomerOrderStatusView("PROCESSING");
     expect(view.label).not.toContain("PROCESSING");
     expect(view.description.length).toBeGreaterThan(0);
+  });
+
+  test("maps delivery methods without exposing Kinguin", () => {
+    expect(getCustomerDeliveryMethodLabel("KINGUIN")).toBe("Key digital");
+    expect(getCustomerDeliveryMethodLabel("MANUAL")).toBe("Entrega digital");
+    expect(getCustomerPaymentMethodLabel("FLOW", null)).toBe("Pago online");
   });
 
   test("computes SMM progress from remains", () => {
@@ -61,6 +79,102 @@ describe("customer dashboard status mapping", () => {
       hasFailedDelivery: true,
     });
     expect(action.type).toBe("PAY");
+    if (action.type === "PAY") {
+      expect(action.href).toContain("/checkout");
+    }
+  });
+
+  test("primary action links to pedidos path for view", () => {
+    const action = resolveOrderPrimaryAction({
+      orderId: "clorderid000000000000001",
+      orderStatus: "FULFILLED",
+      paymentStatus: "PAID",
+      availableDeliveryId: null,
+      needsSmmTargetDeliveryId: null,
+      hasFailedDelivery: false,
+    });
+    expect(action.type).toBe("VIEW");
+    if (action.type === "VIEW") {
+      expect(action.href).toBe(
+        customerOrderPath("clorderid000000000000001"),
+      );
+    }
+  });
+});
+
+describe("customer payment summary", () => {
+  test("prioritizes approved payment over later failed attempts", () => {
+    const summary = deriveCustomerPaymentSummary([
+      {
+        id: "p2",
+        status: "FAILED",
+        amount: "1000",
+        currency: "CLP",
+        provider: "FLOW",
+        paymentMethod: null,
+        paidAt: null,
+        createdAt: "2026-07-18T12:00:00.000Z",
+        updatedAt: "2026-07-18T12:00:00.000Z",
+      },
+      {
+        id: "p1",
+        status: "PAID",
+        amount: "1000",
+        currency: "CLP",
+        provider: "FLOW",
+        paymentMethod: null,
+        paidAt: "2026-07-17T12:00:00.000Z",
+        createdAt: "2026-07-17T12:00:00.000Z",
+        updatedAt: "2026-07-17T12:00:00.000Z",
+      },
+    ]);
+    expect(summary.hasApprovedPayment).toBeTrue();
+    expect(summary.canPay).toBeFalse();
+    expect(summary.canRetry).toBeFalse();
+    expect(summary.status).toBe("PAID");
+  });
+
+  test("allows retry when only failed attempts exist", () => {
+    const summary = deriveCustomerPaymentSummary([
+      {
+        id: "p1",
+        status: "FAILED",
+        amount: "1000",
+        currency: "CLP",
+        provider: "FLOW",
+        paymentMethod: null,
+        paidAt: null,
+        createdAt: "2026-07-18T12:00:00.000Z",
+        updatedAt: "2026-07-18T12:00:00.000Z",
+      },
+    ]);
+    expect(summary.canRetry).toBeTrue();
+    expect(summary.label).toBe("Pago fallido");
+  });
+});
+
+describe("customer delivery summary", () => {
+  test("summarizes partial deliveries", () => {
+    const summary = deriveCustomerOrderDeliverySummary({
+      totalItems: 3,
+      deliveries: [
+        { id: "d1", status: "DELIVERED" },
+        { id: "d2", status: "PROCESSING" },
+        { id: "d3", status: "PENDING" },
+      ],
+    });
+    expect(summary.deliveredCount).toBe(1);
+    expect(summary.label).toContain("1 de 3");
+    expect(summary.tone).toBe("info");
+  });
+
+  test("flags failed deliveries", () => {
+    const summary = deriveCustomerOrderDeliverySummary({
+      totalItems: 1,
+      deliveries: [{ id: "d1", status: "FAILED" }],
+    });
+    expect(summary.tone).toBe("danger");
+    expect(summary.label).toContain("Problema");
   });
 });
 
@@ -101,19 +215,34 @@ describe("customer dashboard alerts", () => {
     expect(alerts.some((a) => a.type === "EMAIL_UNVERIFIED")).toBeTrue();
     expect(JSON.stringify(alerts)).not.toContain("PaymentStatus");
     expect(JSON.stringify(alerts)).not.toContain("provider");
+    expect(JSON.stringify(alerts)).toContain("/dashboard/pedidos/");
   });
 });
 
 describe("customer dashboard validations", () => {
-  test("parses order list query", () => {
+  test("parses order list query with visual filters", () => {
     const parsed = customerOrdersListQuerySchema.parse({
       page: "2",
-      q: "  NC-123  ",
-      status: "PENDING",
+      q: "  NC-123ABC  ",
+      status: "processing",
+      payment: "failed",
+      delivery: "SMM",
+      sort: "amount_desc",
+      from: "2026-07-01",
+      to: "2026-07-18",
     });
     expect(parsed.page).toBe(2);
-    expect(parsed.q).toBe("NC-123");
-    expect(parsed.status).toBe("PENDING");
+    expect(parsed.q).toBe("NC-123ABC");
+    expect(parsed.status).toBe("processing");
+    expect(parsed.payment).toBe("failed");
+    expect(parsed.sort).toBe("amount_desc");
+  });
+
+  test("rejects oversized search", () => {
+    const result = customerOrdersListQuerySchema.safeParse({
+      q: "x".repeat(200),
+    });
+    expect(result.success).toBeFalse();
   });
 
   test("rejects invalid SMM target", () => {
@@ -136,10 +265,36 @@ describe("customer dashboard validations", () => {
   });
 });
 
+describe("customer order filters", () => {
+  test("scopes where clause to userId", () => {
+    const where = buildCustomerOrdersWhere("user-1", {
+      page: 1,
+      pageSize: 10,
+      sort: "newest",
+      status: "processing",
+    });
+    expect(where.userId).toBe("user-1");
+    expect(where.status).toEqual({
+      in: ["PROCESSING", "PARTIALLY_FULFILLED"],
+    });
+  });
+
+  test("orders by amount desc", () => {
+    expect(buildCustomerOrdersOrderBy("amount_desc")).toEqual({
+      total: "desc",
+    });
+  });
+});
+
 describe("customer order number", () => {
   test("formats stable customer-facing order number", () => {
     const value = formatCustomerOrderNumber("clabcdefghijklmnop");
-    expect(value.startsWith("#NC-")).toBeTrue();
+    expect(value.startsWith("NC-")).toBeTrue();
     expect(value).not.toContain("clabcdefghijklmnop");
+  });
+
+  test("parses NC search tokens", () => {
+    const token = parseOrderSearchToken("#NC-ABCDEF12");
+    expect(token.suffix).toBe("ABCDEF12");
   });
 });

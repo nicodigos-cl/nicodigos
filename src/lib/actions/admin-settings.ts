@@ -855,7 +855,7 @@ export async function sendTestEmailAction(
   const baseUrl = getAppBaseUrl();
 
   try {
-    const orderUrl = `${baseUrl}/dashboard/orders`;
+    const orderUrl = `${baseUrl}/dashboard/pedidos`;
     const react =
       template === "auth-otp"
         ? AuthOtpEmail({

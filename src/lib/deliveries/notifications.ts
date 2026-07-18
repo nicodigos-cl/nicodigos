@@ -109,7 +109,7 @@ export async function sendDeliveryNotification(input: {
     select: { id: true },
   });
 
-  const orderUrl = `${appBaseUrl()}/dashboard/orders/${delivery.orderItem.order.id}`;
+  const orderUrl = `${appBaseUrl()}/dashboard/pedidos/${delivery.orderItem.order.id}`;
   const customerName =
     delivery.orderItem.order.customerName ||
     delivery.orderItem.order.user.name ||

@@ -78,9 +78,9 @@ function revalidateDelivery(deliveryId: string, orderId?: string) {
   revalidatePath(`/admin/deliveries/${deliveryId}`);
   if (orderId) {
     revalidatePath(`/admin/orders/${orderId}`);
-    revalidatePath(`/dashboard/orders/${orderId}`);
+    revalidatePath(`/dashboard/pedidos/${orderId}`);
   }
-  revalidatePath("/dashboard/orders");
+  revalidatePath("/dashboard/pedidos");
 }
 
 async function appendEvent(

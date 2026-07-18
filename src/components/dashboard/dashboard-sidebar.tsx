@@ -59,9 +59,11 @@ const navigationGroups: NavGroup[] = [
       },
       {
         title: "Mis pedidos",
-        href: "/dashboard/orders",
+        href: "/dashboard/pedidos",
         icon: HiOutlineShoppingBag,
-        match: (pathname) => pathname.startsWith("/dashboard/orders"),
+        match: (pathname) =>
+          pathname.startsWith("/dashboard/pedidos") ||
+          pathname.startsWith("/dashboard/orders"),
       },
       {
         title: "Mis entregas",

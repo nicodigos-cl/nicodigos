@@ -57,7 +57,7 @@ export async function sendCustomerOrderStatusEmail(input: {
   const customerName =
     order.customerName?.trim() || order.user.name?.trim() || "cliente";
   const orderNumber = formatCustomerOrderNumber(order.id);
-  const orderUrl = `${appBaseUrl()}/dashboard/orders/${order.id}`;
+  const orderUrl = `${appBaseUrl()}/dashboard/pedidos/${order.id}`;
   const totalLabel = formatMoney(
     decimalToString(order.total) ?? "0",
     order.currency,

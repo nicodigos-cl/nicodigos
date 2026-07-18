@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { HiOutlineEye } from "react-icons/hi";
 
+import { OrderPrimaryActionButton } from "@/components/dashboard/orders/order-primary-action-button";
 import { CustomerStatusBadge } from "@/components/dashboard/customer-status-badge";
 import { DataTable } from "@/components/data-table";
-import { Button } from "@/components/ui/button";
 import type { CustomerOrderSummary } from "@/lib/customer-dashboard/types";
-import { formatDateTime } from "@/lib/format-date";
+import { formatCustomerDate } from "@/lib/customer-dashboard/format";
+import { customerOrderPath } from "@/lib/customer-dashboard/paths";
 import { formatMoney } from "@/lib/products/format";
 
 const columns: ColumnDef<CustomerOrderSummary>[] = [
@@ -18,10 +18,10 @@ const columns: ColumnDef<CustomerOrderSummary>[] = [
     cell: ({ row }) => (
       <div className="min-w-0">
         <Link
-          href={`/dashboard/pedidos/${row.original.id}`}
+          href={customerOrderPath(row.original.id)}
           className="font-medium hover:underline"
         >
-          {row.original.number}
+          Pedido #{row.original.number}
         </Link>
         <p className="truncate text-xs text-muted-foreground">
           {row.original.productNames.slice(0, 2).join(" · ") ||
@@ -35,7 +35,7 @@ const columns: ColumnDef<CustomerOrderSummary>[] = [
     header: "Fecha",
     cell: ({ row }) => (
       <span className="text-sm text-muted-foreground">
-        {formatDateTime(row.original.createdAt)}
+        {formatCustomerDate(row.original.createdAt)}
       </span>
     ),
   },
@@ -63,10 +63,13 @@ const columns: ColumnDef<CustomerOrderSummary>[] = [
       ),
   },
   {
-    id: "items",
-    header: "Productos",
+    id: "delivery",
+    header: "Entrega",
     cell: ({ row }) => (
-      <span className="tabular-nums">{row.original.itemsCount}</span>
+      <CustomerStatusBadge
+        label={row.original.deliverySummary.label}
+        tone={row.original.deliverySummary.tone}
+      />
     ),
   },
   {
@@ -82,24 +85,16 @@ const columns: ColumnDef<CustomerOrderSummary>[] = [
     id: "actions",
     header: "",
     cell: ({ row }) => (
-      <Button
+      <OrderPrimaryActionButton
+        action={row.original.primaryAction}
         size="sm"
-        variant="ghost"
-        render={<Link href={`/dashboard/pedidos/${row.original.id}`} />}
-        nativeButton={false}
-      >
-        <HiOutlineEye className="size-4" />
-        Ver
-      </Button>
+        variant="outline"
+      />
     ),
   },
 ];
 
-export function CustomerOrdersTable({
-  data,
-}: {
-  data: CustomerOrderSummary[];
-}) {
+export function OrdersTable({ data }: { data: CustomerOrderSummary[] }) {
   return (
     <DataTable
       columns={columns}

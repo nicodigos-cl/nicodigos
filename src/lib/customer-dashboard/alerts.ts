@@ -50,7 +50,7 @@ export function buildCustomerDashboardAlerts(input: {
           orderId: order.id,
           title: "Tu pago todavía está pendiente",
           description: `Completa o revisa el pago del pedido ${number}.`,
-          href: `/dashboard/orders/${order.id}`,
+          href: `/dashboard/pedidos/${order.id}`,
           actionLabel: "Revisar pedido",
         });
       }
@@ -88,7 +88,7 @@ export function buildCustomerDashboardAlerts(input: {
           orderId: order.id,
           title: "Reembolso en proceso",
           description: `Estamos procesando un reembolso del pedido ${number}.`,
-          href: `/dashboard/orders/${order.id}`,
+          href: `/dashboard/pedidos/${order.id}`,
           actionLabel: "Ver pedido",
         });
       }

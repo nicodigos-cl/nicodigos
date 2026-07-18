@@ -41,7 +41,7 @@ export function CustomerTransactionsMobileList({
       {data.map((tx) => (
         <li key={tx.id}>
           <Link
-            href={`/dashboard/orders/${tx.orderId}`}
+            href={`/dashboard/pedidos/${tx.orderId}`}
             className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-muted/40"
           >
             <div className="flex items-start justify-between gap-3">

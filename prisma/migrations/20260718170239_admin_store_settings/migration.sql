@@ -7,7 +7,7 @@ CREATE TABLE "store_settings" (
     "storeName" TEXT NOT NULL DEFAULT 'Nicodigos',
     "legalName" TEXT,
     "shortDescription" TEXT,
-    "supportEmail" TEXT NOT NULL DEFAULT 'soporte@nicodigos.com',
+    "supportEmail" TEXT NOT NULL DEFAULT 'soporte@nicodigos.cl',
     "senderName" TEXT NOT NULL DEFAULT 'Nicodigos',
     "replyToEmail" TEXT,
     "primaryColor" TEXT NOT NULL DEFAULT '#E15707',

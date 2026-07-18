@@ -17,7 +17,7 @@ const cards = [
   {
     key: "orders" as const,
     title: "Pedidos",
-    href: "/dashboard/orders",
+    href: "/dashboard/pedidos",
     linkLabel: "Ver mis pedidos",
     icon: HiOutlineShoppingBag,
     colorClass: "text-blue-500 bg-blue-500/10 dark:text-blue-400 dark:bg-blue-500/10",
@@ -41,7 +41,7 @@ const cards = [
   {
     key: "completedPurchases" as const,
     title: "Compras completadas",
-    href: "/dashboard/orders?status=FULFILLED",
+    href: "/dashboard/pedidos?status=completed",
     linkLabel: "Ver historial",
     icon: HiOutlineBadgeCheck,
     colorClass: "text-violet-500 bg-violet-500/10 dark:text-violet-400 dark:bg-violet-500/10",

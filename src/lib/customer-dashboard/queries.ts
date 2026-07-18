@@ -11,10 +11,27 @@ import {
 
 import { buildCustomerDashboardAlerts } from "@/lib/customer-dashboard/alerts";
 import {
+  deriveCustomerOrderDeliverySummary,
+  getCustomerDeliveryErrorMessage,
+} from "@/lib/customer-dashboard/delivery-summary";
+import {
+  abbreviateUrl,
   formatCustomerOrderNumber,
   maskIpAddress,
   summarizeUserAgent,
 } from "@/lib/customer-dashboard/format";
+import {
+  buildAvailableActions,
+  buildCustomerOrderTimeline,
+  mapDeliveryKeysPreview,
+  mapOrderSummaryFromRow,
+  orderListSelect,
+} from "@/lib/customer-dashboard/order-mappers";
+import {
+  buildCustomerOrdersOrderBy,
+  buildCustomerOrdersWhere,
+} from "@/lib/customer-dashboard/order-filters";
+import { deriveCustomerPaymentSummary } from "@/lib/customer-dashboard/payment-summary";
 import {
   computeSmmProgressPercent,
   getCustomerDeliveryMethodLabel,
@@ -31,8 +48,7 @@ import type {
   CustomerDeliveriesPageResult,
   CustomerDeliverySummary,
   CustomerOrderDetail,
-  CustomerOrderSummary,
-  CustomerOrderTimelineEvent,
+  CustomerOrderMetrics,
   CustomerOrdersPageResult,
   CustomerProfileCompleteness,
   CustomerSecurityView,
@@ -48,66 +64,11 @@ import { maskSecret } from "@/lib/crypto/mask";
 import { ensureDeliveriesForOrder } from "@/lib/deliveries/ensure";
 import { createLogger } from "@/lib/logger";
 import prisma from "@/lib/prisma";
-import { decimalToString } from "@/lib/products/format";
+import { decimalToString, formatMoney } from "@/lib/products/format";
 import { isValidRut } from "@/lib/validations/rut";
 import type { CustomerDeliveryDto } from "@/types/deliveries";
 
 const log = createLogger({ module: "customer-dashboard" });
-
-function mapOrderSummary(input: {
-  id: string;
-  status: OrderStatus;
-  total: Prisma.Decimal | string;
-  currency: string;
-  createdAt: Date | string;
-  itemsCount: number;
-  productNames: string[];
-  paymentStatus: PaymentStatus | null;
-  deliveryStatuses: DeliveryStatus[];
-  availableDeliveryId: string | null;
-  needsSmmTargetDeliveryId: string | null;
-  hasFailedDelivery: boolean;
-}): CustomerOrderSummary {
-  const paymentStatusView = input.paymentStatus
-    ? getCustomerPaymentStatusView(input.paymentStatus)
-    : null;
-
-  const deliveryStatus =
-    input.deliveryStatuses.find((s) => s === DeliveryStatus.DELIVERED) ??
-    input.deliveryStatuses.find((s) => s === DeliveryStatus.FAILED) ??
-    input.deliveryStatuses.find((s) => s === DeliveryStatus.PROCESSING) ??
-    input.deliveryStatuses[0] ??
-    null;
-
-  return {
-    id: input.id,
-    number: formatCustomerOrderNumber(input.id),
-    status: input.status,
-    statusView: getCustomerOrderStatusView(input.status),
-    paymentStatus: input.paymentStatus,
-    paymentStatusView,
-    deliveryStatus,
-    deliveryStatusView: deliveryStatus
-      ? getCustomerDeliveryStatusView(deliveryStatus)
-      : null,
-    total: decimalToString(input.total) ?? "0",
-    currency: input.currency,
-    itemsCount: input.itemsCount,
-    productNames: input.productNames,
-    createdAt:
-      typeof input.createdAt === "string"
-        ? input.createdAt
-        : input.createdAt.toISOString(),
-    primaryAction: resolveOrderPrimaryAction({
-      orderId: input.id,
-      orderStatus: input.status,
-      paymentStatus: input.paymentStatus,
-      availableDeliveryId: input.availableDeliveryId,
-      needsSmmTargetDeliveryId: input.needsSmmTargetDeliveryId,
-      hasFailedDelivery: input.hasFailedDelivery,
-    }),
-  };
-}
 
 function mapDeliverySummary(row: {
   id: string;
@@ -249,83 +210,6 @@ function getProfileCompleteness(user: {
   };
 }
 
-const orderListSelect = {
-  id: true,
-  status: true,
-  total: true,
-  currency: true,
-  createdAt: true,
-  items: {
-    select: {
-      productName: true,
-      delivery: {
-        select: {
-          id: true,
-          status: true,
-          deliveryMethod: true,
-          orderItem: {
-            select: {
-              smm: { select: { link: true, username: true } },
-            },
-          },
-        },
-      },
-    },
-  },
-  payments: {
-    orderBy: { createdAt: "desc" as const },
-    take: 1,
-    select: { status: true },
-  },
-} satisfies Prisma.OrderSelect;
-
-function toOrderSummaryFromRow(
-  order: Prisma.OrderGetPayload<{ select: typeof orderListSelect }>,
-): CustomerOrderSummary {
-  const deliveryStatuses = order.items
-    .map((item) => item.delivery?.status)
-    .filter((status): status is DeliveryStatus => Boolean(status));
-
-  const availableDeliveryId =
-    order.items.find((item) => item.delivery?.status === DeliveryStatus.DELIVERED)
-      ?.delivery?.id ?? null;
-
-  const needsSmmTargetDeliveryId =
-    order.items.find((item) => {
-      const delivery = item.delivery;
-      if (!delivery || delivery.deliveryMethod !== DeliveryMethod.SMM) {
-        return false;
-      }
-      if (
-        delivery.status !== DeliveryStatus.PENDING &&
-        delivery.status !== DeliveryStatus.PROCESSING
-      ) {
-        return false;
-      }
-      const smm = delivery.orderItem.smm;
-      return !smm?.link?.trim() && !smm?.username?.trim();
-    })?.delivery?.id ?? null;
-
-  const hasFailedDelivery = order.items.some(
-    (item) => item.delivery?.status === DeliveryStatus.FAILED,
-  );
-
-  return mapOrderSummary({
-    id: order.id,
-    status: order.status,
-    total: order.total,
-    currency: order.currency,
-    createdAt: order.createdAt,
-    itemsCount: order.items.length,
-    productNames: order.items.map((item) => item.productName),
-    paymentStatus: order.payments[0]?.status ?? null,
-    deliveryStatuses,
-    availableDeliveryId,
-    needsSmmTargetDeliveryId,
-    hasFailedDelivery,
-  });
-}
-
 export async function getCustomerDashboard(
   userId: string,
 ): Promise<CustomerDashboardViewModel> {
@@ -411,7 +295,7 @@ export async function getCustomerDashboard(
       }),
     ]);
 
-  const recentOrders = recentOrdersRaw.map(toOrderSummaryFromRow);
+  const recentOrders = recentOrdersRaw.map(mapOrderSummaryFromRow);
   const latestOrder = recentOrders[0] ?? null;
 
   const deliverySummaries = deliveriesRaw.map((row) =>
@@ -649,54 +533,106 @@ export async function getBuyAgainProducts(
   return products;
 }
 
+export async function getCustomerOrderMetrics(
+  userId: string,
+): Promise<CustomerOrderMetrics> {
+  const [totalOrders, inProgress, availableDeliveries, needsAttention] =
+    await Promise.all([
+      prisma.order.count({ where: { userId } }),
+      prisma.order.count({
+        where: {
+          userId,
+          status: {
+            in: [
+              OrderStatus.PROCESSING,
+              OrderStatus.PARTIALLY_FULFILLED,
+              OrderStatus.PAID,
+            ],
+          },
+        },
+      }),
+      prisma.delivery.count({
+        where: {
+          orderItem: { order: { userId } },
+          status: DeliveryStatus.DELIVERED,
+        },
+      }),
+      prisma.order.count({
+        where: {
+          userId,
+          OR: [
+            { status: OrderStatus.PENDING },
+            {
+              AND: [
+                {
+                  payments: {
+                    some: {
+                      status: {
+                        in: [
+                          PaymentStatus.FAILED,
+                          PaymentStatus.REJECTED,
+                          PaymentStatus.EXPIRED,
+                        ],
+                      },
+                    },
+                  },
+                },
+                {
+                  NOT: {
+                    payments: {
+                      some: { status: PaymentStatus.PAID },
+                    },
+                  },
+                },
+              ],
+            },
+            {
+              items: {
+                some: {
+                  delivery: { status: DeliveryStatus.FAILED },
+                },
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+
+  return {
+    totalOrders,
+    inProgress,
+    availableDeliveries,
+    needsAttention,
+  };
+}
+
 export async function getCustomerOrdersPage(
   userId: string,
   query: CustomerOrdersListQuery,
 ): Promise<CustomerOrdersPageResult> {
-  const where: Prisma.OrderWhereInput = { userId };
-  const and: Prisma.OrderWhereInput[] = [];
-
-  if (query.status) where.status = query.status;
-  if (query.from || query.to) {
-    where.createdAt = {};
-    if (query.from) where.createdAt.gte = new Date(query.from);
-    if (query.to) where.createdAt.lte = new Date(query.to);
-  }
-  if (query.q) {
-    and.push({
-      OR: [
-        { id: { contains: query.q, mode: "insensitive" } },
-        { email: { contains: query.q, mode: "insensitive" } },
-        {
-          items: {
-            some: {
-              productName: { contains: query.q, mode: "insensitive" },
-            },
-          },
-        },
-      ],
-    });
-  }
-  if (and.length > 0) where.AND = and;
-
+  const where = buildCustomerOrdersWhere(userId, query);
+  const orderBy = buildCustomerOrdersOrderBy(query.sort);
   const skip = (query.page - 1) * query.pageSize;
-  const [total, rows] = await prisma.$transaction([
+
+  const [total, rows, metrics] = await Promise.all([
     prisma.order.count({ where }),
     prisma.order.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy,
       skip,
       take: query.pageSize,
       select: orderListSelect,
     }),
+    getCustomerOrderMetrics(userId),
   ]);
 
   return {
-    items: rows.map(toOrderSummaryFromRow),
+    items: rows.map(mapOrderSummaryFromRow),
     total,
     page: query.page,
     pageSize: query.pageSize,
     totalPages: Math.max(1, Math.ceil(total / query.pageSize)),
+    metrics,
   };
 }
 
@@ -853,9 +789,10 @@ export async function getCustomerOrderDetail(
       total: true,
       currency: true,
       createdAt: true,
+      updatedAt: true,
       payments: {
         orderBy: { createdAt: "desc" },
-        take: 1,
+        take: 5,
         select: {
           id: true,
           status: true,
@@ -864,6 +801,8 @@ export async function getCustomerOrderDetail(
           provider: true,
           paymentMethod: true,
           paidAt: true,
+          createdAt: true,
+          updatedAt: true,
         },
       },
       items: {
@@ -874,6 +813,22 @@ export async function getCustomerOrderDetail(
           quantity: true,
           unitPrice: true,
           deliveryMethod: true,
+          product: {
+            select: {
+              status: true,
+              coverImageUrl: true,
+              qty: true,
+              deliveryMethod: true,
+              _count: {
+                select: {
+                  keys: { where: { status: "AVAILABLE" } },
+                },
+              },
+            },
+          },
+          smm: {
+            select: { link: true, username: true, quantity: true },
+          },
           delivery: {
             select: {
               id: true,
@@ -885,6 +840,11 @@ export async function getCustomerOrderDetail(
               smmStartCount: true,
               smmRemains: true,
               _count: { select: { keys: true, credentials: true } },
+              keys: {
+                orderBy: { createdAt: "asc" },
+                take: 3,
+                select: { id: true, serial: true },
+              },
               events: {
                 orderBy: { createdAt: "asc" },
                 take: 20,
@@ -915,162 +875,246 @@ export async function getCustomerOrderDetail(
 
   if (!order) return null;
 
-  const deliverySummaries = order.items
+  const paymentSummary = deriveCustomerPaymentSummary(
+    order.payments.map((payment) => ({
+      id: payment.id,
+      status: payment.status,
+      amount: decimalToString(payment.amount) ?? "0",
+      currency: payment.currency,
+      provider: payment.provider,
+      paymentMethod: payment.paymentMethod,
+      paidAt: payment.paidAt?.toISOString() ?? null,
+      createdAt: payment.createdAt.toISOString(),
+      updatedAt: payment.updatedAt.toISOString(),
+    })),
+  );
+
+  const deliveries = order.items
     .map((item) => item.delivery)
     .filter((delivery): delivery is NonNullable<typeof delivery> =>
       Boolean(delivery),
-    )
-    .map((delivery) =>
-      mapDeliverySummary({
-        ...delivery,
-        keysCount: delivery._count.keys,
-        credentialsCount: delivery._count.credentials,
-      }),
     );
 
-  const summary = mapOrderSummary({
-    id: order.id,
-    status: order.status,
-    total: order.total,
-    currency: order.currency,
-    createdAt: order.createdAt,
-    itemsCount: order.items.length,
-    productNames: order.items.map((item) => item.productName),
-    paymentStatus: order.payments[0]?.status ?? null,
-    deliveryStatuses: deliverySummaries.map((d) => d.status),
-    availableDeliveryId:
-      deliverySummaries.find((d) => d.status === DeliveryStatus.DELIVERED)?.id ??
-      null,
-    needsSmmTargetDeliveryId:
-      deliverySummaries.find(
-        (d) => d.smm && !d.smm.hasTarget && d.status !== DeliveryStatus.CANCELED,
-      )?.id ?? null,
-    hasFailedDelivery: deliverySummaries.some(
-      (d) => d.status === DeliveryStatus.FAILED,
-    ),
+  const deliverySummary = deriveCustomerOrderDeliverySummary({
+    totalItems: order.items.length,
+    deliveries: deliveries.map((delivery) => ({
+      id: delivery.id,
+      status: delivery.status,
+    })),
   });
 
-  const timeline: CustomerOrderTimelineEvent[] = [
-    {
-      id: `created-${order.id}`,
-      label: "Pedido creado",
-      description: null as string | null,
-      createdAt: order.createdAt.toISOString(),
-    },
-  ];
-
-  const payment = order.payments[0];
-  if (payment?.status === PaymentStatus.PAID && payment.paidAt) {
-    timeline.push({
-      id: `paid-${payment.id}`,
-      label: "Pago confirmado",
-      description: null,
-      createdAt: payment.paidAt.toISOString(),
-    });
-  } else if (payment?.status === PaymentStatus.PROCESSING) {
-    timeline.push({
-      id: `processing-pay-${payment.id}`,
-      label: "Pago en revisión",
-      description: null,
-      createdAt: order.createdAt.toISOString(),
-    });
-  }
-
-  for (const item of order.items) {
-    const delivery = item.delivery;
-    if (!delivery) continue;
-    for (const event of delivery.events) {
-      if (event.source === "ADMIN" && event.message?.includes("admin")) {
-        continue;
-      }
-      let label = "Actualización de entrega";
-      if (event.status === DeliveryStatus.PROCESSING) {
-        label =
-          delivery.deliveryMethod === DeliveryMethod.SMM
-            ? "Servicio enviado al proveedor"
-            : "Estamos preparando tu entrega";
-      } else if (event.status === DeliveryStatus.DELIVERED) {
-        label =
-          delivery.deliveryMethod === DeliveryMethod.SMM
-            ? "Servicio completado"
-            : "Tu producto está disponible";
-      } else if (event.status === DeliveryStatus.FAILED) {
-        label = "Estamos revisando tu entrega";
-      } else if (event.status === DeliveryStatus.PENDING) {
-        label = "Entrega pendiente";
-      }
-
-      timeline.push({
-        id: event.id,
-        label,
-        description:
-          event.status === DeliveryStatus.FAILED
-            ? "Nuestro equipo está revisando el caso."
-            : null,
-        createdAt: event.createdAt.toISOString(),
-      });
-    }
-  }
-
-  if (order.status === OrderStatus.REFUNDED) {
-    timeline.push({
-      id: `refunded-${order.id}`,
-      label: "Reembolso procesado",
-      description: null,
-      createdAt: order.createdAt.toISOString(),
-    });
-  }
-
-  timeline.sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  const deliverySummaries = deliveries.map((delivery) =>
+    mapDeliverySummary({
+      ...delivery,
+      keysCount: delivery._count.keys,
+      credentialsCount: delivery._count.credentials,
+    }),
   );
+
+  const needsSmmTargetDeliveryId =
+    order.items.find((item) => {
+      const delivery = item.delivery;
+      if (!delivery || delivery.deliveryMethod !== DeliveryMethod.SMM) {
+        return false;
+      }
+      if (
+        delivery.status !== DeliveryStatus.PENDING &&
+        delivery.status !== DeliveryStatus.PROCESSING
+      ) {
+        return false;
+      }
+      const smm = item.smm ?? delivery.orderItem.smm;
+      return !smm?.link?.trim() && !smm?.username?.trim();
+    })?.delivery?.id ?? null;
+
+  const primaryAction = resolveOrderPrimaryAction({
+    orderId: order.id,
+    orderStatus: order.status,
+    paymentStatus: paymentSummary.status,
+    availableDeliveryId: deliverySummary.availableDeliveryId,
+    needsSmmTargetDeliveryId,
+    hasFailedDelivery: deliverySummary.failedCount > 0,
+  });
+
+  const canBuyAgain =
+    (order.status === OrderStatus.FULFILLED ||
+      order.status === OrderStatus.REFUNDED) &&
+    order.items.some((item) => {
+      const product = item.product;
+      const productActive = product.status === ProductStatus.ACTIVE;
+      const productInStock =
+        product.deliveryMethod === DeliveryMethod.SMM
+          ? true
+          : product._count.keys > 0 || product.qty > 0;
+      return productActive && productInStock;
+    });
+
+  const availableActions = buildAvailableActions({
+    orderId: order.id,
+    status: order.status,
+    primaryAction,
+    canPay: paymentSummary.canPay,
+    canRetry: paymentSummary.canRetry,
+    canBuyAgain,
+    availableDeliveryId: deliverySummary.availableDeliveryId,
+  });
+
+  const relevantPayment = paymentSummary.relevantPayment;
+  const deliveryEvents = order.items.flatMap((item) => {
+    const delivery = item.delivery;
+    if (!delivery) return [];
+    return delivery.events.map((event) => ({
+      id: event.id,
+      status: event.status,
+      message: event.message,
+      source: event.source,
+      createdAt: event.createdAt,
+      deliveryMethod: delivery.deliveryMethod,
+    }));
+  });
+
+  const timeline = buildCustomerOrderTimeline({
+    orderId: order.id,
+    status: order.status,
+    createdAt: order.createdAt,
+    updatedAt: order.updatedAt,
+    payment: relevantPayment
+      ? {
+          id: relevantPayment.id,
+          status: relevantPayment.status,
+          paidAt: relevantPayment.paidAt
+            ? new Date(relevantPayment.paidAt)
+            : null,
+          createdAt: new Date(relevantPayment.createdAt),
+        }
+      : null,
+    deliveryEvents,
+  });
+
+  const orderProductIds = new Set(order.items.map((item) => item.productId));
+  const buyAgainProducts = (await getBuyAgainProducts(userId, 10)).filter(
+    (product) => orderProductIds.has(product.productId),
+  );
+
+  const subtotal = decimalToString(order.subtotal) ?? "0";
+  const total = decimalToString(order.total) ?? "0";
 
   return {
     id: order.id,
-    number: summary.number,
+    number: formatCustomerOrderNumber(order.id),
     status: order.status,
-    statusView: summary.statusView,
+    statusView: getCustomerOrderStatusView(order.status),
     email: order.email,
     customerName: order.customerName,
-    subtotal: decimalToString(order.subtotal) ?? "0",
-    total: decimalToString(order.total) ?? "0",
+    subtotal,
+    subtotalFormatted: formatMoney(subtotal, order.currency),
+    total,
+    totalFormatted: formatMoney(total, order.currency),
     currency: order.currency,
     createdAt: order.createdAt.toISOString(),
-    payment: payment
+    updatedAt: order.updatedAt.toISOString(),
+    deliverySummary,
+    payment: relevantPayment
       ? {
-          id: payment.id,
-          status: payment.status,
-          statusView: getCustomerPaymentStatusView(payment.status),
-          amount: decimalToString(payment.amount) ?? "0",
-          currency: payment.currency,
-          methodLabel: getCustomerPaymentMethodLabel(
-            payment.provider,
-            payment.paymentMethod,
+          id: relevantPayment.id,
+          status: relevantPayment.status,
+          statusView: paymentSummary.statusView!,
+          amount: relevantPayment.amount,
+          amountFormatted: formatMoney(
+            relevantPayment.amount,
+            relevantPayment.currency,
           ),
-          paidAt: payment.paidAt?.toISOString() ?? null,
+          currency: relevantPayment.currency,
+          methodLabel: getCustomerPaymentMethodLabel(
+            relevantPayment.provider,
+            relevantPayment.paymentMethod,
+          ),
+          paidAt: relevantPayment.paidAt,
+          updatedAt: relevantPayment.updatedAt,
+          canPay: paymentSummary.canPay,
+          canRetry: paymentSummary.canRetry,
         }
       : null,
-    items: order.items.map((item) => ({
-      id: item.id,
-      productId: item.productId,
-      productName: item.productName,
-      quantity: item.quantity,
-      unitPrice: decimalToString(item.unitPrice) ?? "0",
-      deliveryMethod: item.deliveryMethod,
-      methodLabel: getCustomerDeliveryMethodLabel(item.deliveryMethod),
-      delivery: item.delivery
-        ? mapDeliverySummary({
-            ...item.delivery,
-            keysCount: item.delivery._count.keys,
-            credentialsCount: item.delivery._count.credentials,
-          })
-        : null,
-    })),
+    items: order.items.map((item) => {
+      const unitPrice = decimalToString(item.unitPrice) ?? "0";
+      const lineTotal = (
+        Number.parseFloat(unitPrice) * item.quantity
+      ).toFixed(2);
+      const product = item.product;
+      const productActive = product.status === ProductStatus.ACTIVE;
+      const productInStock =
+        product.deliveryMethod === DeliveryMethod.SMM
+          ? true
+          : product._count.keys > 0 || product.qty > 0;
+      const delivery = item.delivery;
+      const smmTargetLink = item.smm?.link?.trim() || null;
+      const smmTargetUsername = item.smm?.username?.trim() || null;
+      const smmTargetAbbreviated = smmTargetLink
+        ? abbreviateUrl(smmTargetLink)
+        : smmTargetUsername;
+
+      const smm =
+        item.deliveryMethod === DeliveryMethod.SMM
+          ? {
+              hasTarget: Boolean(smmTargetLink || smmTargetUsername),
+              targetAbbreviated: smmTargetAbbreviated,
+              quantity: item.smm?.quantity ?? null,
+              startCount: delivery?.smmStartCount ?? null,
+              remains: delivery?.smmRemains ?? null,
+              progressPercent: computeSmmProgressPercent({
+                quantity: item.smm?.quantity ?? null,
+                remains: delivery?.smmRemains ?? null,
+              }),
+              statusView: getCustomerSmmStatusView({
+                status: delivery?.status ?? DeliveryStatus.PENDING,
+                hasTarget: Boolean(smmTargetLink || smmTargetUsername),
+                externalStatus: delivery?.externalStatus ?? null,
+                remains: delivery?.smmRemains ?? null,
+                quantity: item.smm?.quantity ?? null,
+              }),
+            }
+          : null;
+
+      return {
+        id: item.id,
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice,
+        unitPriceFormatted: formatMoney(unitPrice, order.currency),
+        lineTotal,
+        lineTotalFormatted: formatMoney(lineTotal, order.currency),
+        deliveryMethod: item.deliveryMethod,
+        methodLabel: getCustomerDeliveryMethodLabel(item.deliveryMethod),
+        imageUrl: product.coverImageUrl,
+        productActive,
+        productInStock,
+        delivery: delivery
+          ? mapDeliverySummary({
+              ...delivery,
+              keysCount: delivery._count.keys,
+              credentialsCount: delivery._count.credentials,
+            })
+          : null,
+        keysCount: delivery?._count.keys ?? 0,
+        keysPreview: delivery
+          ? mapDeliveryKeysPreview(delivery.keys, delivery.status)
+          : [],
+        smm,
+        deliveryErrorMessage: delivery
+          ? getCustomerDeliveryErrorMessage(delivery.status) || null
+          : null,
+      };
+    }),
     timeline,
-    primaryAction: summary.primaryAction,
+    primaryAction,
+    availableActions,
     canResendDeliveryEmail: deliverySummaries.some(
-      (d) => d.status === DeliveryStatus.DELIVERED,
+      (delivery) => delivery.status === DeliveryStatus.DELIVERED,
     ),
+    canResendConfirmation: paymentSummary.hasApprovedPayment,
+    canBuyAgain,
+    buyAgainProducts,
   };
 }
 

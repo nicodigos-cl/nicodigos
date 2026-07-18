@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 
 /**
  * Promotes the user to ADMIN when their email (or domain) is listed in
- * ADMIN_EMAILS, e.g. `admin@nicodigos.com,nicotordev.com`.
+ * ADMIN_EMAILS, e.g. `admin@nicodigos.cl,nicotordev.com`.
  */
 export async function makeUserAdminByEnv(email: string) {
   if (!isAdminEmailByEnv(email)) {

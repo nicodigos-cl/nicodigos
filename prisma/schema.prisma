@@ -667,6 +667,7 @@ model Order {
   updatedAt            DateTime              @updatedAt
 
   @@index([userId, status])
+  @@index([userId, createdAt])
   @@index([status])
   @@index([createdAt])
   @@map("order")
@@ -1045,7 +1046,7 @@ model StoreSettings {
   storeName        String  @default("Nicodigos")
   legalName        String?
   shortDescription String?
-  supportEmail     String  @default("soporte@nicodigos.com")
+  supportEmail     String  @default("soporte@nicodigos.cl")
   senderName       String  @default("Nicodigos")
   replyToEmail     String?
   primaryColor     String  @default("#E15707")

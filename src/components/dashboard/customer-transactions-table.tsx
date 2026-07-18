@@ -17,7 +17,7 @@ const columns: ColumnDef<CustomerTransactionSummary>[] = [
     header: "Pedido",
     cell: ({ row }) => (
       <Link
-        href={`/dashboard/orders/${row.original.orderId}`}
+        href={`/dashboard/pedidos/${row.original.orderId}`}
         className="font-medium hover:underline"
       >
         {row.original.orderNumber}
@@ -68,7 +68,7 @@ const columns: ColumnDef<CustomerTransactionSummary>[] = [
       <Button
         size="sm"
         variant="ghost"
-        render={<Link href={`/dashboard/orders/${row.original.orderId}`} />}
+        render={<Link href={`/dashboard/pedidos/${row.original.orderId}`} />}
         nativeButton={false}
       >
         <HiOutlineEye className="size-4" />

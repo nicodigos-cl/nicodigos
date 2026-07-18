@@ -15,6 +15,29 @@ function emptyToUndefined(value: unknown): unknown {
   return value;
 }
 
+export const customerOrderStatusFilterValues = [
+  "all",
+  "pending",
+  "processing",
+  "completed",
+  "canceled",
+  "refunded",
+] as const;
+
+export const customerOrderPaymentFilterValues = [
+  "pending",
+  "paid",
+  "failed",
+  "refunded",
+] as const;
+
+export const customerOrderSortValues = [
+  "newest",
+  "oldest",
+  "amount_desc",
+  "amount_asc",
+] as const;
+
 export const customerOrdersListQuerySchema = z.object({
   page: z.preprocess(
     emptyToUndefined,
@@ -25,7 +48,7 @@ export const customerOrdersListQuerySchema = z.object({
     z.coerce
       .number()
       .int()
-      .refine((value) => value === 10 || value === 20 || value === 50, {
+      .refine((value) => value === 10 || value === 20, {
         message: "pageSize inválido",
       })
       .default(10),
@@ -36,25 +59,44 @@ export const customerOrdersListQuerySchema = z.object({
       .string()
       .trim()
       .max(120)
+      .regex(/^[\p{L}\p{N}\s#\-_.]+$/u, "Búsqueda inválida")
       .transform((value) => value.replace(/\s+/g, " "))
       .optional(),
   ),
+  /** Visual category filter (maps to one or more OrderStatus values). */
   status: z.preprocess(
     emptyToUndefined,
+    z.enum(customerOrderStatusFilterValues).optional(),
+  ),
+  /** Legacy exact enum filter — still accepted for backwards compatibility. */
+  orderStatus: z.preprocess(
+    emptyToUndefined,
     z.enum(orderStatusValues).optional(),
+  ),
+  payment: z.preprocess(
+    emptyToUndefined,
+    z.enum(customerOrderPaymentFilterValues).optional(),
+  ),
+  delivery: z.preprocess(
+    emptyToUndefined,
+    z.enum(deliveryMethodValues).optional(),
+  ),
+  sort: z.preprocess(
+    emptyToUndefined,
+    z.enum(customerOrderSortValues).default("newest"),
   ),
   from: z.preprocess(
     emptyToUndefined,
     z
       .string()
-      .refine((value) => !Number.isNaN(Date.parse(value)), "Fecha inválida")
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida")
       .optional(),
   ),
   to: z.preprocess(
     emptyToUndefined,
     z
       .string()
-      .refine((value) => !Number.isNaN(Date.parse(value)), "Fecha inválida")
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida")
       .optional(),
   ),
 });
@@ -62,6 +104,14 @@ export const customerOrdersListQuerySchema = z.object({
 export type CustomerOrdersListQuery = z.infer<
   typeof customerOrdersListQuerySchema
 >;
+
+export const buyOrderAgainSchema = z.object({
+  orderId: z.string().cuid(),
+});
+
+export const resendOrderConfirmationSchema = z.object({
+  orderId: z.string().cuid(),
+});
 
 export const customerDeliveriesFilterValues = [
   "all",
@@ -260,7 +310,9 @@ export const createSupportRequestSchema = z.object({
       .enum([
         "payment",
         "delivery",
+        "key",
         "smm",
+        "refund",
         "account",
         "billing",
         "other",

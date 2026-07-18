@@ -57,7 +57,7 @@ function OrderEmailShell({
             </Button>
           </Section>
           <Hr style={hr} />
-          <Text style={footer}>Nicodigos · soporte@nicodigos.com</Text>
+          <Text style={footer}>Nicodigos · soporte@nicodigos.cl</Text>
         </Container>
       </Body>
     </Html>
@@ -160,7 +160,9 @@ export function SupportRequestEmail({
           </Section>
           <Text style={text}>{message}</Text>
           <Hr style={hr} />
-          <Text style={footer}>Mensaje enviado desde el dashboard de cliente.</Text>
+          <Text style={footer}>
+            Mensaje enviado desde el dashboard de cliente.
+          </Text>
         </Container>
       </Body>
     </Html>

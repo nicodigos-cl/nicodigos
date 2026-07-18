@@ -1,8 +1,7 @@
-import Link from "next/link";
-import { HiOutlineArrowRight, HiOutlineShoppingBag } from "react-icons/hi";
+import { HiOutlineShoppingBag } from "react-icons/hi";
 
 import { CustomerStatusBadge } from "@/components/dashboard/customer-status-badge";
-import { Button } from "@/components/ui/button";
+import { OrderPrimaryActionButton } from "@/components/dashboard/orders/order-primary-action-button";
 import type { CustomerOrderSummary } from "@/lib/customer-dashboard/types";
 import { formatDateTime } from "@/lib/format-date";
 import { formatMoney } from "@/lib/products/format";
@@ -77,14 +76,10 @@ export function LatestOrderCard({ order }: { order: CustomerOrderSummary }) {
         </div>
 
         <div className="flex shrink-0">
-          <Button
-            render={<Link href={order.primaryAction.href} />}
-            nativeButton={false}
-            className="w-full gap-2 md:w-auto font-medium"
-          >
-            <span>{order.primaryAction.label}</span>
-            <HiOutlineArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
-          </Button>
+          <OrderPrimaryActionButton
+            action={order.primaryAction}
+            className="w-full md:w-auto font-medium"
+          />
         </div>
       </div>
     </section>

@@ -50,9 +50,7 @@ export function DeliveryFailedEmail({
             </Button>
           </Section>
           <Hr style={hr} />
-          <Text style={footer}>
-            Soporte: soporte@nicodigos.com
-          </Text>
+          <Text style={footer}>Soporte: soporte@nicodigos.cl</Text>
         </Container>
       </Body>
     </Html>

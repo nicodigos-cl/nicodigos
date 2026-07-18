@@ -31,13 +31,32 @@ export type CustomerSmmStatusView = {
   tone: CustomerStatusTone;
 };
 
-export type CustomerOrderPrimaryAction =
-  | { type: "PAY"; label: string; href: string }
-  | { type: "REVIEW_PAYMENT"; label: string; href: string }
-  | { type: "VIEW_ORDER"; label: string; href: string }
-  | { type: "VIEW_DELIVERY"; label: string; href: string }
-  | { type: "COMPLETE_INFO"; label: string; href: string }
-  | { type: "CONTACT_SUPPORT"; label: string; href: string };
+export type CustomerOrderAction =
+  | { type: "PAY"; label: "Completar pago" | "Pagar ahora"; href: string }
+  | { type: "RETRY_PAYMENT"; label: "Reintentar pago"; orderId: string; href: string }
+  | { type: "REVIEW_PAYMENT"; label: "Revisar pago"; href: string }
+  | { type: "VIEW"; label: "Ver pedido" | "Ver detalles"; href: string }
+  | { type: "VIEW_DELIVERY"; label: "Ver entrega" | "Ver entregas"; href: string }
+  | { type: "COMPLETE_INFO"; label: "Completar información"; href: string }
+  | { type: "CONTACT_SUPPORT"; label: "Contactar soporte" | "Revisar problema"; href: string }
+  | { type: "BUY_AGAIN"; label: "Comprar nuevamente"; orderId: string };
+
+/** @deprecated Use CustomerOrderAction */
+export type CustomerOrderPrimaryAction = CustomerOrderAction;
+
+export type CustomerOrderDeliverySummaryView = {
+  totalItems: number;
+  deliveryCount: number;
+  deliveredCount: number;
+  processingCount: number;
+  pendingCount: number;
+  failedCount: number;
+  canceledCount: number;
+  label: string;
+  tone: CustomerStatusTone;
+  availableDeliveryId: string | null;
+  failedDeliveryId: string | null;
+};
 
 export type CustomerOrderSummary = {
   id: string;
@@ -48,12 +67,20 @@ export type CustomerOrderSummary = {
   paymentStatusView: CustomerPaymentStatusView | null;
   deliveryStatus: DeliveryStatus | null;
   deliveryStatusView: CustomerDeliveryStatusView | null;
+  deliverySummary: CustomerOrderDeliverySummaryView;
   total: string;
+  totalFormatted: string;
   currency: string;
   itemsCount: number;
   productNames: string[];
+  productPreview: Array<{
+    name: string;
+    quantity: number;
+    imageUrl: string | null;
+  }>;
+  updatedAt: string;
   createdAt: string;
-  primaryAction: CustomerOrderPrimaryAction;
+  primaryAction: CustomerOrderAction;
 };
 
 export type CustomerDeliverySummary = {
@@ -239,6 +266,7 @@ export type CustomerOrdersPageResult = {
   page: number;
   pageSize: number;
   totalPages: number;
+  metrics: CustomerOrderMetrics;
 };
 
 export type CustomerDeliveriesPageResult = {
@@ -257,11 +285,57 @@ export type CustomerTransactionsPageResult = {
   totalPages: number;
 };
 
+export type CustomerOrderTimelineEventType =
+  | "ORDER_CREATED"
+  | "PAYMENT_PENDING"
+  | "PAYMENT_CONFIRMED"
+  | "PAYMENT_FAILED"
+  | "ORDER_PROCESSING"
+  | "DELIVERY_PROCESSING"
+  | "DELIVERY_AVAILABLE"
+  | "DELIVERY_FAILED"
+  | "ORDER_COMPLETED"
+  | "ORDER_CANCELLED"
+  | "ORDER_REFUNDED";
+
 export type CustomerOrderTimelineEvent = {
   id: string;
+  type: CustomerOrderTimelineEventType;
+  title: string;
   label: string;
   description: string | null;
+  occurredAt: string;
   createdAt: string;
+  tone: CustomerStatusTone;
+};
+
+export type CustomerOrderItemDetail = {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: string;
+  unitPriceFormatted: string;
+  lineTotal: string;
+  lineTotalFormatted: string;
+  deliveryMethod: DeliveryMethod;
+  methodLabel: string;
+  imageUrl: string | null;
+  productActive: boolean;
+  productInStock: boolean;
+  delivery: CustomerDeliverySummary | null;
+  keysCount: number;
+  keysPreview: Array<{ id: string; masked: string }>;
+  smm: {
+    hasTarget: boolean;
+    targetAbbreviated: string | null;
+    quantity: number | null;
+    startCount: number | null;
+    remains: number | null;
+    progressPercent: number | null;
+    statusView: CustomerSmmStatusView;
+  } | null;
+  deliveryErrorMessage: string | null;
 };
 
 export type CustomerOrderDetail = {
@@ -272,31 +346,41 @@ export type CustomerOrderDetail = {
   email: string;
   customerName: string | null;
   subtotal: string;
+  subtotalFormatted: string;
   total: string;
+  totalFormatted: string;
   currency: string;
   createdAt: string;
+  updatedAt: string;
+  deliverySummary: CustomerOrderDeliverySummaryView;
   payment: {
     id: string;
     status: PaymentStatus;
     statusView: CustomerPaymentStatusView;
     amount: string;
+    amountFormatted: string;
     currency: string;
     methodLabel: string;
     paidAt: string | null;
+    updatedAt: string;
+    canPay: boolean;
+    canRetry: boolean;
   } | null;
-  items: Array<{
-    id: string;
-    productId: string;
-    productName: string;
-    quantity: number;
-    unitPrice: string;
-    deliveryMethod: DeliveryMethod;
-    methodLabel: string;
-    delivery: CustomerDeliverySummary | null;
-  }>;
+  items: CustomerOrderItemDetail[];
   timeline: CustomerOrderTimelineEvent[];
-  primaryAction: CustomerOrderPrimaryAction;
+  primaryAction: CustomerOrderAction;
+  availableActions: CustomerOrderAction[];
   canResendDeliveryEmail: boolean;
+  canResendConfirmation: boolean;
+  canBuyAgain: boolean;
+  buyAgainProducts: CustomerBuyAgainProduct[];
+};
+
+export type CustomerOrderMetrics = {
+  totalOrders: number;
+  inProgress: number;
+  availableDeliveries: number;
+  needsAttention: number;
 };
 
 export type CustomerSessionSummary = {

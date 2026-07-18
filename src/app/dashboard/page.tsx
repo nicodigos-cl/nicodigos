@@ -168,7 +168,7 @@ export default async function DashboardPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  render={<Link href="/dashboard/orders" />}
+                  render={<Link href="/dashboard/pedidos" />}
                   nativeButton={false}
                 >
                   Ver mis pedidos

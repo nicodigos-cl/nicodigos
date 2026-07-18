@@ -92,6 +92,8 @@ export async function retryPaymentAction(
       },
       "Customer retry payment",
     );
+    revalidatePath("/dashboard/pedidos");
+    revalidatePath(`/dashboard/pedidos/${parsed.data.orderId}`);
     return { success: true, data: { redirectUrl } };
   } catch (error) {
     if (isOwnershipError(error)) {
@@ -172,7 +174,8 @@ export async function submitSmmTargetAction(
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/deliveries");
     revalidatePath(`/dashboard/deliveries/${delivery.id}`);
-    revalidatePath(`/dashboard/orders/${delivery.orderItem.order.id}`);
+    revalidatePath("/dashboard/pedidos");
+    revalidatePath(`/dashboard/pedidos/${delivery.orderItem.order.id}`);
 
     log.info(
       {

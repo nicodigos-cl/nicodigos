@@ -30,7 +30,7 @@ export function QuickActions({
           iconColor: "text-blue-500 bg-blue-500/10 dark:text-blue-400 dark:bg-blue-500/10",
         },
     {
-      href: "/dashboard/orders",
+      href: "/dashboard/pedidos",
       label: "Ver pedidos",
       icon: HiOutlineClipboardList,
       description: "Revisa el estado de tus compras anteriores",

@@ -4,9 +4,15 @@ import type {
 } from "@/lib/validations/deliveries";
 import type { OrderStatus, PaymentStatus } from "@/lib/validations/orders";
 
+import {
+  customerCheckoutPath,
+  customerDeliveryPath,
+  customerOrderPath,
+  customerOrderSupportPath,
+} from "@/lib/customer-dashboard/paths";
 import type {
   CustomerDeliveryStatusView,
-  CustomerOrderPrimaryAction,
+  CustomerOrderAction,
   CustomerOrderStatusView,
   CustomerPaymentStatusView,
   CustomerSmmStatusView,
@@ -22,13 +28,15 @@ export function getCustomerOrderStatusView(
     case "PENDING":
       return {
         label: "Esperando pago",
-        description: "Completa el pago para continuar con tu pedido.",
+        description:
+          "Completa el pago para que podamos procesar tu pedido.",
         tone: "warning",
       };
     case "PAID":
       return {
         label: "Pago confirmado",
-        description: "Recibimos tu pago y estamos preparando la entrega.",
+        description:
+          "Recibimos tu pago y comenzaremos a preparar la entrega.",
         tone: "success",
       };
     case "PROCESSING":
@@ -40,7 +48,7 @@ export function getCustomerOrderStatusView(
     case "FULFILLED":
       return {
         label: "Completado",
-        description: "Tu pedido fue entregado.",
+        description: "Todos los productos fueron entregados.",
         tone: "success",
       };
     case "PARTIALLY_FULFILLED":
@@ -58,7 +66,7 @@ export function getCustomerOrderStatusView(
     case "REFUNDED":
       return {
         label: "Reembolsado",
-        description: "El monto de este pedido fue reembolsado.",
+        description: "El pago de este pedido fue reembolsado.",
         tone: "neutral",
       };
     default: {
@@ -74,7 +82,7 @@ export function getCustomerPaymentStatusView(
   switch (status) {
     case "PENDING":
       return {
-        label: "Pendiente",
+        label: "Pago pendiente",
         description: "Aún no recibimos la confirmación del pago.",
         tone: "warning",
       };
@@ -86,31 +94,32 @@ export function getCustomerPaymentStatusView(
       };
     case "PAID":
       return {
-        label: "Aprobada",
+        label: "Pago confirmado",
         description: "Tu pago fue confirmado.",
         tone: "success",
       };
     case "FAILED":
       return {
-        label: "Rechazada",
-        description: "El pago no se pudo completar. Puedes intentarlo de nuevo.",
+        label: "Pago fallido",
+        description:
+          "El pago no se pudo completar. Puedes intentarlo de nuevo.",
         tone: "danger",
       };
     case "REJECTED":
       return {
-        label: "Rechazada",
+        label: "Pago fallido",
         description: "El pago fue rechazado. Revisa o intenta nuevamente.",
         tone: "danger",
       };
     case "CANCELLED":
       return {
-        label: "Cancelada",
+        label: "Pago cancelado",
         description: "Esta transacción fue cancelada.",
         tone: "neutral",
       };
     case "EXPIRED":
       return {
-        label: "Expirada",
+        label: "Pago expirado",
         description: "El intento de pago expiró. Puedes generar uno nuevo.",
         tone: "warning",
       };
@@ -122,7 +131,7 @@ export function getCustomerPaymentStatusView(
       };
     case "REFUNDED":
       return {
-        label: "Reembolsada",
+        label: "Pago reembolsado",
         description: "El pago fue reembolsado por completo.",
         tone: "neutral",
       };
@@ -179,9 +188,9 @@ export function getCustomerDeliveryMethodLabel(method: DeliveryMethod): string {
     case "SMM":
       return "Servicio SMM";
     case "KINGUIN":
-      return "Key";
+      return "Key digital";
     case "MANUAL":
-      return "Entrega manual";
+      return "Entrega digital";
     default: {
       const _exhaustive: never = method;
       return _exhaustive;
@@ -194,15 +203,17 @@ export function getCustomerPaymentMethodLabel(
   paymentMethod: string | null | undefined,
 ): string {
   if (paymentMethod && paymentMethod.trim().length > 0) {
+    const normalized = paymentMethod.trim().toLowerCase();
+    if (normalized.includes("flow")) return "Pago online";
     return paymentMethod;
   }
   switch (provider) {
     case "FLOW":
-      return "Flow";
+      return "Pago online";
     case "MANUAL":
-      return "Manual";
+      return "Pago manual";
     case "OTHER":
-      return "Otro";
+      return "Otro método";
     default:
       return "Pago";
   }
@@ -264,7 +275,7 @@ export function getCustomerSmmStatusView(input: {
     };
   }
   return {
-    label: "Enviado al proveedor",
+    label: "Servicio enviado",
     description: "Recibimos tu destino y estamos iniciando el servicio.",
     tone: "info",
   };
@@ -277,8 +288,8 @@ export function computeSmmProgressPercent(input: {
   if (input.quantity == null || input.quantity <= 0 || input.remains == null) {
     return null;
   }
-  const delivered = input.quantity - input.remains;
-  return Math.min(100, Math.max(0, (delivered / input.quantity) * 100));
+  const completed = Math.max(0, input.quantity - input.remains);
+  return Math.min(100, Math.max(0, (completed / input.quantity) * 100));
 }
 
 export function resolveOrderPrimaryAction(input: {
@@ -288,25 +299,44 @@ export function resolveOrderPrimaryAction(input: {
   availableDeliveryId: string | null;
   needsSmmTargetDeliveryId: string | null;
   hasFailedDelivery: boolean;
-}): CustomerOrderPrimaryAction {
-  const orderHref = `/dashboard/orders/${input.orderId}`;
+  canBuyAgain?: boolean;
+}): CustomerOrderAction {
+  const orderHref = customerOrderPath(input.orderId);
+  const checkoutHref = customerCheckoutPath(input.orderId);
 
   if (
     input.orderStatus === "PENDING" ||
     input.paymentStatus === "PENDING" ||
-    input.paymentStatus === "EXPIRED" ||
+    input.paymentStatus === "EXPIRED"
+  ) {
+    if (
+      input.paymentStatus === "FAILED" ||
+      input.paymentStatus === "REJECTED" ||
+      input.paymentStatus === "EXPIRED"
+    ) {
+      return {
+        type: "RETRY_PAYMENT",
+        label: "Reintentar pago",
+        orderId: input.orderId,
+        href: checkoutHref,
+      };
+    }
+    return {
+      type: "PAY",
+      label: "Pagar ahora",
+      href: checkoutHref,
+    };
+  }
+
+  if (
     input.paymentStatus === "FAILED" ||
     input.paymentStatus === "REJECTED"
   ) {
     return {
-      type: "PAY",
-      label:
-        input.paymentStatus === "FAILED" ||
-        input.paymentStatus === "REJECTED" ||
-        input.paymentStatus === "EXPIRED"
-          ? "Reintentar pago"
-          : "Pagar ahora",
-      href: `/checkout?orderId=${input.orderId}`,
+      type: "RETRY_PAYMENT",
+      label: "Reintentar pago",
+      orderId: input.orderId,
+      href: checkoutHref,
     };
   }
 
@@ -322,28 +352,50 @@ export function resolveOrderPrimaryAction(input: {
     return {
       type: "COMPLETE_INFO",
       label: "Completar información",
-      href: `/dashboard/deliveries/${input.needsSmmTargetDeliveryId}`,
+      href: customerDeliveryPath(input.needsSmmTargetDeliveryId),
     };
   }
 
   if (input.availableDeliveryId) {
     return {
       type: "VIEW_DELIVERY",
-      label: "Ver entrega",
-      href: `/dashboard/deliveries/${input.availableDeliveryId}`,
+      label:
+        input.orderStatus === "PARTIALLY_FULFILLED"
+          ? "Ver entregas"
+          : "Ver entrega",
+      href: customerDeliveryPath(input.availableDeliveryId),
     };
   }
 
   if (input.hasFailedDelivery) {
     return {
       type: "CONTACT_SUPPORT",
-      label: "Contactar soporte",
-      href: `/dashboard/support?orderId=${input.orderId}`,
+      label: "Revisar problema",
+      href: customerOrderSupportPath(input.orderId, "delivery"),
+    };
+  }
+
+  if (
+    input.canBuyAgain &&
+    (input.orderStatus === "FULFILLED" || input.orderStatus === "REFUNDED")
+  ) {
+    return {
+      type: "BUY_AGAIN",
+      label: "Comprar nuevamente",
+      orderId: input.orderId,
+    };
+  }
+
+  if (input.orderStatus === "REFUNDED" || input.orderStatus === "CANCELED") {
+    return {
+      type: "VIEW",
+      label: "Ver detalles",
+      href: orderHref,
     };
   }
 
   return {
-    type: "VIEW_ORDER",
+    type: "VIEW",
     label: "Ver pedido",
     href: orderHref,
   };

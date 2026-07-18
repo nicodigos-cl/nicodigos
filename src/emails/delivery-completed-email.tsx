@@ -111,7 +111,7 @@ export function DeliveryCompletedEmail({
           <Hr style={hr} />
           <Text style={footer}>
             ¿Necesitas ayuda? Responde a este correo o escribe a
-            soporte@nicodigos.com.
+            soporte@nicodigos.cl.
           </Text>
         </Container>
       </Body>

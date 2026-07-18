@@ -52,7 +52,7 @@ export function RecentOrders({
           <Button
             variant="ghost"
             size="sm"
-            render={<Link href="/dashboard/orders" />}
+            render={<Link href="/dashboard/pedidos" />}
             nativeButton={false}
           >
             Ver todos mis pedidos
