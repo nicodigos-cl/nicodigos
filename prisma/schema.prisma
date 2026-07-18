@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -12,8 +10,10 @@ datasource db {
   provider = "postgresql"
 }
 
+// ---------------------------------------------------------------------------
 // Better Auth core schema
 // https://www.better-auth.com/docs/concepts/database#core-schema
+// ---------------------------------------------------------------------------
 
 model User {
   id            String    @id
@@ -25,6 +25,8 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  orders        Order[]
+  wishlist      Wishlist?
 
   @@unique([email])
   @@map("user")
@@ -76,4 +78,441 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+// ---------------------------------------------------------------------------
+// Store enums
+// ---------------------------------------------------------------------------
+
+enum DeliveryMethod {
+  SMM
+  KINGUIN
+  MANUAL
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  FULFILLED
+  PARTIALLY_FULFILLED
+  CANCELED
+  REFUNDED
+}
+
+enum DeliveryStatus {
+  PENDING
+  PROCESSING
+  DELIVERED
+  FAILED
+  CANCELED
+}
+
+enum DeliveryEventSource {
+  SYSTEM
+  WEBHOOK
+  ADMIN
+}
+
+enum ProductKeyStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+  REVOKED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  MANUAL
+  FLOW
+  OTHER
+}
+
+// ---------------------------------------------------------------------------
+// Catalog
+// ---------------------------------------------------------------------------
+
+model Category {
+  id          String            @id @default(cuid())
+  name        String
+  slug        String            @unique
+  description String?
+  imageUrl    String?
+  parentId    String?
+  parent      Category?         @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[]        @relation("CategoryTree")
+  products    ProductCategory[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([parentId])
+  @@index([slug])
+  @@map("category")
+}
+
+model Product {
+  id             String         @id @default(cuid())
+  name           String
+  slug           String         @unique
+  description    String?
+  coverImageUrl  String?
+  status         ProductStatus  @default(DRAFT)
+  deliveryMethod DeliveryMethod
+
+  price          Decimal  @db.Decimal(12, 2)
+  compareAtPrice Decimal? @db.Decimal(12, 2)
+  currency       String   @default("CLP")
+  qty            Int      @default(0)
+  textQty        Int?
+
+  isFeatured Boolean @default(false)
+  isOffer    Boolean @default(false)
+  isPreorder Boolean @default(false)
+
+  originalName        String?
+  platform            String?
+  genres              String[]  @default([])
+  languages           String[]  @default([])
+  developers          String[]  @default([])
+  publishers          String[]  @default([])
+  tags                String[]  @default([])
+  regionId            Int?
+  regionalLimitations String?
+  countryLimitation   String[]  @default([])
+  releaseDate         DateTime?
+  activationDetails   String?
+  ageRating           String?
+  metacriticScore     Int?
+  sourceCostPrice     Decimal?  @db.Decimal(12, 4)
+
+  // Kinguin remote ids / sync
+  kinguinProductId String?   @unique
+  kinguinId        Int?      @unique
+  kinguinOfferId   String?
+  kinguinSyncedAt  DateTime?
+
+  // SMM panel mapping / sync
+  smmApiUrl      String?
+  smmServiceId   Int?
+  smmServiceType String?
+  smmCategory    String?
+  smmRate        Decimal?  @db.Decimal(12, 4)
+  smmMin         Int?
+  smmMax         Int?
+  smmRefill      Boolean?
+  smmCancel      Boolean?
+  smmServiceName String?
+  smmSyncedAt    DateTime?
+
+  categories         ProductCategory[]
+  images             ProductImage[]
+  videos             ProductVideo[]
+  systemRequirements ProductSystemRequirement[]
+  keys               ProductKey[]
+  offers             ProductOffer[]
+  orderItems         OrderItem[]
+  wishlistItems      WishlistItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([deliveryMethod])
+  @@index([slug])
+  @@index([smmServiceId])
+  @@map("product")
+}
+
+model ProductCategory {
+  id         String   @id @default(cuid())
+  productId  String
+  categoryId String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([productId, categoryId])
+  @@index([categoryId])
+  @@map("product_category")
+}
+
+model ProductImage {
+  id           String   @id @default(cuid())
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url          String
+  thumbnailUrl String?
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([productId])
+  @@map("product_image")
+}
+
+model ProductVideo {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  videoId   String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@map("product_video")
+}
+
+model ProductSystemRequirement {
+  id           String   @id @default(cuid())
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  system       String
+  requirements String[] @default([])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([productId])
+  @@map("product_system_requirement")
+}
+
+model ProductKey {
+  id           String           @id @default(cuid())
+  productId    String
+  product      Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  code         String
+  status       ProductKeyStatus @default(AVAILABLE)
+  orderItemId  String?
+  orderItem    OrderItem?       @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  deliveryKeys DeliveryKey[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([productId, code])
+  @@index([productId, status])
+  @@index([orderItemId])
+  @@map("product_key")
+}
+
+model ProductOffer {
+  id             String    @id @default(cuid())
+  productId      String
+  product        Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  kinguinOfferId String    @unique
+  price          Decimal   @db.Decimal(12, 4)
+  qty            Int       @default(0)
+  textQty        Int       @default(0)
+  availableQty   Int?
+  isPreorder     Boolean   @default(false)
+  releaseDate    DateTime?
+  merchantName   String?
+  isDefault      Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([productId])
+  @@map("product_offer")
+}
+
+// ---------------------------------------------------------------------------
+// Orders & delivery
+// ---------------------------------------------------------------------------
+
+model Order {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status       OrderStatus @default(PENDING)
+  subtotal     Decimal     @db.Decimal(12, 2)
+  total        Decimal     @db.Decimal(12, 2)
+  currency     String      @default("CLP")
+  email        String
+  customerName String?
+  items        OrderItem[]
+  payments     Payment[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([userId, status])
+  @@index([status])
+  @@map("order")
+}
+
+model OrderItem {
+  id             String         @id @default(cuid())
+  orderId        String
+  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productName    String
+  unitPrice      Decimal        @db.Decimal(12, 2)
+  quantity       Int
+  deliveryMethod DeliveryMethod
+  smm            OrderItemSmm?
+  delivery       Delivery?
+  productKeys    ProductKey[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_item")
+}
+
+model OrderItemSmm {
+  id              String    @id @default(cuid())
+  orderItemId     String    @unique
+  orderItem       OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  link            String?
+  username        String?
+  quantity        Int?
+  comments        String?
+  runs            Int?
+  intervalMinutes Int?
+  usernames       String?
+  hashtags        String?
+  mediaUrl        String?
+  min             Int?
+  max             Int?
+  delayMinutes    Int?
+  posts           Int?
+  oldPosts        Int?
+  expiry          String?
+  answerNumber    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("order_item_smm")
+}
+
+model Delivery {
+  id             String         @id @default(cuid())
+  orderItemId    String         @unique
+  orderItem      OrderItem      @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  status         DeliveryStatus @default(PENDING)
+  deliveryMethod DeliveryMethod
+  errorMessage   String?
+  deliveredAt    DateTime?
+
+  // Remote order refs (Kinguin / SMM)
+  externalOrderId String?
+  externalStatus  String?
+  kinguinOrderId  String?
+  orderExternalId String?
+  requestPriceEur Decimal? @db.Decimal(12, 4)
+
+  // SMM progress / cost
+  smmCharge     Decimal? @db.Decimal(12, 4)
+  smmStartCount Int?
+  smmRemains    Int?
+  smmCurrency   String?
+  smmRefillId   String?
+
+  keys   DeliveryKey[]
+  events DeliveryEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([deliveryMethod])
+  @@index([externalOrderId])
+  @@map("delivery")
+}
+
+model DeliveryKey {
+  id            String      @id @default(cuid())
+  deliveryId    String
+  delivery      Delivery    @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  serial        String
+  type          String?
+  externalKeyId String?
+  productKeyId  String?
+  productKey    ProductKey? @relation(fields: [productKeyId], references: [id], onDelete: SetNull)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([deliveryId])
+  @@index([externalKeyId])
+  @@index([productKeyId])
+  @@map("delivery_key")
+}
+
+model DeliveryEvent {
+  id         String              @id @default(cuid())
+  deliveryId String
+  delivery   Delivery            @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  status     DeliveryStatus
+  message    String?
+  source     DeliveryEventSource @default(SYSTEM)
+  createdAt  DateTime            @default(now())
+
+  @@index([deliveryId, createdAt])
+  @@map("delivery_event")
+}
+
+// ---------------------------------------------------------------------------
+// Payments
+// ---------------------------------------------------------------------------
+
+model Payment {
+  id             String          @id @default(cuid())
+  orderId        String
+  order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider       PaymentProvider @default(OTHER)
+  status         PaymentStatus   @default(PENDING)
+  amount         Decimal         @db.Decimal(12, 2)
+  currency       String          @default("CLP")
+  externalId     String?
+  failureCode    String?
+  failureMessage String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([orderId])
+  @@index([externalId])
+  @@index([status])
+  @@map("payment")
+}
+
+// ---------------------------------------------------------------------------
+// Wishlist
+// ---------------------------------------------------------------------------
+
+model Wishlist {
+  id        String         @id @default(cuid())
+  userId    String         @unique
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     WishlistItem[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@map("wishlist")
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  wishlistId String
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([wishlistId, productId])
+  @@index([productId])
+  @@map("wishlist_item")
 }
