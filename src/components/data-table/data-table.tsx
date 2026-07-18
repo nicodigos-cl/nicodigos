@@ -32,6 +32,12 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   searchKey?: string;
   searchPlaceholder?: string;
+  /** SSR / server-driven mode: skip client filtering, sorting and pagination. */
+  manual?: boolean;
+  hideToolbar?: boolean;
+  hidePagination?: boolean;
+  emptyMessage?: string;
+  className?: string;
 }
 
 export function DataTable<TData, TValue>({
@@ -39,6 +45,11 @@ export function DataTable<TData, TValue>({
   data,
   searchKey,
   searchPlaceholder = "Filter...",
+  manual = false,
+  hideToolbar = false,
+  hidePagination = false,
+  emptyMessage = "No results.",
+  className,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -57,35 +68,42 @@ export function DataTable<TData, TValue>({
       columnVisibility,
       rowSelection,
     },
-    enableRowSelection: true,
+    enableRowSelection: !manual,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: manual ? undefined : getFilteredRowModel(),
+    getPaginationRowModel: manual ? undefined : getPaginationRowModel(),
+    getSortedRowModel: manual ? undefined : getSortedRowModel(),
+    manualPagination: manual,
+    manualSorting: manual,
+    manualFiltering: manual,
   });
 
+  const showToolbar = !hideToolbar && (!manual || Boolean(searchKey));
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        {searchKey ? (
-          <Input
-            placeholder={searchPlaceholder}
-            value={
-              (table.getColumn(searchKey)?.getFilterValue() as string) ?? ""
-            }
-            onChange={(event) =>
-              table.getColumn(searchKey)?.setFilterValue(event.target.value)
-            }
-            className="max-w-sm"
-          />
-        ) : null}
-        <DataTableViewOptions table={table} />
-      </div>
-      <div className="overflow-hidden rounded-3xl border">
+    <div className={className ?? "flex flex-col gap-4"}>
+      {showToolbar ? (
+        <div className="flex items-center gap-2">
+          {searchKey ? (
+            <Input
+              placeholder={searchPlaceholder}
+              value={
+                (table.getColumn(searchKey)?.getFilterValue() as string) ?? ""
+              }
+              onChange={(event) =>
+                table.getColumn(searchKey)?.setFilterValue(event.target.value)
+              }
+              className="max-w-sm"
+            />
+          ) : null}
+          {!manual ? <DataTableViewOptions table={table} /> : null}
+        </div>
+      ) : null}
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -124,16 +142,18 @@ export function DataTable<TData, TValue>({
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
-                  className="h-24 text-center"
+                  className="h-24 text-center text-muted-foreground"
                 >
-                  No results.
+                  {emptyMessage}
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
-      <DataTablePagination table={table} />
+      {!hidePagination && !manual ? (
+        <DataTablePagination table={table} />
+      ) : null}
     </div>
   );
 }
