@@ -1,0 +1,1 @@
+import { Skeleton } from "@/components/ui/skeleton"; export default function Loading() { return <div className="space-y-4"><Skeleton className="h-20" /><div className="grid gap-5 xl:grid-cols-[1fr_360px]"><div className="space-y-4">{Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-52" />)}</div><Skeleton className="h-96" /></div></div>; }

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { HiOutlineMail, HiOutlinePaperAirplane, HiOutlineQuestionMarkCircle } from "react-icons/hi";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,22 +36,27 @@ export function SupportForm({
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
-        <h2 className="font-heading text-lg font-semibold">Canales</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Escríbenos a{" "}
-          <a
-            className="text-primary hover:underline"
-            href={`mailto:${SUPPORT_EMAIL}`}
-          >
-            {SUPPORT_EMAIL}
-          </a>
-          . También puedes enviar el formulario a continuación.
-        </p>
+      <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:p-6 sm:flex-row sm:items-center sm:gap-6">
+        <div className="rounded-xl bg-primary/10 p-3 text-primary shrink-0 self-start sm:self-center">
+          <HiOutlineMail className="size-6" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="font-heading text-lg font-bold text-foreground">Canales de contacto</h2>
+          <p className="text-sm text-muted-foreground">
+            Escríbenos directamente a{" "}
+            <a
+              className="font-semibold text-primary hover:underline"
+              href={`mailto:${SUPPORT_EMAIL}`}
+            >
+              {SUPPORT_EMAIL}
+            </a>{" "}
+            o completa el formulario a continuación para abrir un ticket.
+          </p>
+        </div>
       </section>
 
       <form
-        className="space-y-4 rounded-2xl border border-border bg-card p-4 sm:p-6"
+        className="space-y-5 rounded-2xl border border-border bg-card p-5 sm:p-6"
         onSubmit={(event) => {
           event.preventDefault();
           startTransition(() => {
@@ -74,42 +80,58 @@ export function SupportForm({
           });
         }}
       >
-        <h2 className="font-heading text-lg font-semibold">Enviar solicitud</h2>
+        <div className="flex items-center gap-2 pb-2 border-b border-border">
+          <h2 className="font-heading text-lg font-bold text-foreground">Enviar una solicitud</h2>
+        </div>
         {(orderId || deliveryId) && (
-          <p className="text-sm text-muted-foreground">
-            {orderId ? `Pedido vinculado. ` : null}
-            {deliveryId ? `Entrega vinculada.` : null}
-          </p>
+          <div className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground flex flex-wrap gap-2">
+            {orderId && (
+              <span>
+                Pedido vinculado: <span className="font-mono font-semibold text-foreground">{orderId}</span>
+              </span>
+            )}
+            {orderId && deliveryId && <span>•</span>}
+            {deliveryId && (
+              <span>
+                Entrega vinculada: <span className="font-mono font-semibold text-foreground">{deliveryId}</span>
+              </span>
+            )}
+          </div>
         )}
-        <div className="space-y-1">
-          <Label htmlFor="category">Categoría</Label>
-          <NativeSelect
-            id="category"
-            value={selectedCategory}
-            onChange={(event) => setSelectedCategory(event.target.value)}
-            disabled={pending}
-          >
-            <NativeSelectOption value="payment">Pago</NativeSelectOption>
-            <NativeSelectOption value="delivery">Entrega</NativeSelectOption>
-            <NativeSelectOption value="smm">Servicio SMM</NativeSelectOption>
-            <NativeSelectOption value="account">Cuenta</NativeSelectOption>
-            <NativeSelectOption value="billing">Facturación</NativeSelectOption>
-            <NativeSelectOption value="other">Otro</NativeSelectOption>
-          </NativeSelect>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5 sm:col-span-1">
+            <Label htmlFor="category" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Categoría</Label>
+            <NativeSelect
+              id="category"
+              value={selectedCategory}
+              onChange={(event) => setSelectedCategory(event.target.value)}
+              disabled={pending}
+              className="h-10"
+            >
+              <NativeSelectOption value="payment">Pago</NativeSelectOption>
+              <NativeSelectOption value="delivery">Entrega</NativeSelectOption>
+              <NativeSelectOption value="smm">Servicio SMM</NativeSelectOption>
+              <NativeSelectOption value="account">Cuenta</NativeSelectOption>
+              <NativeSelectOption value="billing">Facturación</NativeSelectOption>
+              <NativeSelectOption value="other">Otro</NativeSelectOption>
+            </NativeSelect>
+          </div>
+          <div className="space-y-1.5 sm:col-span-1">
+            <Label htmlFor="subject" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Asunto</Label>
+            <Input
+              id="subject"
+              required
+              minLength={3}
+              value={subject}
+              onChange={(event) => setSubject(event.target.value)}
+              disabled={pending}
+              placeholder="Ej: Problema con activación de clave"
+              className="h-10"
+            />
+          </div>
         </div>
-        <div className="space-y-1">
-          <Label htmlFor="subject">Asunto</Label>
-          <Input
-            id="subject"
-            required
-            minLength={3}
-            value={subject}
-            onChange={(event) => setSubject(event.target.value)}
-            disabled={pending}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="message">Mensaje</Label>
+        <div className="space-y-1.5">
+          <Label htmlFor="message" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Mensaje</Label>
           <Textarea
             id="message"
             required
@@ -118,39 +140,43 @@ export function SupportForm({
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             disabled={pending}
-            placeholder="Describe el problema sin incluir keys ni contraseñas."
+            placeholder="Describe el problema en detalle. Por favor, no incluyas claves, tokens ni contraseñas en este texto por motivos de seguridad."
+            className="resize-none"
           />
         </div>
-        <Button type="submit" disabled={pending}>
-          {pending ? "Enviando…" : "Enviar"}
-        </Button>
+        <div className="flex justify-end pt-2">
+          <Button type="submit" disabled={pending} className="w-full sm:w-auto gap-2 font-medium">
+            <HiOutlinePaperAirplane className="size-4 rotate-90" />
+            <span>{pending ? "Enviando…" : "Enviar ticket"}</span>
+          </Button>
+        </div>
       </form>
 
-      <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
-        <h2 className="font-heading text-lg font-semibold">Preguntas frecuentes</h2>
-        <ul className="mt-3 space-y-3 text-sm">
-          <li>
-            <p className="font-medium">¿Dónde está mi key o cuenta?</p>
-            <p className="text-muted-foreground">
-              Abre Mis entregas y revisa las entregas disponibles. El contenido
-              sensible se revela solo al abrirlo.
+      <section className="rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-4">
+        <div className="flex items-center gap-2 border-b border-border pb-3">
+          <HiOutlineQuestionMarkCircle className="size-5 text-muted-foreground" />
+          <h2 className="font-heading text-lg font-bold text-foreground">Preguntas frecuentes</h2>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 pt-1">
+          <div className="space-y-1.5">
+            <h3 className="font-semibold text-sm text-foreground">¿Dónde está mi key o cuenta?</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Abre la pestaña <span className="font-medium text-foreground">Mis entregas</span>. El contenido sensible como claves y usuarios se mantiene cifrado y oculto hasta que decidas revelarlo y copiarlo de forma segura.
             </p>
-          </li>
-          <li>
-            <p className="font-medium">¿Mi pago fue aprobado?</p>
-            <p className="text-muted-foreground">
-              Revisa el pedido o la sección de transacciones. Si aparece
-              pendiente, puedes reintentar el pago.
+          </div>
+          <div className="space-y-1.5">
+            <h3 className="font-semibold text-sm text-foreground">¿Mi pago fue aprobado?</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Revisa el estado de la transacción en la pestaña de <span className="font-medium text-foreground">Transacciones</span>. Si tu pago falló o está pendiente, verás una alerta para poder reintentar la compra de inmediato.
             </p>
-          </li>
-          <li>
-            <p className="font-medium">¿Cómo avanzo un servicio SMM?</p>
-            <p className="text-muted-foreground">
-              Si pedimos un enlace de destino, complétalo en el detalle de la
-              entrega.
+          </div>
+          <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
+            <h3 className="font-semibold text-sm text-foreground">¿Cómo avanzo un servicio SMM?</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Para los servicios de redes sociales (SMM), es necesario que configures la URL de destino. Puedes ingresar este enlace ingresando a los detalles de la entrega en tu panel de control.
             </p>
-          </li>
-        </ul>
+          </div>
+        </div>
       </section>
     </div>
   );

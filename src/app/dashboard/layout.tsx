@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { OneSignalProvider } from "@/components/notifications/onesignal-provider";
 import { getSession } from "@/lib/auth/session";
 
 export default async function DashboardLayout({
@@ -15,6 +16,7 @@ export default async function DashboardLayout({
   }
 
   return (
+    <OneSignalProvider userId={session.user.id}>
     <DashboardShell
       user={{
         name: session.user.name,
@@ -24,5 +26,6 @@ export default async function DashboardLayout({
     >
       {children}
     </DashboardShell>
+    </OneSignalProvider>
   );
 }

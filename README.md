@@ -39,6 +39,7 @@ Nicodigos es una aplicación **Next.js 16** (App Router) + **Prisma 7** / Postgr
 | Media | Cloudflare R2 (S3 API) |
 | UI | Tailwind 4, shadcn / Base UI, TanStack Query & Table |
 | Email | Resend + React Email |
+| Comunicaciones | Resend Inbound/Webhooks + OneSignal Web Push |
 
 ## Requisitos
 
@@ -127,6 +128,12 @@ CORS del bucket (origen = tu admin):
   }
 ]
 ```
+
+## Comunicaciones
+
+El módulo operativo vive en `/admin/communications`. Para correo entrante, configura en Resend un dominio receptor (preferiblemente un subdominio con MX) y registra `POST /api/webhooks/resend` con los eventos de recepción y entrega. Define `RESEND_WEBHOOK_SECRET` con el signing secret del webhook.
+
+Para web push, configura el origen HTTPS en OneSignal y usa el worker público `/push/onesignal/OneSignalSDKWorker.js` con scope `/push/onesignal/`. `NEXT_PUBLIC_ONESIGNAL_APP_ID` contiene solo el App ID público; la REST API key permanece privada. Ejecuta `/api/cron/process-communications` con `CRON_SECRET` al menos una vez por minuto para procesar envíos en cola y actualizar métricas.
 
 ## Documentación
 

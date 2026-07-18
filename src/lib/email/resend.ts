@@ -1,19 +1,9 @@
 import type { ReactElement } from "react";
-import { Resend } from "resend";
 
 import { createLogger } from "@/lib/logger";
+import { getResendClient, getVerifiedFromAddress } from "@/lib/email/resend-client";
 
 const log = createLogger({ module: "email" });
-
-function getResendClient() {
-  const apiKey = process.env.RESEND_API_KEY;
-
-  if (!apiKey) {
-    return null;
-  }
-
-  return new Resend(apiKey);
-}
 
 export function getEmailFromAddress() {
   return process.env.RESEND_FROM ?? "Nicodigos <onboarding@resend.dev>";
@@ -66,7 +56,7 @@ export async function sendReactEmail({
   }
 
   const resend = getResendClient();
-  const from = getEmailFromAddress();
+  const from = process.env.RESEND_FROM ? getVerifiedFromAddress() : getEmailFromAddress();
 
   if (!resend) {
     log.warn(

@@ -1,0 +1,2 @@
+import { WebPushForm } from "@/components/admin/communications/web-push-form";
+export default function NewWebPushPage() { return <div className="space-y-5"><header><h1 className="font-heading text-2xl font-semibold">Nueva notificación web</h1><p className="mt-1 text-sm text-muted-foreground">Crea un borrador, verifica la audiencia y envía o programa con OneSignal.</p></header><WebPushForm /></div>; }

@@ -28,59 +28,63 @@ function CustomerSecret({
   const [pending, startTransition] = useTransition();
 
   return (
-    <div className="flex items-center gap-2">
-      <code className="min-w-0 flex-1 truncate rounded-lg bg-muted px-2 py-1 text-xs">
+    <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 p-2 w-full">
+      <code className="min-w-0 flex-1 truncate font-mono text-xs text-foreground px-1 select-all">
         {value ?? masked}
       </code>
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        aria-label={value ? "Ocultar" : "Revelar"}
-        disabled={pending}
-        onClick={() => {
-          if (value) {
-            setValue(null);
-            return;
-          }
-          startTransition(() => {
-            void (async () => {
-              const result = await revealCustomerDeliverySecretAction({
-                deliveryId,
-                kind,
-                itemId,
-                field,
-              });
-              if (!result.success) {
-                toast.error(result.message);
-                return;
-              }
-              setValue(result.data.value);
-            })();
-          });
-        }}
-      >
-        {value ? (
-          <HiOutlineEyeOff className="size-4" />
-        ) : (
-          <HiOutlineEye className="size-4" />
-        )}
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        onClick={() => {
-          if (!value) {
-            toast.message("Revela el valor antes de copiarlo");
-            return;
-          }
-          void navigator.clipboard.writeText(value);
-          toast.success("Copiado");
-        }}
-      >
-        Copiar
-      </Button>
+      <div className="flex items-center gap-1 shrink-0">
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          aria-label={value ? "Ocultar" : "Revelar"}
+          disabled={pending}
+          onClick={() => {
+            if (value) {
+              setValue(null);
+              return;
+            }
+            startTransition(() => {
+              void (async () => {
+                const result = await revealCustomerDeliverySecretAction({
+                  deliveryId,
+                  kind,
+                  itemId,
+                  field,
+                });
+                if (!result.success) {
+                  toast.error(result.message);
+                  return;
+                }
+                setValue(result.data.value);
+              })();
+            });
+          }}
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+        >
+          {value ? (
+            <HiOutlineEyeOff className="size-4" />
+          ) : (
+            <HiOutlineEye className="size-4" />
+          )}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            if (!value) {
+              toast.message("Revela el valor antes de copiarlo");
+              return;
+            }
+            void navigator.clipboard.writeText(value);
+            toast.success("Copiado");
+          }}
+          className="h-8 px-3 text-xs font-semibold"
+        >
+          Copiar
+        </Button>
+      </div>
     </div>
   );
 }
@@ -91,32 +95,48 @@ export function CustomerDeliveryCard({
   delivery: CustomerDeliveryDto;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 className="font-medium">{delivery.productName}</h2>
+    <section className="rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+        <div className="space-y-1">
+          <span className="font-mono text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
+            Detalle del producto
+          </span>
+          <h2 className="font-heading text-lg font-bold text-foreground leading-none">{delivery.productName}</h2>
+        </div>
         <DeliveryStatusBadge status={delivery.status} />
       </div>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Cantidad {delivery.quantity}
-        {delivery.deliveredAt
-          ? ` · Entregada ${formatDateTime(delivery.deliveredAt)}`
-          : ""}
-      </p>
+
+      <div className="grid gap-4 sm:grid-cols-2 text-sm">
+        <div>
+          <span className="block text-xs text-muted-foreground">Cantidad</span>
+          <span className="font-medium text-foreground">{delivery.quantity}</span>
+        </div>
+        {delivery.deliveredAt ? (
+          <div>
+            <span className="block text-xs text-muted-foreground">Fecha de entrega</span>
+            <span className="font-medium text-foreground">{formatDateTime(delivery.deliveredAt)}</span>
+          </div>
+        ) : null}
+      </div>
 
       {delivery.customerMessage ? (
-        <p className="mt-3 rounded-xl bg-muted/60 px-3 py-2 text-sm">
-          {delivery.customerMessage}
-        </p>
+        <div className="rounded-xl border border-border/80 bg-muted/30 p-4">
+          <span className="block text-xs font-semibold text-muted-foreground mb-1">Nota de entrega</span>
+          <p className="text-sm text-foreground">{delivery.customerMessage}</p>
+        </div>
       ) : null}
 
       {delivery.status === "DELIVERED" ? (
-        <div className="mt-4 space-y-3">
-          {delivery.keys.map((key) => (
-            <div key={key.id} className="rounded-xl border border-border p-3">
-              <p className="text-sm font-medium">
-                {key.label || deliveryContentTypeLabel[key.contentType]}
-              </p>
-              <div className="mt-2">
+        <div className="space-y-4 pt-2">
+          <h3 className="font-heading text-base font-semibold text-foreground">Contenido entregado</h3>
+          <div className="grid gap-4">
+            {delivery.keys.map((key) => (
+              <div key={key.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {key.label || deliveryContentTypeLabel[key.contentType]}
+                  </p>
+                </div>
                 <CustomerSecret
                   deliveryId={delivery.id}
                   kind="key"
@@ -124,83 +144,111 @@ export function CustomerDeliveryCard({
                   field="serial"
                   masked={key.serialMasked}
                 />
+                {key.instructions ? (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {key.instructions}
+                  </p>
+                ) : null}
               </div>
-              {key.instructions ? (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {key.instructions}
-                </p>
-              ) : null}
-            </div>
-          ))}
-          {delivery.credentials.map((cred) => (
-            <div key={cred.id} className="space-y-2 rounded-xl border border-border p-3">
-              <p className="text-sm font-medium">
-                {cred.label || deliveryContentTypeLabel[cred.contentType]}
-              </p>
-              {cred.username ? (
-                <p className="text-sm">Usuario: {cred.username}</p>
-              ) : null}
-              {cred.email ? <p className="text-sm">Email: {cred.email}</p> : null}
-              {cred.url ? (
-                <p className="break-all text-sm">
-                  URL:{" "}
-                  <a href={cred.url} className="text-primary hover:underline">
-                    {cred.url}
-                  </a>
-                </p>
-              ) : null}
-              {cred.hasPassword ? (
-                <CustomerSecret
-                  deliveryId={delivery.id}
-                  kind="credential"
-                  itemId={cred.id}
-                  field="password"
-                  masked={cred.passwordMasked ?? "••••"}
-                />
-              ) : null}
-              {cred.hasToken ? (
-                <CustomerSecret
-                  deliveryId={delivery.id}
-                  kind="credential"
-                  itemId={cred.id}
-                  field="token"
-                  masked={cred.tokenMasked ?? "••••"}
-                />
-              ) : null}
-              {cred.instructions || cred.notes ? (
-                <p className="text-xs text-muted-foreground">
-                  {cred.instructions || cred.notes}
-                </p>
-              ) : null}
-            </div>
-          ))}
+            ))}
+
+            {delivery.credentials.map((cred) => (
+              <div key={cred.id} className="rounded-xl border border-border bg-card p-4 space-y-4">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {cred.label || deliveryContentTypeLabel[cred.contentType]}
+                  </p>
+                </div>
+                
+                <div className="grid gap-3 text-sm sm:grid-cols-2">
+                  {cred.username ? (
+                    <div>
+                      <span className="block text-xs text-muted-foreground">Usuario</span>
+                      <span className="font-medium text-foreground select-all">{cred.username}</span>
+                    </div>
+                  ) : null}
+                  {cred.email ? (
+                    <div>
+                      <span className="block text-xs text-muted-foreground">Email</span>
+                      <span className="font-medium text-foreground select-all">{cred.email}</span>
+                    </div>
+                  ) : null}
+                  {cred.url ? (
+                    <div className="sm:col-span-2">
+                      <span className="block text-xs text-muted-foreground">URL de acceso</span>
+                      <a href={cred.url} target="_blank" rel="noreferrer" className="text-sm font-medium text-primary hover:underline break-all">
+                        {cred.url}
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+
+                {cred.hasPassword ? (
+                  <div className="space-y-1.5">
+                    <span className="block text-xs text-muted-foreground">Contraseña</span>
+                    <CustomerSecret
+                      deliveryId={delivery.id}
+                      kind="credential"
+                      itemId={cred.id}
+                      field="password"
+                      masked={cred.passwordMasked ?? "••••"}
+                    />
+                  </div>
+                ) : null}
+
+                {cred.hasToken ? (
+                  <div className="space-y-1.5">
+                    <span className="block text-xs text-muted-foreground">Token / Token de acceso</span>
+                    <CustomerSecret
+                      deliveryId={delivery.id}
+                      kind="credential"
+                      itemId={cred.id}
+                      field="token"
+                      masked={cred.tokenMasked ?? "••••"}
+                    />
+                  </div>
+                ) : null}
+
+                {cred.instructions || cred.notes ? (
+                  <div className="border-t border-border pt-3">
+                    <span className="block text-xs font-semibold text-muted-foreground mb-1">Instrucciones</span>
+                    <p className="text-xs text-muted-foreground leading-normal">
+                      {cred.instructions || cred.notes}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+
           {delivery.keys.length === 0 && delivery.credentials.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Entrega marcada como completada. Si esperabas contenido digital,
-              contacta soporte.
-            </p>
+            <div className="rounded-xl border border-yellow-200/50 bg-yellow-500/5 p-4 text-sm text-yellow-800 dark:border-yellow-900/30 dark:bg-yellow-950/10 dark:text-yellow-400">
+              Entrega marcada como completada. Si esperabas contenido digital, por favor contacta soporte.
+            </div>
           ) : null}
         </div>
       ) : (
-        <p className="mt-4 text-sm text-muted-foreground">
-          El contenido se mostrará aquí cuando la entrega esté lista.
-        </p>
+        <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+          El contenido digital se mostrará de forma segura en esta sección una vez que tu entrega sea procesada.
+        </div>
       )}
 
       {delivery.events.length > 0 ? (
-        <div className="mt-6">
-          <h3 className="text-sm font-medium">Actividad</h3>
-          <ol className="mt-2 space-y-2 border-l border-border pl-3">
+        <div className="border-t border-border pt-5 space-y-4">
+          <h3 className="font-heading text-sm font-semibold text-foreground">Historial de actividad</h3>
+          <div className="relative border-l border-border pl-6 space-y-5 ml-2.5">
             {delivery.events.map((event) => (
-              <li key={event.id} className="text-sm">
-                <span className="text-muted-foreground">
+              <div key={event.id} className="relative">
+                <span className="absolute -left-[31px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-border ring-4 ring-background" />
+                <p className="text-xs font-medium text-muted-foreground">
                   {formatDateTime(event.createdAt)}
-                </span>
-                {" · "}
-                {event.message || event.status}
-              </li>
+                </p>
+                <p className="text-sm font-medium text-foreground mt-0.5">
+                  {event.message || event.status}
+                </p>
+              </div>
             ))}
-          </ol>
+          </div>
         </div>
       ) : null}
     </section>

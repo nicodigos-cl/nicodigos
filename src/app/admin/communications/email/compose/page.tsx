@@ -1,0 +1,3 @@
+import { EmailComposer } from "@/components/admin/communications/email-composer";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+export default function ComposeEmailPage() { return <div className="mx-auto w-full max-w-4xl space-y-5"><header><h1 className="font-heading text-2xl font-semibold">Redactar email</h1><p className="mt-1 text-sm text-muted-foreground">Envía una comunicación operacional autorizada o marketing con consentimiento vigente.</p></header><Card><CardHeader><CardTitle className="text-base">Nuevo email</CardTitle></CardHeader><CardContent><EmailComposer /></CardContent></Card></div>; }

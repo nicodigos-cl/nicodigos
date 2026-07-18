@@ -40,11 +40,11 @@ export function RecentDeliveries({
   }
 
   return (
-    <section aria-labelledby="recent-deliveries-heading" className="space-y-3">
+    <section aria-labelledby="recent-deliveries-heading" className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h2
           id="recent-deliveries-heading"
-          className="font-heading text-lg font-semibold"
+          className="font-heading text-lg font-semibold text-foreground"
         >
           Entregas recientes
         </h2>
@@ -54,6 +54,7 @@ export function RecentDeliveries({
             size="sm"
             render={<Link href="/dashboard/deliveries" />}
             nativeButton={false}
+            className="text-xs text-muted-foreground hover:text-foreground font-medium"
           >
             Ver todas
           </Button>
@@ -64,16 +65,18 @@ export function RecentDeliveries({
         {deliveries.map((delivery) => (
           <li
             key={delivery.id}
-            className="rounded-2xl border border-border bg-card p-4"
+            className="group rounded-2xl border border-border bg-card p-5 transition-all duration-300 hover:border-primary/20 hover:bg-muted/10"
           >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1">
-                <p className="font-medium">{delivery.productName}</p>
-                <p className="text-sm text-muted-foreground">
-                  {delivery.methodLabel} · Pedido {delivery.orderNumber} ·{" "}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-2 min-w-0 flex-1">
+                <p className="font-semibold text-foreground text-base leading-snug truncate">
+                  {delivery.productName}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {delivery.methodLabel} · Pedido <span className="font-mono">{delivery.orderNumber}</span> ·{" "}
                   {formatDateTime(delivery.deliveredAt ?? delivery.createdAt)}
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 pt-1">
                   <CustomerStatusBadge
                     label={
                       delivery.smm?.statusView.label ??
@@ -91,7 +94,7 @@ export function RecentDeliveries({
                   ) : null}
                 </div>
                 {delivery.smm?.progressPercent != null ? (
-                  <div className="pt-2">
+                  <div className="pt-3 max-w-md">
                     <div
                       className="h-2 overflow-hidden rounded-full bg-muted"
                       role="progressbar"
@@ -107,20 +110,23 @@ export function RecentDeliveries({
                         }}
                       />
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground font-medium">
                       {Math.round(delivery.smm.progressPercent)}% completado
                     </p>
                   </div>
                 ) : null}
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                render={<Link href={delivery.primaryAction.href} />}
-                nativeButton={false}
-              >
-                {delivery.primaryAction.label}
-              </Button>
+              <div className="shrink-0 pt-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  render={<Link href={delivery.primaryAction.href} />}
+                  nativeButton={false}
+                  className="w-full sm:w-auto font-medium"
+                >
+                  {delivery.primaryAction.label}
+                </Button>
+              </div>
             </div>
           </li>
         ))}

@@ -109,38 +109,42 @@ export default async function CustomerDeliveryDetailPage({
       ) : null}
 
       {delivery.smm ? (
-        <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
-          <h2 className="font-heading text-lg font-semibold">Servicio SMM</h2>
-          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+        <section className="rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-4">
+          <h2 className="font-heading text-lg font-bold text-foreground">Detalles del Servicio SMM</h2>
+          <dl className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4 bg-muted/20 border border-border/80 rounded-xl p-4">
             <div>
-              <dt className="text-muted-foreground">Cantidad solicitada</dt>
-              <dd className="mt-1 font-medium">
+              <dt className="text-xs text-muted-foreground uppercase font-semibold">Cantidad solicitada</dt>
+              <dd className="mt-1 text-base font-bold text-foreground tabular-nums">
                 {delivery.smm.quantity ?? "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Cantidad inicial</dt>
-              <dd className="mt-1 font-medium">
+              <dt className="text-xs text-muted-foreground uppercase font-semibold">Cantidad inicial</dt>
+              <dd className="mt-1 text-base font-bold text-foreground tabular-nums">
                 {delivery.smm.startCount ?? "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Cantidad restante</dt>
-              <dd className="mt-1 font-medium">
+              <dt className="text-xs text-muted-foreground uppercase font-semibold">Cantidad restante</dt>
+              <dd className="mt-1 text-base font-bold text-foreground tabular-nums font-mono text-primary">
                 {delivery.smm.remains ?? "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Destino</dt>
-              <dd className="mt-1 font-medium">
-                {delivery.smm.hasTarget ? "Configurado" : "Pendiente"}
+              <dt className="text-xs text-muted-foreground uppercase font-semibold">Destino</dt>
+              <dd className="mt-1 text-base font-bold text-foreground">
+                {delivery.smm.hasTarget ? (
+                  <span className="text-emerald-600 dark:text-emerald-400">Configurado</span>
+                ) : (
+                  <span className="text-amber-600 dark:text-amber-400">Pendiente</span>
+                )}
               </dd>
             </div>
           </dl>
           {delivery.smm.progressPercent != null ? (
-            <div className="mt-4">
+            <div className="pt-2">
               <div
-                className="h-2 overflow-hidden rounded-full bg-muted"
+                className="h-2.5 overflow-hidden rounded-full bg-muted border border-border/20"
                 role="progressbar"
                 aria-valuenow={Math.round(delivery.smm.progressPercent)}
                 aria-valuemin={0}
@@ -148,11 +152,11 @@ export default async function CustomerDeliveryDetailPage({
                 aria-label="Progreso del servicio"
               >
                 <div
-                  className="h-full rounded-full bg-primary"
+                  className="h-full rounded-full bg-primary transition-all duration-300"
                   style={{ width: `${delivery.smm.progressPercent}%` }}
                 />
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1.5 text-xs font-semibold text-muted-foreground">
                 {Math.round(delivery.smm.progressPercent)}% completado
               </p>
             </div>

@@ -1,5 +1,4 @@
-import { ThemeProvider } from "next-themes";
-
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import QueryClientProvider from "@/providers/query-client-provider";

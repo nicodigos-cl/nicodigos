@@ -2,19 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { IconType } from "react-icons";
 import {
-  CreditCardIcon,
-  CustomerService01Icon,
-  DashboardSquare01Icon,
-  DeliveryTruck01Icon,
-  LockIcon,
-  Logout01Icon,
-  ShoppingBag01Icon,
-  ShoppingCart01Icon,
-  Store01Icon,
-  UserIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+  HiOutlineCreditCard,
+  HiOutlineHome,
+  HiOutlineLockClosed,
+  HiOutlineBell,
+  HiOutlineLogout,
+  HiOutlineShoppingBag,
+  HiOutlineShoppingCart,
+  HiOutlineSupport,
+  HiOutlineTruck,
+  HiOutlineUser,
+  HiOutlineViewGrid,
+} from "react-icons/hi";
 
 import { Logo } from "@/components/logo";
 import {
@@ -29,119 +30,102 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { signOut } from "@/lib/auth-client";
+import { logoutOneSignal } from "@/lib/onesignal/client";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
   title: string;
   href: string;
-  icon: IconSvgElement;
+  icon: IconType;
   match?: (pathname: string) => boolean;
 };
 
-const mainNav: NavItem[] = [
-  {
-    title: "Resumen",
-    href: "/dashboard",
-    icon: DashboardSquare01Icon,
-    match: (pathname) => pathname === "/dashboard",
-  },
-  {
-    title: "Mis pedidos",
-    href: "/dashboard/orders",
-    icon: ShoppingBag01Icon,
-    match: (pathname) => pathname.startsWith("/dashboard/orders"),
-  },
-  {
-    title: "Mis entregas",
-    href: "/dashboard/deliveries",
-    icon: DeliveryTruck01Icon,
-    match: (pathname) => pathname.startsWith("/dashboard/deliveries"),
-  },
-  {
-    title: "Transacciones",
-    href: "/dashboard/transactions",
-    icon: CreditCardIcon,
-    match: (pathname) => pathname.startsWith("/dashboard/transactions"),
-  },
-];
-
-const accountNav: NavItem[] = [
-  {
-    title: "Perfil",
-    href: "/dashboard/profile",
-    icon: UserIcon,
-    match: (pathname) => pathname.startsWith("/dashboard/profile"),
-  },
-  {
-    title: "Seguridad",
-    href: "/dashboard/security",
-    icon: LockIcon,
-    match: (pathname) => pathname.startsWith("/dashboard/security"),
-  },
-  {
-    title: "Soporte",
-    href: "/dashboard/support",
-    icon: CustomerService01Icon,
-    match: (pathname) => pathname.startsWith("/dashboard/support"),
-  },
-];
-
-const shopNav: NavItem[] = [
-  {
-    title: "Tienda",
-    href: "/",
-    icon: Store01Icon,
-  },
-  {
-    title: "Carrito",
-    href: "/cart",
-    icon: ShoppingCart01Icon,
-  },
-];
-
-function NavGroup({
-  label,
-  items,
-}: {
-  label?: string;
+type NavGroup = {
+  label: string;
   items: NavItem[];
-}) {
-  const pathname = usePathname();
+};
 
-  return (
-    <SidebarGroup>
-      {label ? <SidebarGroupLabel>{label}</SidebarGroupLabel> : null}
-      <SidebarGroupContent>
-        <SidebarMenu className="gap-1">
-          {items.map((item) => {
-            const isActive = item.match
-              ? item.match(pathname)
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
-
-            return (
-              <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton
-                  isActive={isActive}
-                  tooltip={item.title}
-                  render={<Link href={item.href} />}
-                  className="h-10 gap-3 [&_svg]:size-4"
-                >
-                  <HugeiconsIcon icon={item.icon} strokeWidth={2} />
-                  <span>{item.title}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
-  );
-}
+const navigationGroups: NavGroup[] = [
+  {
+    label: "General",
+    items: [
+      {
+        title: "Resumen",
+        href: "/dashboard",
+        icon: HiOutlineViewGrid,
+        match: (pathname) => pathname === "/dashboard",
+      },
+      {
+        title: "Mis pedidos",
+        href: "/dashboard/orders",
+        icon: HiOutlineShoppingBag,
+        match: (pathname) => pathname.startsWith("/dashboard/orders"),
+      },
+      {
+        title: "Mis entregas",
+        href: "/dashboard/deliveries",
+        icon: HiOutlineTruck,
+        match: (pathname) => pathname.startsWith("/dashboard/deliveries"),
+      },
+      {
+        title: "Transacciones",
+        href: "/dashboard/transactions",
+        icon: HiOutlineCreditCard,
+        match: (pathname) => pathname.startsWith("/dashboard/transactions"),
+      },
+    ],
+  },
+  {
+    label: "Cuenta",
+    items: [
+      {
+        title: "Perfil",
+        href: "/dashboard/profile",
+        icon: HiOutlineUser,
+        match: (pathname) => pathname.startsWith("/dashboard/profile"),
+      },
+      {
+        title: "Seguridad",
+        href: "/dashboard/security",
+        icon: HiOutlineLockClosed,
+        match: (pathname) => pathname.startsWith("/dashboard/security"),
+      },
+      {
+        title: "Notificaciones",
+        href: "/dashboard/notifications",
+        icon: HiOutlineBell,
+        match: (pathname) => pathname.startsWith("/dashboard/notifications"),
+      },
+      {
+        title: "Soporte",
+        href: "/dashboard/support",
+        icon: HiOutlineSupport,
+        match: (pathname) => pathname.startsWith("/dashboard/support"),
+      },
+    ],
+  },
+  {
+    label: "Comprar",
+    items: [
+      {
+        title: "Tienda",
+        href: "/",
+        icon: HiOutlineHome,
+      },
+      {
+        title: "Carrito",
+        href: "/cart",
+        icon: HiOutlineShoppingCart,
+      },
+    ],
+  },
+];
 
 export function DashboardSidebar() {
+  const pathname = usePathname();
+
   return (
     <Sidebar collapsible="icon" variant="inset">
       <SidebarHeader className="border-b border-sidebar-border">
@@ -166,32 +150,67 @@ export function DashboardSidebar() {
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent>
-        <NavGroup items={mainNav} />
-        <NavGroup label="Cuenta" items={accountNav} />
-        <NavGroup label="Comprar" items={shopNav} />
+      <SidebarContent className="gap-4 py-3">
+        {navigationGroups.map((group) => (
+          <SidebarGroup key={group.label} className="px-2 py-0">
+            <SidebarGroupLabel className="mb-1.5 h-6 px-2 font-mono text-[10px] font-bold tracking-wider text-muted-foreground/80 uppercase select-none group-data-[collapsible=icon]:opacity-0">
+              {group.label}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-1">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = item.match
+                    ? item.match(pathname)
+                    : pathname === item.href ||
+                      pathname.startsWith(`${item.href}/`);
+
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        isActive={isActive}
+                        tooltip={item.title}
+                        render={<Link href={item.href} />}
+                        className={cn(
+                          "h-11 gap-3.5 rounded-sm border-l-2 border-transparent text-base transition-all hover:bg-sidebar-accent/50 [&_svg]:size-5!",
+                          isActive &&
+                            "border-l-primary bg-sidebar-accent pl-4 font-mono text-primary hover:bg-sidebar-accent",
+                        )}
+                      >
+                        <Icon />
+                        <span className="flex items-center gap-1 select-none">
+                          {item.title}
+                        </span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
-      <SidebarFooter className="mt-auto border-t border-sidebar-border">
-        <SidebarSeparator className="mx-0" />
-        <SidebarMenu>
+      <SidebarFooter className="mt-auto border-t border-sidebar-border p-0">
+        <SidebarMenu className="gap-1 p-2">
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="Cerrar sesión"
-              className={cn(
-                "h-10 gap-3 text-destructive hover:text-destructive [&_svg]:size-4",
-              )}
+              className="h-11 gap-3.5 rounded-sm text-base text-destructive hover:bg-destructive/10 hover:text-destructive [&_svg]:size-5!"
               onClick={() => {
-                void signOut({
-                  fetchOptions: {
-                    onSuccess: () => {
-                      window.location.href = "/auth/login";
+                void (async () => {
+                  await logoutOneSignal();
+                  await signOut({
+                    fetchOptions: {
+                      onSuccess: () => {
+                        window.location.href = "/auth/login";
+                      },
                     },
-                  },
-                });
+                  });
+                })();
               }}
             >
-              <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} />
+              <HiOutlineLogout />
               <span>Cerrar sesión</span>
             </SidebarMenuButton>
           </SidebarMenuItem>

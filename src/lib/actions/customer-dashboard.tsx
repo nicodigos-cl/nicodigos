@@ -33,6 +33,7 @@ import { SupportRequestEmail } from "@/emails/order-lifecycle-email";
 import { sendReactEmail } from "@/lib/email/resend";
 import { getOrCreateFlowRedirectUrl } from "@/lib/flow/payments";
 import { createLogger } from "@/lib/logger";
+import { recordCommunicationAudit } from "@/lib/communications/audit";
 import prisma from "@/lib/prisma";
 import { addCartItemAction } from "@/lib/actions/orders";
 
@@ -420,36 +421,60 @@ export async function createSupportRequestAction(
     .replace(/sk_[a-zA-Z0-9]+/g, "[redacted]")
     .slice(0, 4000);
 
-  await sendReactEmail({
-    to: supportEmail(),
-    subject: `[Soporte] ${parsed.data.subject}`,
-    react: (
-      <SupportRequestEmail
-        customerName={session.user.name || "Cliente"}
-        customerEmail={session.user.email}
-        subject={parsed.data.subject}
-        message={sanitizedMessage}
-        category={parsed.data.category}
-        orderId={parsed.data.orderId}
-        deliveryId={parsed.data.deliveryId}
-      />
-    ),
+  const thread = await prisma.$transaction(async (tx) => {
+    const created = await tx.communicationThread.create({
+      data: {
+        subject: parsed.data.subject,
+        status: "OPEN",
+        category: parsed.data.category,
+        userId: session.user.id,
+        orderId: parsed.data.orderId,
+        deliveryId: parsed.data.deliveryId,
+        unreadCount: 1,
+        lastMessageAt: new Date(),
+        lastInboundAt: new Date(),
+        messages: {
+          create: {
+            direction: "INBOUND",
+            kind: "SUPPORT",
+            status: "DELIVERED",
+            provider: "WEB_FORM",
+            fromAddress: session.user.email,
+            fromName: session.user.name,
+            toAddresses: [supportEmail()],
+            subject: parsed.data.subject,
+            textContent: sanitizedMessage,
+            deliveredAt: new Date(),
+          },
+        },
+      },
+    });
+    await tx.userAdminEvent.create({
+      data: {
+        userId: session.user.id,
+        type: UserAdminEventType.NOTE_ADDED,
+        actorUserId: session.user.id,
+        actorEmail: session.user.email,
+        message: `support-request:${parsed.data.category}`,
+        metadata: { orderId: parsed.data.orderId ?? null, deliveryId: parsed.data.deliveryId ?? null, subject: parsed.data.subject.slice(0, 160), communicationThreadId: created.id },
+      },
+    });
+    await recordCommunicationAudit({ actor: { userId: session.user.id, email: session.user.email }, action: "SUPPORT_REQUEST_CREATE", channel: "EMAIL", resourceType: "THREAD", resourceId: created.id, statusAfter: "OPEN" }, tx);
+    return created;
   });
 
-  await prisma.userAdminEvent.create({
-    data: {
-      userId: session.user.id,
-      type: UserAdminEventType.NOTE_ADDED,
-      actorUserId: session.user.id,
-      actorEmail: session.user.email,
-      message: `support-request:${parsed.data.category}`,
-      metadata: {
-        orderId: parsed.data.orderId ?? null,
-        deliveryId: parsed.data.deliveryId ?? null,
-        subject: parsed.data.subject.slice(0, 160),
-      },
-    },
-  });
+  try {
+    await sendReactEmail({
+      to: supportEmail(),
+      subject: `[Soporte] ${parsed.data.subject}`,
+      react: <SupportRequestEmail customerName={session.user.name || "Cliente"} customerEmail={session.user.email} subject={parsed.data.subject} message={sanitizedMessage} category={parsed.data.category} orderId={parsed.data.orderId} deliveryId={parsed.data.deliveryId} />,
+    });
+  } catch (error) {
+    log.warn({ threadId: thread.id, errorCode: error instanceof Error ? error.name : "UNKNOWN" }, "Support notification email failed; request remains in inbox");
+  }
+
+  revalidatePath("/admin/communications");
+  revalidatePath("/admin/communications/email");
 
   log.info(
     {

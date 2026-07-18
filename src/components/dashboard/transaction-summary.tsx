@@ -41,11 +41,11 @@ export function TransactionSummary({
   }
 
   return (
-    <section aria-labelledby="transactions-heading" className="space-y-3">
+    <section aria-labelledby="transactions-heading" className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h2
           id="transactions-heading"
-          className="font-heading text-lg font-semibold"
+          className="font-heading text-lg font-semibold text-foreground"
         >
           Transacciones recientes
         </h2>
@@ -55,31 +55,34 @@ export function TransactionSummary({
             size="sm"
             render={<Link href="/dashboard/transactions" />}
             nativeButton={false}
+            className="text-xs text-muted-foreground hover:text-foreground font-medium"
           >
             Ver todas
           </Button>
         ) : null}
       </div>
 
-      <ul className="space-y-2">
+      <ul className="space-y-3">
         {transactions.map((tx) => (
           <li key={tx.id}>
             <Link
               href={`/dashboard/orders/${tx.orderId}`}
-              className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-muted/10 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="space-y-1">
-                <p className="font-medium">{tx.orderNumber}</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="font-semibold text-foreground text-sm leading-none">
+                  Pedido <span className="font-mono">{tx.orderNumber}</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
                   {tx.methodLabel} · {formatDateTime(tx.createdAt)}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-4">
                 <CustomerStatusBadge
                   label={tx.statusView.label}
                   tone={tx.statusView.tone}
                 />
-                <p className="font-medium tabular-nums">
+                <p className="font-heading text-base font-bold tabular-nums text-foreground">
                   {formatMoney(tx.amount, tx.currency)}
                 </p>
               </div>

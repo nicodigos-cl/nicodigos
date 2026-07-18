@@ -81,7 +81,7 @@ export async function getEmailThread(threadId: string) {
         where: { deletedAt: null }, orderBy: { createdAt: "asc" },
         select: {
           id: true, direction: true, kind: true, status: true, fromAddress: true, fromName: true,
-          toAddresses: true, ccAddresses: true, bccAddresses: true, subject: true, textContent: true,
+          toAddresses: true, ccAddresses: true, bccAddresses: true, replyToAddress: true, subject: true, textContent: true,
           sanitizedHtml: true, remoteImages: true, sentByEmail: true,
           createdAt: true, sentAt: true, deliveredAt: true, failedAt: true,
           attachments: { select: { id: true, fileName: true, mimeType: true, sizeBytes: true, inline: true, scanStatus: true } },

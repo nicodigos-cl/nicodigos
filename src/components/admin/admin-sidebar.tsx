@@ -9,6 +9,7 @@ import {
   DeliveryTruck01Icon,
   GameController01Icon,
   Logout01Icon,
+  Mail01Icon,
   Package01Icon,
   ServerStack01Icon,
   Settings01Icon,
@@ -34,6 +35,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { signOut } from "@/lib/auth-client";
+import { logoutOneSignal } from "@/lib/onesignal/client";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -63,6 +65,12 @@ const navigationGroups: NavGroup[] = [
         href: "/admin/users",
         icon: UserMultiple02Icon,
         match: (pathname) => pathname.startsWith("/admin/users"),
+      },
+      {
+        title: "Comunicaciones",
+        href: "/admin/communications",
+        icon: Mail01Icon,
+        match: (pathname) => pathname.startsWith("/admin/communications"),
       },
     ],
   },
@@ -235,13 +243,16 @@ export function AdminSidebar() {
               tooltip="Cerrar sesión"
               className={cn("text-destructive hover:text-destructive h-11 gap-3.5 text-base rounded-sm hover:bg-destructive/10 [&_svg]:size-5!")}
               onClick={() => {
-                void signOut({
-                  fetchOptions: {
-                    onSuccess: () => {
-                      window.location.href = "/";
+                void (async () => {
+                  await logoutOneSignal();
+                  await signOut({
+                    fetchOptions: {
+                      onSuccess: () => {
+                        window.location.href = "/";
+                      },
                     },
-                  },
-                });
+                  });
+                })();
               }}
             >
               <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} />

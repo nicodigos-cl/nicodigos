@@ -86,17 +86,17 @@ export const createInternalNoteSchema = threadIdSchema.extend({
 });
 
 export const webPushDataSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("ORDER"), orderId: cuid }),
-  z.object({ type: z.literal("DELIVERY"), deliveryId: cuid }),
-  z.object({ type: z.literal("PRODUCT"), productId: cuid }),
-  z.object({ type: z.literal("GENERAL") }),
+  z.object({ type: z.literal("ORDER"), orderId: cuid }).strict(),
+  z.object({ type: z.literal("DELIVERY"), deliveryId: cuid }).strict(),
+  z.object({ type: z.literal("PRODUCT"), productId: cuid }).strict(),
+  z.object({ type: z.literal("GENERAL") }).strict(),
 ]);
 
 export const audienceDefinitionSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("ALL_ELIGIBLE") }),
-  z.object({ type: z.literal("SPECIFIC_USERS"), userIds: z.array(cuid).min(1).max(2_000) }),
-  z.object({ type: z.literal("INTERNAL_SEGMENT"), segmentId: cuid }),
-  z.object({ type: z.literal("ONESIGNAL_SEGMENT"), segment: z.string().trim().min(1).max(100) }),
+  z.object({ type: z.literal("ALL_ELIGIBLE") }).strict(),
+  z.object({ type: z.literal("SPECIFIC_USERS"), userIds: z.array(cuid).min(1).max(2_000) }).strict(),
+  z.object({ type: z.literal("INTERNAL_SEGMENT"), segmentId: cuid }).strict(),
+  z.object({ type: z.literal("ONESIGNAL_SEGMENT"), segment: z.string().trim().min(1).max(100) }).strict(),
 ]);
 
 const pushButtonSchema = z.object({

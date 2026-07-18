@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HiOutlineArrowRight, HiOutlineShoppingBag } from "react-icons/hi";
 
 import { CustomerStatusBadge } from "@/components/dashboard/customer-status-badge";
 import { Button } from "@/components/ui/button";
@@ -10,22 +11,52 @@ export function LatestOrderCard({ order }: { order: CustomerOrderSummary }) {
   return (
     <section
       aria-labelledby="latest-order-heading"
-      className="rounded-2xl border border-border bg-card p-4 sm:p-6"
+      className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition-all duration-300 hover:border-primary/20 sm:p-6"
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
-          <h2
-            id="latest-order-heading"
-            className="font-heading text-lg font-semibold"
-          >
-            Pedido más reciente
-          </h2>
-          <p className="font-medium">{order.number}</p>
-          <p className="text-sm text-muted-foreground">
-            {formatDateTime(order.createdAt)} ·{" "}
-            {formatMoney(order.total, order.currency)}
-          </p>
-          <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="rounded-lg bg-primary/10 p-2 text-primary">
+              <HiOutlineShoppingBag className="size-5" />
+            </div>
+            <div>
+              <span className="font-mono text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
+                Pedido más reciente
+              </span>
+              <h2
+                id="latest-order-heading"
+                className="font-heading text-lg font-bold tracking-tight text-foreground"
+              >
+                {order.number}
+              </h2>
+            </div>
+          </div>
+
+          <div className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <span className="block text-xs text-muted-foreground">Fecha</span>
+              <span className="font-medium text-foreground">
+                {formatDateTime(order.createdAt)}
+              </span>
+            </div>
+            <div>
+              <span className="block text-xs text-muted-foreground">Total</span>
+              <span className="font-semibold text-foreground tabular-nums">
+                {formatMoney(order.total, order.currency)}
+              </span>
+            </div>
+            {order.productNames.length > 0 && (
+              <div className="sm:col-span-2 lg:col-span-1">
+                <span className="block text-xs text-muted-foreground">Productos</span>
+                <span className="block truncate font-medium text-foreground max-w-[280px]">
+                  {order.productNames.slice(0, 2).join(", ")}
+                  {order.productNames.length > 2 ? ` (+${order.productNames.length - 2})` : ""}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 pt-1">
             <CustomerStatusBadge
               label={order.statusView.label}
               tone={order.statusView.tone}
@@ -43,21 +74,18 @@ export function LatestOrderCard({ order }: { order: CustomerOrderSummary }) {
               />
             ) : null}
           </div>
-          {order.productNames.length > 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {order.productNames.slice(0, 3).join(" · ")}
-              {order.productNames.length > 3
-                ? ` · +${order.productNames.length - 3}`
-                : null}
-            </p>
-          ) : null}
         </div>
-        <Button
-          render={<Link href={order.primaryAction.href} />}
-          nativeButton={false}
-        >
-          {order.primaryAction.label}
-        </Button>
+
+        <div className="flex shrink-0">
+          <Button
+            render={<Link href={order.primaryAction.href} />}
+            nativeButton={false}
+            className="w-full gap-2 md:w-auto font-medium"
+          >
+            <span>{order.primaryAction.label}</span>
+            <HiOutlineArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+          </Button>
+        </div>
       </div>
     </section>
   );

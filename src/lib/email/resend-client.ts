@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { ReactElement } from "react";
-import { Resend, type CreateEmailOptions, type WebhookEventPayload } from "resend";
+import { Resend, type Attachment, type CreateEmailOptions, type WebhookEventPayload } from "resend";
 
 import { createLogger } from "@/lib/logger";
 import { safeError } from "@/lib/communications/security";
@@ -56,6 +56,7 @@ export async function sendWithResend(input: {
   replyTo?: string;
   idempotencyKey: string;
   tags?: Array<{ name: string; value: string }>;
+  attachments?: Attachment[];
 }) {
   const payload: CreateEmailOptions = {
     from: getVerifiedFromAddress(),
@@ -67,6 +68,7 @@ export async function sendWithResend(input: {
     react: input.react,
     replyTo: input.replyTo,
     tags: input.tags,
+    attachments: input.attachments,
   };
   const startedAt = Date.now();
   try {

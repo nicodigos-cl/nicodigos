@@ -2,6 +2,8 @@ import "server-only";
 
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -20,6 +22,15 @@ type R2Config = {
 type UploadedImage = {
   key: string;
   url: string;
+};
+
+const communicationMimeExtensions: Record<string, string> = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "text/plain": "txt",
+  "text/csv": "csv",
 };
 
 let client: S3Client | undefined;
@@ -142,4 +153,24 @@ export async function deleteImageFromR2(key: string): Promise<void> {
       Key: key,
     }),
   );
+}
+
+export async function createCommunicationAttachmentUploadUrl(input: { contentType: string; size: number }) {
+  const extension = communicationMimeExtensions[input.contentType];
+  if (!extension || input.size <= 0 || input.size > 10 * 1024 * 1024) throw new Error("INVALID_ATTACHMENT");
+  const config = getConfig();
+  const key = `communications/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}`;
+  const command = new PutObjectCommand({ Bucket: config.bucket, Key: key, ContentType: input.contentType, ContentLength: input.size, CacheControl: "private, no-store" });
+  return { key, uploadUrl: await getSignedUrl(getClient(config), command, { expiresIn: 600 }) };
+}
+
+export async function verifyCommunicationAttachment(input: { key: string; contentType: string; size: number }) {
+  const config = getConfig();
+  const result = await getClient(config).send(new HeadObjectCommand({ Bucket: config.bucket, Key: input.key }));
+  if (result.ContentType !== input.contentType || Number(result.ContentLength) !== input.size) throw new Error("ATTACHMENT_MISMATCH");
+}
+
+export async function getCommunicationAttachmentUrl(key: string) {
+  const config = getConfig();
+  return getSignedUrl(getClient(config), new GetObjectCommand({ Bucket: config.bucket, Key: key }), { expiresIn: 300 });
 }

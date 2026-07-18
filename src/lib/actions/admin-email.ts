@@ -12,6 +12,7 @@ import { maskEmail, safeAdminHtmlFromText, safeError } from "@/lib/communication
 import { sendWithResend } from "@/lib/email/resend-client";
 import { createLogger } from "@/lib/logger";
 import prisma from "@/lib/prisma";
+import { getCommunicationAttachmentUrl } from "@/lib/r2";
 import {
   assignThreadSchema, createInternalNoteSchema, markThreadReadSchema,
   saveEmailDraftSchema, sendEmailSchema, threadIdSchema, updateThreadStatusSchema,
@@ -112,6 +113,8 @@ export async function createEmailDraftAction(rawInput: unknown): Promise<ActionR
   const parsed = saveEmailDraftSchema.safeParse(parseSubmission(rawInput));
   if (!parsed.success) return validationError(parsed.error);
   const result = await prisma.$transaction(async (tx) => {
+    const duplicate = await tx.communicationMessage.findUnique({ where: { idempotencyKey: parsed.data.idempotencyKey }, select: { id: true, threadId: true, sentByUserId: true } });
+    if (duplicate?.threadId && duplicate.sentByUserId === admin.userId) return { messageId: duplicate.id, threadId: duplicate.threadId };
     let threadId = parsed.data.threadId;
     if (threadId) {
       const exists = await tx.communicationThread.findFirst({ where: { id: threadId, deletedAt: null }, select: { id: true } });
@@ -158,7 +161,11 @@ export async function sendNewEmailAction(rawInput: unknown): Promise<ActionResul
   const admin = await actor();
   const parsed = sendEmailSchema.safeParse(parseSubmission(rawInput));
   if (!parsed.success) return validationError(parsed.error);
-  await enforceCommunicationRateLimit(admin.userId, parsed.data.threadId ? "EMAIL_REPLY" : "EMAIL_NEW").catch((error) => { throw error; });
+  try {
+    await enforceCommunicationRateLimit(admin.userId, parsed.data.threadId ? "EMAIL_REPLY" : "EMAIL_NEW");
+  } catch {
+    return { success: false, message: "Límite de envíos alcanzado. Intenta más tarde." };
+  }
   if (parsed.data.kind === "MARKETING") {
     const users = await prisma.user.findMany({ where: { email: { in: parsed.data.to }, accountStatus: "ACTIVE", communicationPreference: { is: { marketingEmail: true, marketingConsentAt: { not: null }, marketingOptOutAt: null } } }, select: { email: true } });
     if (users.length !== new Set(parsed.data.to).size) return { success: false, message: "Todos los destinatarios de marketing deben tener consentimiento vigente." };
@@ -167,11 +174,12 @@ export async function sendNewEmailAction(rawInput: unknown): Promise<ActionResul
     ? await createEmailDraftAction({ ...parsed.data, messageId: parsed.data.messageId })
     : await createEmailDraftAction(parsed.data);
   if (!draftResult.success) return draftResult;
-  const message = await prisma.communicationMessage.findUniqueOrThrow({ where: { id: draftResult.data.messageId }, select: { id: true, threadId: true, status: true } });
+  const message = await prisma.communicationMessage.findUniqueOrThrow({ where: { id: draftResult.data.messageId }, select: { id: true, threadId: true, status: true, attachments: { where: { scanStatus: "NOT_AVAILABLE", objectKey: { not: null } }, select: { objectKey: true, fileName: true, mimeType: true } } } });
   if (message.status !== "DRAFT" || !message.threadId) return { success: false, message: "El mensaje ya no es un borrador enviable." };
   try {
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL ?? "http://localhost:3000").replace(/\/$/, "");
-    const response = await sendWithResend({ to: parsed.data.to, cc: parsed.data.cc, bcc: parsed.data.bcc, subject: parsed.data.subject, text: parsed.data.content, react: AdminComposedEmail({ subject: parsed.data.subject, content: parsed.data.content, appUrl }), idempotencyKey: parsed.data.idempotencyKey, tags: [{ name: "message_id", value: message.id }] });
+    const attachments = await Promise.all(message.attachments.map(async (attachment) => ({ path: await getCommunicationAttachmentUrl(attachment.objectKey!), filename: attachment.fileName, contentType: attachment.mimeType })));
+    const response = await sendWithResend({ to: parsed.data.to, cc: parsed.data.cc, bcc: parsed.data.bcc, subject: parsed.data.subject, text: parsed.data.content, react: AdminComposedEmail({ subject: parsed.data.subject, content: parsed.data.content, appUrl }), idempotencyKey: parsed.data.idempotencyKey, tags: [{ name: "message_id", value: message.id }], attachments });
     await prisma.$transaction(async (tx) => {
       await tx.communicationMessage.update({ where: { id: message.id }, data: { status: "ACCEPTED", provider: "RESEND", externalId: response.id, acceptedAt: new Date(), sentAt: new Date() } });
       await tx.communicationThread.update({ where: { id: message.threadId! }, data: { status: "PENDING", unreadCount: 0, lastMessageAt: new Date(), lastOutboundAt: new Date() } });
