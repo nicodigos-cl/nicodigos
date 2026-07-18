@@ -16,7 +16,7 @@
     "build": "bun --bun next build",
     "start": "bun --bun next start",
     "lint": "eslint",
-    "test": "bun test src/lib/deliveries/__tests__ src/lib/transactions/__tests__ src/lib/users/__tests__",
+    "test": "bun test src/lib/deliveries/__tests__ src/lib/transactions/__tests__ src/lib/users/__tests__ src/lib/dashboard/__tests__",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

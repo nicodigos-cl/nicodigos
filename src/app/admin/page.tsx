@@ -1,72 +1,26 @@
-import Link from "next/link";
-import {
-  HiOutlineCube,
-  HiOutlineServer,
-  HiOutlineShoppingCart,
-  HiOutlineTag,
-} from "react-icons/hi";
+import { redirect } from "next/navigation";
 
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { DashboardView } from "@/components/admin/dashboard/dashboard-view";
+import { requireAdminSession } from "@/lib/auth/session";
+import { getAdminDashboard } from "@/lib/dashboard/queries";
+import { parseSearchParamsRecord } from "@/lib/validations/products";
+import { dashboardQuerySchema } from "@/lib/validations/dashboard";
 
-const links = [
-  {
-    href: "/admin/products",
-    title: "Productos",
-    description: "Inventario, precios y códigos de activación.",
-    icon: HiOutlineCube,
-  },
-  {
-    href: "/admin/providers",
-    title: "Providers SMM",
-    description: "Paneles, API keys y catálogo de servicios.",
-    icon: HiOutlineServer,
-  },
-  {
-    href: "/admin/categories",
-    title: "Categorías",
-    description: "Organiza el catálogo por categorías.",
-    icon: HiOutlineTag,
-  },
-  {
-    href: "/admin/orders",
-    title: "Órdenes",
-    description: "Consulta el estado de las órdenes.",
-    icon: HiOutlineShoppingCart,
-  },
-] as const;
-
-export default function AdminDashboardPage() {
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="space-y-1">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">
-          Dashboard
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Panel de administración de Nicodigos.
-        </p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {links.map((link) => (
-          <Link key={link.href} href={link.href} className="group">
-            <Card className="h-full shadow-none ring-border transition-colors group-hover:bg-muted/40">
-              <CardHeader>
-                <div className="mb-2 flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <link.icon className="size-4" />
-                </div>
-                <CardTitle>{link.title}</CardTitle>
-                <CardDescription>{link.description}</CardDescription>
-              </CardHeader>
-            </Card>
-          </Link>
-        ))}
-      </div>
-    </div>
+export default async function AdminDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const session = await requireAdminSession();
+  const parsed = dashboardQuerySchema.safeParse(
+    parseSearchParamsRecord(await searchParams),
   );
+  if (!parsed.success) redirect("/admin");
+
+  const data = await getAdminDashboard({
+    ...parsed.data,
+    adminName: session.user.name || session.user.email,
+  });
+
+  return <DashboardView data={data} />;
 }

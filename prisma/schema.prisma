@@ -664,6 +664,7 @@ model Order {
 
   @@index([userId, status])
   @@index([status])
+  @@index([createdAt])
   @@map("order")
 }
 
