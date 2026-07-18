@@ -158,8 +158,10 @@ async function fulfillSmm(deliveryId: string): Promise<FulfillmentResult> {
   if (delivery.externalOrderId) {
     return { deliveryId, orderId: delivery.orderItem.orderId, status: delivery.status };
   }
-  if (!delivery.orderItem.smm?.link) {
-    throw new FulfillmentManualReviewError("Falta el link del pedido SMM.");
+  if (!delivery.orderItem.smm?.link && !delivery.orderItem.smm?.username) {
+    throw new FulfillmentManualReviewError(
+      "Faltan los datos de destino del pedido SMM.",
+    );
   }
 
   const claimed = await prisma.delivery.updateMany({
@@ -185,8 +187,10 @@ async function fulfillSmm(deliveryId: string): Promise<FulfillmentResult> {
   const smm = delivery.orderItem.smm;
   const payload = {
     service: remoteServiceId,
-    link: smm.link,
-    quantity: smm.quantity ?? delivery.orderItem.quantity,
+    ...(smm.link ? { link: smm.link } : {}),
+    ...(smm.quantity != null || delivery.orderItem.quantity
+      ? { quantity: smm.quantity ?? delivery.orderItem.quantity }
+      : {}),
     ...(smm.comments ? { comments: smm.comments } : {}),
     ...(smm.runs != null ? { runs: smm.runs } : {}),
     ...(smm.intervalMinutes != null ? { interval: smm.intervalMinutes } : {}),

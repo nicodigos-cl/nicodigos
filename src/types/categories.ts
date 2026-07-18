@@ -30,3 +30,13 @@ export type CategoryParentOptionDto = {
 };
 
 export type CategoryDetailDto = CategoryListItemDto;
+
+/** Public storefront category node for nav menus. */
+export type StoreNavCategoryDto = {
+  id: string;
+  name: string;
+  slug: string;
+  href: string;
+  imageUrl: string | null;
+  children: StoreNavCategoryDto[];
+};

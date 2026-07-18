@@ -229,6 +229,10 @@ export type CustomerBuyAgainProduct = {
   currency: string;
   coverImageUrl: string | null;
   inStock: boolean;
+  deliveryMethod: "SMM" | "KINGUIN" | "MANUAL";
+  smmServiceType: string | null;
+  smmMin: number | null;
+  smmMax: number | null;
 };
 
 export type CustomerDashboardMetrics = {

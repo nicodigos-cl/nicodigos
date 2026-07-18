@@ -200,6 +200,11 @@ export async function buyOrderAgainAction(
         continue;
       }
 
+      if (product.deliveryMethod === DeliveryMethod.SMM) {
+        skipped += 1;
+        continue;
+      }
+
       const result = await addCartItemAction({
         productId: product.id,
         quantity: Math.max(1, item.quantity),

@@ -473,6 +473,9 @@ export async function getBuyAgainProducts(
           coverImageUrl: true,
           qty: true,
           deliveryMethod: true,
+          smmServiceType: true,
+          smmMin: true,
+          smmMax: true,
           _count: {
             select: {
               keys: { where: { status: "AVAILABLE" } },
@@ -499,6 +502,10 @@ export async function getBuyAgainProducts(
       currency: product.currency,
       coverImageUrl: product.coverImageUrl,
       inStock,
+      deliveryMethod: product.deliveryMethod,
+      smmServiceType: product.smmServiceType,
+      smmMin: product.smmMin,
+      smmMax: product.smmMax,
     });
     if (products.length >= limit) break;
   }
@@ -522,6 +529,9 @@ export async function getBuyAgainProducts(
       coverImageUrl: true,
       qty: true,
       deliveryMethod: true,
+      smmServiceType: true,
+      smmMin: true,
+      smmMax: true,
       _count: {
         select: { keys: { where: { status: "AVAILABLE" } } },
       },
@@ -542,6 +552,10 @@ export async function getBuyAgainProducts(
       currency: product.currency,
       coverImageUrl: product.coverImageUrl,
       inStock,
+      deliveryMethod: product.deliveryMethod,
+      smmServiceType: product.smmServiceType,
+      smmMin: product.smmMin,
+      smmMax: product.smmMax,
     });
   }
 

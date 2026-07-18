@@ -126,39 +126,10 @@ export const createPaymentLinkSchema = z.object({
   orderId: z.string().cuid(),
 });
 
-export const checkoutFromCartSchema = z.object({
-  email: z.string().trim().email("Email inválido").max(320).optional(),
-  customerName: z.preprocess(
-    emptyToUndefined,
-    z.string().trim().min(1).max(200).optional(),
-  ),
-  phone: z.preprocess(
-    emptyToUndefined,
-    z.string().trim().max(40).optional(),
-  ),
-  addressLine1: z.preprocess(
-    emptyToUndefined,
-    z.string().trim().max(200).optional(),
-  ),
-  addressLine2: z.preprocess(
-    emptyToUndefined,
-    z.string().trim().max(200).optional(),
-  ),
-  city: z.preprocess(
-    emptyToUndefined,
-    z.string().trim().max(120).optional(),
-  ),
-  region: z.preprocess(
-    emptyToUndefined,
-    z.string().trim().max(120).optional(),
-  ),
-  commune: z.preprocess(
-    emptyToUndefined,
-    z.string().trim().max(120).optional(),
-  ),
-});
-
-export type CheckoutFromCartInput = z.infer<typeof checkoutFromCartSchema>;
+export {
+  checkoutBillingInputSchema as checkoutFromCartSchema,
+  type CheckoutBillingInput as CheckoutFromCartInput,
+} from "@/lib/validations/checkout-billing";
 
 export const updateCartItemSchema = z.object({
   cartItemId: z.string().cuid(),
@@ -172,6 +143,16 @@ export const removeCartItemSchema = z.object({
 export const addCartItemSchema = z.object({
   productId: z.string().cuid(),
   quantity: z.coerce.number().int().min(1).max(999).default(1),
+});
+
+export const addSmmCartItemSchema = z.object({
+  productId: z.string().cuid(),
+  smm: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const updateCartItemSmmSchema = z.object({
+  cartItemId: z.string().cuid(),
+  smm: z.record(z.string(), z.unknown()),
 });
 
 export const orderStatusLabel: Record<OrderStatus, string> = {

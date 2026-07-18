@@ -6,6 +6,7 @@ import { useTransition } from "react";
 import { toast } from "sonner";
 import { HiOutlineShoppingCart } from "react-icons/hi";
 
+import { AddSmmToCartButton } from "@/components/store/smm-cart-fields-dialog";
 import { Button } from "@/components/ui/button";
 import { buyAgainAction } from "@/lib/actions/customer-dashboard";
 import type { CustomerBuyAgainProduct } from "@/lib/customer-dashboard/types";
@@ -52,27 +53,40 @@ export function BuyAgain({ products }: { products: CustomerBuyAgainProduct[] }) 
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 pt-2">
-                <Button
-                  size="sm"
-                  disabled={pending || !product.inStock}
-                  className="font-medium"
-                  onClick={() => {
-                    startTransition(() => {
-                      void (async () => {
-                        const result = await buyAgainAction({
-                          productId: product.productId,
-                        });
-                        if (!result.success) {
-                          toast.error(result.message);
-                          return;
-                        }
-                        toast.success("Agregado al carrito");
-                      })();
-                    });
-                  }}
-                >
-                  Volver a comprar
-                </Button>
+                {product.deliveryMethod === "SMM" ? (
+                  <AddSmmToCartButton
+                    productId={product.productId}
+                    productName={product.name}
+                    serviceType={product.smmServiceType}
+                    smmMin={product.smmMin}
+                    smmMax={product.smmMax}
+                    className="h-8 px-3 text-sm font-medium"
+                  >
+                    Volver a comprar
+                  </AddSmmToCartButton>
+                ) : (
+                  <Button
+                    size="sm"
+                    disabled={pending || !product.inStock}
+                    className="font-medium"
+                    onClick={() => {
+                      startTransition(() => {
+                        void (async () => {
+                          const result = await buyAgainAction({
+                            productId: product.productId,
+                          });
+                          if (!result.success) {
+                            toast.error(result.message);
+                            return;
+                          }
+                          toast.success("Agregado al carrito");
+                        })();
+                      });
+                    }}
+                  >
+                    Volver a comprar
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="ghost"

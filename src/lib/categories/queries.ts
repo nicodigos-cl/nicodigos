@@ -10,7 +10,12 @@ import type {
   CategoryDetailDto,
   CategoryListItemDto,
   CategoryParentOptionDto,
+  StoreNavCategoryDto,
 } from "@/types/categories";
+
+function categoryHref(slug: string): string {
+  return `/categorias/${slug}`;
+}
 
 function buildOrderBy(
   sort: CategoriesSortField,
@@ -40,9 +45,18 @@ function toListItem(category: {
   parent: { name: string } | null;
   _count: { products: number; children: number };
   assets: Array<{
-    id: string; type: "IMAGE" | "VIDEO" | "YOUTUBE"; url: string; objectKey: string | null;
-    youtubeId: string | null; mimeType: string | null; fileName: string | null; sizeBytes: bigint | null;
-    thumbnailUrl: string | null; altText: string | null; sortOrder: number; isCover: boolean;
+    id: string;
+    type: "IMAGE" | "VIDEO" | "YOUTUBE";
+    url: string;
+    objectKey: string | null;
+    youtubeId: string | null;
+    mimeType: string | null;
+    fileName: string | null;
+    sizeBytes: bigint | null;
+    thumbnailUrl: string | null;
+    altText: string | null;
+    sortOrder: number;
+    isCover: boolean;
   }>;
 }): CategoryListItemDto {
   return {
@@ -183,4 +197,43 @@ export async function getCategoryParentOptions(
   });
 
   return categories;
+}
+
+/** Root categories with one level of children for the store header. */
+export async function getStoreNavCategories(): Promise<StoreNavCategoryDto[]> {
+  const roots = await prisma.category.findMany({
+    where: { parentId: null },
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      imageUrl: true,
+      children: {
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          imageUrl: true,
+        },
+      },
+    },
+  });
+
+  return roots.map((root) => ({
+    id: root.id,
+    name: root.name,
+    slug: root.slug,
+    href: categoryHref(root.slug),
+    imageUrl: root.imageUrl,
+    children: root.children.map((child) => ({
+      id: child.id,
+      name: child.name,
+      slug: child.slug,
+      href: categoryHref(child.slug),
+      imageUrl: child.imageUrl,
+      children: [],
+    })),
+  }));
 }

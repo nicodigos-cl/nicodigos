@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,8 @@ import {
 import { toast } from "sonner";
 
 import { Logo } from "@/components/logo";
+import { SmmCartFieldsDialog } from "@/components/store/smm-cart-fields-dialog";
+import { smmSummaryLabel } from "@/components/store/smm-order-fields-form";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -28,11 +30,12 @@ import {
   updateCartItemAction,
 } from "@/lib/actions/orders";
 import { formatMoney } from "@/lib/products/format";
-import type { CartDto } from "@/types/orders";
+import type { CartDto, CartLineDto } from "@/types/orders";
 
 export function CartPageClient({ cart }: { cart: CartDto | null }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [editing, setEditing] = useState<CartLineDto | null>(null);
 
   if (!cart || cart.items.length === 0) {
     return (
@@ -56,6 +59,10 @@ export function CartPageClient({ cart }: { cart: CartDto | null }) {
       </div>
     );
   }
+
+  const hasIncompleteSmm = cart.items.some(
+    (item) => item.deliveryMethod === "SMM" && !item.smmComplete,
+  );
 
   function updateQuantity(cartItemId: string, quantity: number) {
     startTransition(async () => {
@@ -90,6 +97,7 @@ export function CartPageClient({ cart }: { cart: CartDto | null }) {
             size="sm"
             render={<Link href="/checkout" />}
             nativeButton={false}
+            disabled={hasIncompleteSmm}
           >
             Ir al checkout
           </Button>
@@ -101,6 +109,12 @@ export function CartPageClient({ cart }: { cart: CartDto | null }) {
           Carrito
         </h1>
 
+        {hasIncompleteSmm ? (
+          <p className="mt-4 text-sm text-amber-700 dark:text-amber-400">
+            Completa los datos de destino de tus servicios antes de pagar.
+          </p>
+        ) : null}
+
         <div className="mt-12 lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-12 xl:gap-x-16">
           <section aria-labelledby="cart-heading" className="lg:col-span-7">
             <h2 id="cart-heading" className="sr-only">
@@ -110,85 +124,121 @@ export function CartPageClient({ cart }: { cart: CartDto | null }) {
               role="list"
               className="divide-y divide-border border-t border-b border-border"
             >
-              {cart.items.map((product, index) => (
-                <li key={product.id} className="flex py-6 sm:py-10">
-                  <div className="shrink-0">
-                    {product.coverImageUrl ? (
-                      <Image
-                        alt=""
-                        src={product.coverImageUrl}
-                        width={192}
-                        height={192}
-                        unoptimized
-                        className="size-24 rounded-2xl object-cover sm:size-48"
-                      />
-                    ) : (
-                      <div className="size-24 rounded-2xl bg-muted sm:size-48" />
-                    )}
-                  </div>
+              {cart.items.map((product, index) => {
+                const isSmm = product.deliveryMethod === "SMM";
+                const summary = smmSummaryLabel(product.smm ?? undefined);
 
-                  <div className="ml-4 flex flex-1 flex-col justify-between sm:ml-6">
-                    <div className="relative pr-9 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:pr-0">
-                      <div>
-                        <h3 className="text-sm font-medium text-foreground">
-                          {product.productName}
-                        </h3>
-                        <p className="mt-1 text-sm font-medium tabular-nums">
-                          {formatMoney(product.unitPrice, product.currency)}
-                        </p>
-                      </div>
-
-                      <div className="mt-4 sm:mt-0 sm:pr-9">
-                        <NativeSelect
-                          className="w-20"
-                          aria-label={`Cantidad, ${product.productName}`}
-                          value={product.quantity}
-                          disabled={pending}
-                          onChange={(event) =>
-                            updateQuantity(
-                              product.id,
-                              Number.parseInt(event.target.value, 10),
-                            )
-                          }
-                        >
-                          {Array.from({ length: 8 }, (_, i) => i + 1).map(
-                            (value) => (
-                              <NativeSelectOption key={value} value={value}>
-                                {value}
-                              </NativeSelectOption>
-                            ),
-                          )}
-                        </NativeSelect>
-
-                        <div className="absolute top-0 right-0">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label="Eliminar"
-                            disabled={pending}
-                            onClick={() => removeItem(product.id)}
-                          >
-                            <HiOutlineX className="size-5" />
-                          </Button>
-                        </div>
-                      </div>
+                return (
+                  <li key={product.id} className="flex py-6 sm:py-10">
+                    <div className="shrink-0">
+                      {product.coverImageUrl ? (
+                        <Image
+                          alt=""
+                          src={product.coverImageUrl}
+                          width={192}
+                          height={192}
+                          unoptimized
+                          className="size-24 rounded-2xl object-cover sm:size-48"
+                        />
+                      ) : (
+                        <div className="size-24 rounded-2xl bg-muted sm:size-48" />
+                      )}
                     </div>
 
-                    <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-                      {product.inStock ? (
-                        <HiCheckCircle className="size-5 shrink-0 text-primary" />
-                      ) : (
-                        <HiOutlineClock className="size-5 shrink-0" />
-                      )}
-                      <span>
-                        {product.inStock ? "En stock" : "Stock limitado"}
-                      </span>
-                      <span className="sr-only">{index}</span>
-                    </p>
-                  </div>
-                </li>
-              ))}
+                    <div className="ml-4 flex flex-1 flex-col justify-between sm:ml-6">
+                      <div className="relative pr-9 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:pr-0">
+                        <div>
+                          <h3 className="text-sm font-medium text-foreground">
+                            {product.productName}
+                          </h3>
+                          <p className="mt-1 text-sm font-medium tabular-nums">
+                            {formatMoney(product.unitPrice, product.currency)}
+                          </p>
+                          {isSmm ? (
+                            <div className="mt-2 space-y-1">
+                              <p className="truncate text-xs text-muted-foreground">
+                                {summary
+                                  ? `Destino: ${summary}`
+                                  : "Sin destino configurado"}
+                              </p>
+                              {!product.smmComplete ? (
+                                <p className="text-xs text-amber-700 dark:text-amber-400">
+                                  Faltan datos del servicio
+                                </p>
+                              ) : null}
+                              <Button
+                                type="button"
+                                variant="link"
+                                size="sm"
+                                className="h-auto px-0"
+                                onClick={() => setEditing(product)}
+                              >
+                                {product.smmComplete
+                                  ? "Editar destino"
+                                  : "Completar destino"}
+                              </Button>
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-4 sm:mt-0 sm:pr-9">
+                          {isSmm ? (
+                            <p className="text-sm text-muted-foreground">
+                              Cant. {product.quantity}
+                            </p>
+                          ) : (
+                            <NativeSelect
+                              className="w-20"
+                              aria-label={`Cantidad, ${product.productName}`}
+                              value={product.quantity}
+                              disabled={pending}
+                              onChange={(event) =>
+                                updateQuantity(
+                                  product.id,
+                                  Number.parseInt(event.target.value, 10),
+                                )
+                              }
+                            >
+                              {Array.from({ length: 8 }, (_, i) => i + 1).map(
+                                (value) => (
+                                  <NativeSelectOption key={value} value={value}>
+                                    {value}
+                                  </NativeSelectOption>
+                                ),
+                              )}
+                            </NativeSelect>
+                          )}
+
+                          <div className="absolute top-0 right-0">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label="Eliminar"
+                              disabled={pending}
+                              onClick={() => removeItem(product.id)}
+                            >
+                              <HiOutlineX className="size-5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                        {product.inStock ? (
+                          <HiCheckCircle className="size-5 shrink-0 text-primary" />
+                        ) : (
+                          <HiOutlineClock className="size-5 shrink-0" />
+                        )}
+                        <span>
+                          {product.inStock ? "En stock" : "Stock limitado"}
+                        </span>
+                        <span className="sr-only">{index}</span>
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </section>
 
@@ -219,18 +269,40 @@ export function CartPageClient({ cart }: { cart: CartDto | null }) {
             </dl>
 
             <div className="mt-6">
-              <Button
-                className="w-full"
-                size="lg"
-                render={<Link href="/checkout" />}
-                nativeButton={false}
-              >
-                Ir al checkout
-              </Button>
+              {hasIncompleteSmm ? (
+                <Button className="w-full" size="lg" disabled>
+                  Completa los destinos SMM
+                </Button>
+              ) : (
+                <Button
+                  className="w-full"
+                  size="lg"
+                  render={<Link href="/checkout" />}
+                  nativeButton={false}
+                >
+                  Ir al checkout
+                </Button>
+              )}
             </div>
           </section>
         </div>
       </main>
+
+      {editing ? (
+        <SmmCartFieldsDialog
+          mode="edit"
+          open={Boolean(editing)}
+          onOpenChange={(open) => {
+            if (!open) setEditing(null);
+          }}
+          cartItemId={editing.id}
+          productName={editing.productName}
+          serviceType={editing.smmServiceType}
+          smmMin={editing.smmMin}
+          smmMax={editing.smmMax}
+          initialSmm={editing.smm}
+        />
+      ) : null}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { flattenError } from "zod";
 
 import {
+  DeliveryMethod,
   OrderStatus,
   ProductStatus,
   UserRole,
@@ -17,14 +18,25 @@ import {
 } from "@/lib/flow/payments";
 import prisma from "@/lib/prisma";
 import {
+  BOLETA_NAMED_THRESHOLD_CLP,
+  validateCheckoutBilling,
+} from "@/lib/validations/checkout-billing";
+import {
   addCartItemSchema,
+  addSmmCartItemSchema,
   checkoutFromCartSchema,
   createOrderSchema,
   createPaymentLinkSchema,
   removeCartItemSchema,
   updateCartItemSchema,
+  updateCartItemSmmSchema,
   updateOrderStatusSchema,
 } from "@/lib/validations/orders";
+import {
+  cartLineQuantityFromSmm,
+  parseSmmOrderFieldsForType,
+  type SmmOrderFieldsPayload,
+} from "@/lib/validations/smm-order-fields";
 
 function unauthorized<T>(): ActionResult<T> {
   return {
@@ -289,6 +301,27 @@ export async function updateOrderStatusAction(
   }
 }
 
+function smmPayloadToDb(fields: SmmOrderFieldsPayload) {
+  return {
+    link: fields.link ?? null,
+    username: fields.username ?? null,
+    quantity: fields.quantity ?? null,
+    comments: fields.comments ?? null,
+    runs: fields.runs ?? null,
+    intervalMinutes: fields.intervalMinutes ?? null,
+    usernames: fields.usernames ?? null,
+    hashtags: fields.hashtags ?? null,
+    mediaUrl: fields.mediaUrl ?? null,
+    min: fields.min ?? null,
+    max: fields.max ?? null,
+    delayMinutes: fields.delayMinutes ?? null,
+    posts: fields.posts ?? null,
+    oldPosts: fields.oldPosts ?? null,
+    expiry: fields.expiry ?? null,
+    answerNumber: fields.answerNumber ?? null,
+  };
+}
+
 export async function startCheckoutPaymentAction(
   orderId: string,
 ): Promise<ActionResult<{ redirectUrl: string }>> {
@@ -343,24 +376,61 @@ export async function checkoutFromCartAction(
     return { success: false, message: "Tu carrito está vacío." };
   }
 
+  const incompleteSmm = cart.items.find(
+    (item) => item.deliveryMethod === "SMM" && !item.smmComplete,
+  );
+  if (incompleteSmm) {
+    return {
+      success: false,
+      message: `Completa los datos del servicio "${incompleteSmm.productName}" antes de pagar.`,
+    };
+  }
+
   const email = (parsed.data.email ?? session.user.email).toLowerCase();
-  const customerName =
-    parsed.data.customerName ?? session.user.name ?? undefined;
+  const orderTotalClp = Number.parseFloat(cart.subtotal);
+  const billing = validateCheckoutBilling({
+    data: {
+      ...parsed.data,
+      email,
+      customerName:
+        parsed.data.customerName ?? session.user.name ?? undefined,
+    },
+    orderTotalClp,
+    settings: {
+      requireRut: operational.requireRut,
+      requireBillingData: operational.requireBillingData,
+      allowBoleta: operational.allowBoleta,
+      allowFactura: operational.allowFactura,
+      boletaNamedThresholdClp: BOLETA_NAMED_THRESHOLD_CLP,
+    },
+  });
+  if (!billing.ok) {
+    return {
+      success: false,
+      message: billing.message,
+      fieldErrors: billing.fieldErrors,
+    };
+  }
+
+  const customerName = billing.data.customerName ?? session.user.name ?? undefined;
 
   try {
-    if (parsed.data.phone || parsed.data.addressLine1 || parsed.data.city) {
-      await prisma.user.update({
-        where: { id: session.user.id },
-        data: {
-          phone: parsed.data.phone ?? undefined,
-          addressLine1: parsed.data.addressLine1 ?? undefined,
-          addressLine2: parsed.data.addressLine2 ?? undefined,
-          city: parsed.data.city ?? undefined,
-          region: parsed.data.region ?? undefined,
-          commune: parsed.data.commune ?? undefined,
-        },
-      });
-    }
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        phone: billing.data.phone ?? undefined,
+        invoiceType: billing.data.invoiceType,
+        rut: billing.data.rut,
+        businessName: billing.data.businessName,
+        businessActivity: billing.data.businessActivity,
+        addressLine1: billing.data.addressLine1,
+        addressLine2: billing.data.addressLine2,
+        city: billing.data.city,
+        region: billing.data.region,
+        commune: billing.data.commune,
+        ...(customerName ? { name: customerName } : {}),
+      },
+    });
 
     const productIds = cart.items.map((item) => item.productId);
     const products = await prisma.product.findMany({
@@ -382,7 +452,9 @@ export async function checkoutFromCartAction(
       unitPrice: number;
       quantity: number;
       deliveryMethod: (typeof products)[number]["deliveryMethod"];
+      smm: ReturnType<typeof smmPayloadToDb> | null;
     }> = [];
+
     for (const item of cart.items) {
       const product = productMap.get(item.productId);
       if (!product) {
@@ -393,12 +465,35 @@ export async function checkoutFromCartAction(
       }
       const unitPrice = Number.parseFloat(product.price.toString());
       subtotal += unitPrice * item.quantity;
+
+      let smm: ReturnType<typeof smmPayloadToDb> | null = null;
+      if (product.deliveryMethod === DeliveryMethod.SMM) {
+        if (!item.smm) {
+          return {
+            success: false,
+            message: `Faltan los datos del servicio "${item.productName}".`,
+          };
+        }
+        const parsedSmm = parseSmmOrderFieldsForType(
+          item.smmServiceType,
+          item.smm,
+        );
+        if (!parsedSmm.success) {
+          return {
+            success: false,
+            message: `Completa los datos del servicio "${item.productName}" antes de pagar.`,
+          };
+        }
+        smm = smmPayloadToDb(parsedSmm.data);
+      }
+
       lineItems.push({
         productId: product.id,
         productName: product.name,
         unitPrice,
         quantity: item.quantity,
         deliveryMethod: product.deliveryMethod,
+        smm,
       });
     }
 
@@ -413,7 +508,20 @@ export async function checkoutFromCartAction(
           total: subtotal,
           currency: cart.currency,
           items: {
-            create: lineItems,
+            create: lineItems.map((line) => ({
+              productId: line.productId,
+              productName: line.productName,
+              unitPrice: line.unitPrice,
+              quantity: line.quantity,
+              deliveryMethod: line.deliveryMethod,
+              ...(line.smm
+                ? {
+                    smm: {
+                      create: line.smm,
+                    },
+                  }
+                : {}),
+            })),
           },
         },
         select: { id: true },
@@ -457,10 +565,17 @@ export async function addCartItemAction(
 
   const product = await prisma.product.findFirst({
     where: { id: parsed.data.productId, status: ProductStatus.ACTIVE },
-    select: { id: true },
+    select: { id: true, deliveryMethod: true },
   });
   if (!product) {
     return { success: false, message: "Producto no disponible." };
+  }
+
+  if (product.deliveryMethod === DeliveryMethod.SMM) {
+    return {
+      success: false,
+      message: "Este servicio requiere datos de destino. Usa el formulario del producto.",
+    };
   }
 
   const cartId = await ensureCartForUser(session.user.id);
@@ -488,6 +603,175 @@ export async function addCartItemAction(
   return { success: true, data: { cartItemId: cartItem.id } };
 }
 
+export async function addSmmCartItemAction(
+  rawInput: unknown,
+): Promise<ActionResult<{ cartItemId: string }>> {
+  const session = await requireSession();
+  if (!session?.user) return unauthorized();
+
+  const parsed = addSmmCartItemSchema.safeParse(
+    rawInput instanceof FormData ? parseSubmission(rawInput) : rawInput,
+  );
+  if (!parsed.success) return validationError(parsed.error);
+
+  const product = await prisma.product.findFirst({
+    where: { id: parsed.data.productId, status: ProductStatus.ACTIVE },
+    select: {
+      id: true,
+      deliveryMethod: true,
+      smmServiceType: true,
+      smmMin: true,
+      smmMax: true,
+    },
+  });
+  if (!product) {
+    return { success: false, message: "Producto no disponible." };
+  }
+  if (product.deliveryMethod !== DeliveryMethod.SMM) {
+    return { success: false, message: "Este producto no es un servicio SMM." };
+  }
+
+  const smmParsed = parseSmmOrderFieldsForType(
+    product.smmServiceType,
+    parsed.data.smm ?? {},
+  );
+  if (!smmParsed.success) return validationError(smmParsed.error);
+
+  if (
+    smmParsed.data.quantity != null &&
+    product.smmMin != null &&
+    smmParsed.data.quantity < product.smmMin
+  ) {
+    return {
+      success: false,
+      message: `La cantidad mínima es ${product.smmMin}.`,
+      fieldErrors: { quantity: [`Mínimo ${product.smmMin}`] },
+    };
+  }
+  if (
+    smmParsed.data.quantity != null &&
+    product.smmMax != null &&
+    smmParsed.data.quantity > product.smmMax
+  ) {
+    return {
+      success: false,
+      message: `La cantidad máxima es ${product.smmMax}.`,
+      fieldErrors: { quantity: [`Máximo ${product.smmMax}`] },
+    };
+  }
+
+  const quantity = cartLineQuantityFromSmm(
+    product.smmServiceType,
+    smmParsed.data,
+    1,
+  );
+  const cartId = await ensureCartForUser(session.user.id);
+
+  const cartItem = await prisma.cartItem.create({
+    data: {
+      cartId,
+      productId: product.id,
+      quantity,
+      smm: {
+        create: smmPayloadToDb(smmParsed.data),
+      },
+    },
+    select: { id: true },
+  });
+
+  revalidatePath("/cart");
+  revalidatePath("/checkout");
+  return { success: true, data: { cartItemId: cartItem.id } };
+}
+
+export async function updateCartItemSmmAction(
+  rawInput: unknown,
+): Promise<ActionResult<{ cartItemId: string }>> {
+  const session = await requireSession();
+  if (!session?.user) return unauthorized();
+
+  const parsed = updateCartItemSmmSchema.safeParse(
+    rawInput instanceof FormData ? parseSubmission(rawInput) : rawInput,
+  );
+  if (!parsed.success) return validationError(parsed.error);
+
+  const item = await prisma.cartItem.findFirst({
+    where: {
+      id: parsed.data.cartItemId,
+      cart: { userId: session.user.id },
+    },
+    select: {
+      id: true,
+      product: {
+        select: {
+          deliveryMethod: true,
+          smmServiceType: true,
+          smmMin: true,
+          smmMax: true,
+        },
+      },
+    },
+  });
+  if (!item) {
+    return { success: false, message: "Ítem no encontrado." };
+  }
+  if (item.product.deliveryMethod !== DeliveryMethod.SMM) {
+    return { success: false, message: "Este ítem no es un servicio SMM." };
+  }
+
+  const smmParsed = parseSmmOrderFieldsForType(
+    item.product.smmServiceType,
+    parsed.data.smm,
+  );
+  if (!smmParsed.success) return validationError(smmParsed.error);
+
+  if (
+    smmParsed.data.quantity != null &&
+    item.product.smmMin != null &&
+    smmParsed.data.quantity < item.product.smmMin
+  ) {
+    return {
+      success: false,
+      message: `La cantidad mínima es ${item.product.smmMin}.`,
+      fieldErrors: { quantity: [`Mínimo ${item.product.smmMin}`] },
+    };
+  }
+  if (
+    smmParsed.data.quantity != null &&
+    item.product.smmMax != null &&
+    smmParsed.data.quantity > item.product.smmMax
+  ) {
+    return {
+      success: false,
+      message: `La cantidad máxima es ${item.product.smmMax}.`,
+      fieldErrors: { quantity: [`Máximo ${item.product.smmMax}`] },
+    };
+  }
+
+  const quantity = cartLineQuantityFromSmm(
+    item.product.smmServiceType,
+    smmParsed.data,
+    1,
+  );
+  const smmData = smmPayloadToDb(smmParsed.data);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.cartItem.update({
+      where: { id: item.id },
+      data: { quantity },
+    });
+    await tx.cartItemSmm.upsert({
+      where: { cartItemId: item.id },
+      create: { cartItemId: item.id, ...smmData },
+      update: smmData,
+    });
+  });
+
+  revalidatePath("/cart");
+  revalidatePath("/checkout");
+  return { success: true, data: { cartItemId: item.id } };
+}
+
 export async function updateCartItemAction(
   rawInput: unknown,
 ): Promise<ActionResult<{ cartItemId: string }>> {
@@ -504,10 +788,21 @@ export async function updateCartItemAction(
       id: parsed.data.cartItemId,
       cart: { userId: session.user.id },
     },
-    select: { id: true },
+    select: {
+      id: true,
+      product: { select: { deliveryMethod: true } },
+      smm: { select: { id: true } },
+    },
   });
   if (!item) {
     return { success: false, message: "Ítem no encontrado." };
+  }
+
+  if (item.product.deliveryMethod === DeliveryMethod.SMM || item.smm) {
+    return {
+      success: false,
+      message: "Para servicios SMM edita los datos del destino, no la cantidad de línea.",
+    };
   }
 
   await prisma.cartItem.update({

@@ -1,13 +1,77 @@
 import "server-only";
 
+import { DeliveryMethod } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { decimalToString } from "@/lib/products/format";
-import type { CartDto, CartLineDto } from "@/types/orders";
+import {
+  isSmmOrderFieldsComplete,
+  type SmmOrderFieldsPayload,
+} from "@/lib/validations/smm-order-fields";
+import type { CartDto, CartLineDto, CartLineSmmDto } from "@/types/orders";
+
+function toSmmDto(
+  smm: {
+    link: string | null;
+    username: string | null;
+    quantity: number | null;
+    comments: string | null;
+    runs: number | null;
+    intervalMinutes: number | null;
+    usernames: string | null;
+    hashtags: string | null;
+    mediaUrl: string | null;
+    min: number | null;
+    max: number | null;
+    delayMinutes: number | null;
+    posts: number | null;
+    oldPosts: number | null;
+    expiry: string | null;
+    answerNumber: string | null;
+  } | null,
+): CartLineSmmDto | null {
+  if (!smm) return null;
+  return {
+    link: smm.link,
+    username: smm.username,
+    quantity: smm.quantity,
+    comments: smm.comments,
+    runs: smm.runs,
+    intervalMinutes: smm.intervalMinutes,
+    usernames: smm.usernames,
+    hashtags: smm.hashtags,
+    mediaUrl: smm.mediaUrl,
+    min: smm.min,
+    max: smm.max,
+    delayMinutes: smm.delayMinutes,
+    posts: smm.posts,
+    oldPosts: smm.oldPosts,
+    expiry: smm.expiry,
+    answerNumber: smm.answerNumber,
+  };
+}
 
 function toCartLine(item: {
   id: string;
   productId: string;
   quantity: number;
+  smm: {
+    link: string | null;
+    username: string | null;
+    quantity: number | null;
+    comments: string | null;
+    runs: number | null;
+    intervalMinutes: number | null;
+    usernames: string | null;
+    hashtags: string | null;
+    mediaUrl: string | null;
+    min: number | null;
+    max: number | null;
+    delayMinutes: number | null;
+    posts: number | null;
+    oldPosts: number | null;
+    expiry: string | null;
+    answerNumber: string | null;
+  } | null;
   product: {
     name: string;
     slug: string;
@@ -16,6 +80,10 @@ function toCartLine(item: {
     coverImageUrl: string | null;
     qty: number;
     status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+    deliveryMethod: DeliveryMethod;
+    smmServiceType: string | null;
+    smmMin: number | null;
+    smmMax: number | null;
     assets: Array<{ url: string; thumbnailUrl: string | null }>;
   };
 }): CartLineDto {
@@ -27,6 +95,19 @@ function toCartLine(item: {
     item.product.assets[0]?.url ??
     null;
 
+  const smm = toSmmDto(item.smm);
+  const isSmm = item.product.deliveryMethod === DeliveryMethod.SMM;
+  const smmComplete = isSmm
+    ? isSmmOrderFieldsComplete(
+        item.product.smmServiceType,
+        smm as SmmOrderFieldsPayload | null,
+      )
+    : true;
+
+  const inStock =
+    item.product.status === "ACTIVE" &&
+    (isSmm || item.product.qty > 0);
+
   return {
     id: item.id,
     productId: item.productId,
@@ -37,9 +118,62 @@ function toCartLine(item: {
     currency: item.product.currency,
     coverImageUrl: cover,
     lineTotal,
-    inStock: item.product.status === "ACTIVE" && item.product.qty > 0,
+    inStock,
+    deliveryMethod: item.product.deliveryMethod,
+    smmServiceType: item.product.smmServiceType,
+    smmMin: item.product.smmMin,
+    smmMax: item.product.smmMax,
+    smm,
+    smmComplete,
   };
 }
+
+const cartItemSelect = {
+  id: true,
+  productId: true,
+  quantity: true,
+  smm: {
+    select: {
+      link: true,
+      username: true,
+      quantity: true,
+      comments: true,
+      runs: true,
+      intervalMinutes: true,
+      usernames: true,
+      hashtags: true,
+      mediaUrl: true,
+      min: true,
+      max: true,
+      delayMinutes: true,
+      posts: true,
+      oldPosts: true,
+      expiry: true,
+      answerNumber: true,
+    },
+  },
+  product: {
+    select: {
+      name: true,
+      slug: true,
+      price: true,
+      currency: true,
+      coverImageUrl: true,
+      qty: true,
+      status: true,
+      deliveryMethod: true,
+      smmServiceType: true,
+      smmMin: true,
+      smmMax: true,
+      assets: {
+        where: { type: "IMAGE" as const },
+        orderBy: { sortOrder: "asc" as const },
+        take: 1,
+        select: { url: true, thumbnailUrl: true },
+      },
+    },
+  },
+} as const;
 
 export async function getCartForUser(userId: string): Promise<CartDto | null> {
   const cart = await prisma.cart.findUnique({
@@ -48,28 +182,7 @@ export async function getCartForUser(userId: string): Promise<CartDto | null> {
       id: true,
       items: {
         orderBy: { createdAt: "asc" },
-        select: {
-          id: true,
-          productId: true,
-          quantity: true,
-          product: {
-            select: {
-              name: true,
-              slug: true,
-              price: true,
-              currency: true,
-              coverImageUrl: true,
-              qty: true,
-              status: true,
-              assets: {
-                where: { type: "IMAGE" },
-                orderBy: { sortOrder: "asc" },
-                take: 1,
-                select: { url: true, thumbnailUrl: true },
-              },
-            },
-          },
-        },
+        select: cartItemSelect,
       },
     },
   });

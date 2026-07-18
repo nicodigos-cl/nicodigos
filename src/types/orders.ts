@@ -83,6 +83,25 @@ export type OrderProductOptionDto = {
   status: "DRAFT" | "ACTIVE" | "ARCHIVED";
 };
 
+export type CartLineSmmDto = {
+  link: string | null;
+  username: string | null;
+  quantity: number | null;
+  comments: string | null;
+  runs: number | null;
+  intervalMinutes: number | null;
+  usernames: string | null;
+  hashtags: string | null;
+  mediaUrl: string | null;
+  min: number | null;
+  max: number | null;
+  delayMinutes: number | null;
+  posts: number | null;
+  oldPosts: number | null;
+  expiry: string | null;
+  answerNumber: string | null;
+};
+
 export type CartLineDto = {
   id: string;
   productId: string;
@@ -94,6 +113,12 @@ export type CartLineDto = {
   coverImageUrl: string | null;
   lineTotal: string;
   inStock: boolean;
+  deliveryMethod: DeliveryMethod;
+  smmServiceType: string | null;
+  smmMin: number | null;
+  smmMax: number | null;
+  smm: CartLineSmmDto | null;
+  smmComplete: boolean;
 };
 
 export type CartDto = {

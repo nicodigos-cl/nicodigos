@@ -856,16 +856,18 @@ export async function sendSmmDeliveryAction(
       delivery.orderItem.productId,
     );
     const smm = delivery.orderItem.smm;
-    if (!smm?.link) {
+    if (!smm?.link && !smm?.username) {
       return {
         success: false,
-        message: "Falta el link del pedido SMM en el ítem de la orden.",
+        message: "Faltan los datos de destino del pedido SMM en el ítem.",
       };
     }
     const payload = {
       service: remoteServiceId,
-      link: smm.link,
-      quantity: smm.quantity ?? delivery.orderItem.quantity,
+      ...(smm.link ? { link: smm.link } : {}),
+      ...(smm.quantity != null || delivery.orderItem.quantity
+        ? { quantity: smm.quantity ?? delivery.orderItem.quantity }
+        : {}),
       ...(smm.comments ? { comments: smm.comments } : {}),
       ...(smm.runs != null ? { runs: smm.runs } : {}),
       ...(smm.intervalMinutes != null ? { interval: smm.intervalMinutes } : {}),
