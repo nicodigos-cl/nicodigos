@@ -8,6 +8,7 @@ import {
   DeliveryTruck01Icon,
   Logout01Icon,
   Package01Icon,
+  ServerStack01Icon,
   Settings01Icon,
   ShoppingBag01Icon,
   Tag01Icon,
@@ -50,6 +51,12 @@ const mainNav: NavItem[] = [
     href: "/admin/products",
     icon: Package01Icon,
     match: (pathname) => pathname.startsWith("/admin/products"),
+  },
+  {
+    title: "Providers SMM",
+    href: "/admin/providers",
+    icon: ServerStack01Icon,
+    match: (pathname) => pathname.startsWith("/admin/providers"),
   },
   {
     title: "Categorías",

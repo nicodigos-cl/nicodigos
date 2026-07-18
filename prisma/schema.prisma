@@ -141,6 +141,61 @@ enum PaymentProvider {
   OTHER
 }
 
+enum SmmProviderStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+}
+
+// ---------------------------------------------------------------------------
+// SMM providers & catalog services
+// ---------------------------------------------------------------------------
+
+model SmmProvider {
+  id           String            @id @default(cuid())
+  name         String
+  slug         String            @unique
+  description  String?
+  apiUrl       String
+  apiKey       String
+  status       SmmProviderStatus @default(ACTIVE)
+  isDefault    Boolean           @default(false)
+  lastSyncedAt DateTime?
+  lastError    String?
+  services     SmmService[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([status])
+  @@index([slug])
+  @@map("smm_provider")
+}
+
+/// Cached remote service from an SMM panel (`SmmServiceItem`).
+model SmmService {
+  id              String      @id @default(cuid())
+  providerId      String
+  provider        SmmProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  remoteServiceId Int
+  name            String
+  type            String
+  category        String
+  rate            Decimal     @db.Decimal(12, 4)
+  min             Int
+  max             Int
+  refill          Boolean     @default(false)
+  cancel          Boolean     @default(false)
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([providerId, remoteServiceId])
+  @@index([providerId, category])
+  @@index([providerId, name])
+  @@index([remoteServiceId])
+  @@map("smm_service")
+}
+
 // ---------------------------------------------------------------------------
 // Catalog
 // ---------------------------------------------------------------------------

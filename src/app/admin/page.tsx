@@ -1,5 +1,10 @@
 import Link from "next/link";
-import { HiOutlineCube, HiOutlineTag, HiOutlineShoppingCart } from "react-icons/hi";
+import {
+  HiOutlineCube,
+  HiOutlineServer,
+  HiOutlineShoppingCart,
+  HiOutlineTag,
+} from "react-icons/hi";
 
 import {
   Card,
@@ -14,6 +19,12 @@ const links = [
     title: "Productos",
     description: "Inventario, precios y códigos de activación.",
     icon: HiOutlineCube,
+  },
+  {
+    href: "/admin/providers",
+    title: "Providers SMM",
+    description: "Paneles, API keys y catálogo de servicios.",
+    icon: HiOutlineServer,
   },
   {
     href: "/admin/categories",
