@@ -16,6 +16,11 @@ import {
   type VisibilityState,
 } from "@tanstack/react-table";
 
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -173,11 +178,12 @@ export function DataTable<TData, TValue>({
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  {emptyMessage}
+                <TableCell colSpan={columns.length} className="p-0">
+                  <Empty className="rounded-none border-0 py-10">
+                    <EmptyHeader>
+                      <EmptyDescription>{emptyMessage}</EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
                 </TableCell>
               </TableRow>
             )}

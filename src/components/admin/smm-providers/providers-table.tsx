@@ -26,6 +26,7 @@ import {
   deleteSmmProviderAction,
   syncSmmProviderServicesAction,
 } from "@/lib/actions/smm-providers";
+import { formatDateTime } from "@/lib/format-date";
 import type { SmmProviderListItemDto } from "@/types/smm-provider";
 
 function statusLabel(status: SmmProviderListItemDto["status"]): string {
@@ -188,13 +189,7 @@ export const providersColumns: ColumnDef<SmmProviderListItemDto>[] = [
   {
     id: "synced",
     header: "Última sync",
-    cell: ({ row }) =>
-      row.original.lastSyncedAt
-        ? new Intl.DateTimeFormat("es-CL", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          }).format(new Date(row.original.lastSyncedAt))
-        : "—",
+    cell: ({ row }) => formatDateTime(row.original.lastSyncedAt),
   },
   {
     id: "actions",

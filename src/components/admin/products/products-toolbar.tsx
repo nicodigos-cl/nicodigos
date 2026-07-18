@@ -20,6 +20,7 @@ import {
   HiOutlineX,
 } from "react-icons/hi";
 
+import { ImportProductsMenu } from "@/components/admin/products/import-products-menu";
 import { SsrSearchInput } from "@/components/admin/ssr-search-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -218,14 +219,17 @@ export function ProductsToolbar({ query, categories }: ProductsToolbarProps) {
             de activación.
           </p>
         </div>
-        <Button
-          render={<Link href="/admin/products/new" />}
-          nativeButton={false}
-          className="shrink-0"
-        >
-          <HiOutlinePlus className="size-4" />
-          Añadir producto
-        </Button>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <ImportProductsMenu categories={categories} />
+          <Button
+            render={<Link href="/admin/products/new" />}
+            nativeButton={false}
+            className="shrink-0"
+          >
+            <HiOutlinePlus className="size-4" />
+            Añadir producto
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

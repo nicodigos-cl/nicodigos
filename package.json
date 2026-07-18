@@ -9,6 +9,8 @@
     "cron:all:once": "bun scripts/dev-crons.ts --once",
     "cron:sync-smm": "bun scripts/dev-cron-sync-smm.ts",
     "cron:sync-smm:once": "bun scripts/dev-cron-sync-smm.ts --once",
+    "cron:sync-kinguin": "bun scripts/dev-cron-sync-kinguin.ts",
+    "cron:sync-kinguin:once": "bun scripts/dev-cron-sync-kinguin.ts --once",
     "cron:cleanup-price-events": "bun scripts/dev-cron-cleanup-price-events.ts",
     "cron:cleanup-price-events:once": "bun scripts/dev-cron-cleanup-price-events.ts --once",
     "build": "bun --bun next build",

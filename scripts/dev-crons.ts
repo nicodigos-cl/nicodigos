@@ -16,6 +16,12 @@ const JOBS = [
     initialDelayMs: envInt("CRON_SYNC_SMM_INITIAL_DELAY_MS", 8_000),
   },
   {
+    name: "cron-sync-kinguin",
+    path: "/api/cron/sync-kinguin-products",
+    intervalMs: envInt("CRON_SYNC_KINGUIN_INTERVAL_MS", 600_000),
+    initialDelayMs: envInt("CRON_SYNC_KINGUIN_INITIAL_DELAY_MS", 20_000),
+  },
+  {
     name: "cron-cleanup-price-events",
     path: "/api/cron/cleanup-price-change-events",
     intervalMs: envInt("CRON_CLEANUP_PRICE_EVENTS_INTERVAL_MS", 86_400_000),

@@ -292,6 +292,8 @@ model Product {
   kinguinProductId String?   @unique
   kinguinId        Int?      @unique
   kinguinOfferId   String?
+  /// Markup % applied when pricing from Kinguin default offer EUR cost.
+  kinguinMarkupPct Decimal?  @db.Decimal(8, 2)
   kinguinSyncedAt  DateTime?
 
   // SMM panel mapping / sync

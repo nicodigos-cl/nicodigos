@@ -19,8 +19,8 @@ type SsrSearchInputProps = {
 };
 
 /**
- * Controlled search field that navigates via URL (SSR list refresh).
- * Submits on Enter; keeps local draft while typing.
+ * Search field that navigates via URL (SSR list refresh).
+ * Uses a div (not form) so it can nest inside product forms safely.
  */
 export function SsrSearchInput({
   value,
@@ -47,14 +47,7 @@ export function SsrSearchInput({
   }
 
   return (
-    <form
-      role="search"
-      className={cn("relative min-w-0", className)}
-      onSubmit={(event) => {
-        event.preventDefault();
-        commit(draft);
-      }}
-    >
+    <div role="search" className={cn("relative min-w-0", className)}>
       <HiOutlineSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         value={draft}
@@ -64,10 +57,16 @@ export function SsrSearchInput({
             commit(draft);
           }
         }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            commit(draft);
+          }
+        }}
         placeholder={placeholder}
         aria-label={ariaLabel}
         className={cn("h-9 pl-9", isPending && "opacity-80", inputClassName)}
       />
-    </form>
+    </div>
   );
 }

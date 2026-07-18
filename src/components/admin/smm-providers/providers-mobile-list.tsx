@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   HiOutlineDotsHorizontal,
   HiOutlinePencil,
+  HiOutlineServer,
   HiOutlineTrash,
 } from "react-icons/hi";
 import { toast } from "sonner";
@@ -18,6 +19,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { deleteSmmProviderAction } from "@/lib/actions/smm-providers";
 import type { SmmProviderListItemDto } from "@/types/smm-provider";
 
@@ -41,9 +49,17 @@ export function ProvidersMobileList({
 
   if (data.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-        No hay providers para mostrar.
-      </div>
+      <Empty className="border border-border bg-card">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <HiOutlineServer className="size-5" />
+          </EmptyMedia>
+          <EmptyTitle>Sin providers</EmptyTitle>
+          <EmptyDescription>
+            No hay providers para mostrar con los filtros actuales.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 

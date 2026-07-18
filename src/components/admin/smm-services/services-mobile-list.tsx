@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { HiOutlineDotsHorizontal, HiOutlineTrash } from "react-icons/hi";
+import {
+  HiOutlineCollection,
+  HiOutlineDotsHorizontal,
+  HiOutlineTrash,
+} from "react-icons/hi";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +19,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { deleteSmmServiceAction } from "@/lib/actions/smm-services";
 import { SMM_SERVICE_SELECTION_LIMIT } from "@/lib/smm-services/constants";
 import type { SmmServiceListItemDto } from "@/types/smm-provider";
@@ -34,9 +45,17 @@ export function ServicesMobileList({
 
   if (data.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-        No hay servicios para mostrar.
-      </div>
+      <Empty className="border border-border bg-card">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <HiOutlineCollection className="size-5" />
+          </EmptyMedia>
+          <EmptyTitle>Sin servicios</EmptyTitle>
+          <EmptyDescription>
+            No hay servicios para mostrar con los filtros actuales.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 

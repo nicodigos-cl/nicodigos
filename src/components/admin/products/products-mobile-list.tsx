@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   HiOutlineClipboardCopy,
+  HiOutlineCube,
   HiOutlineDotsHorizontal,
   HiOutlinePencil,
   HiOutlineTrash,
@@ -20,6 +21,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { archiveProductAction } from "@/lib/actions/products";
 import { formatMoney } from "@/lib/products/format";
 import type { ProductListItemDto } from "@/types/products";
@@ -33,9 +41,17 @@ export function ProductsMobileList({ data }: ProductsMobileListProps) {
 
   if (data.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-        No hay productos para mostrar.
-      </div>
+      <Empty className="border border-border bg-card">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <HiOutlineCube className="size-5" />
+          </EmptyMedia>
+          <EmptyTitle>Sin productos</EmptyTitle>
+          <EmptyDescription>
+            No hay productos para mostrar con los filtros actuales.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 

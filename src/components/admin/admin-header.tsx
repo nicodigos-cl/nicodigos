@@ -34,6 +34,14 @@ function resolveSearchTarget(pathname: string): SearchTarget {
     };
   }
 
+  if (pathname === "/admin/kinguin" || pathname.startsWith("/admin/kinguin/")) {
+    return {
+      listPath: "/admin/kinguin",
+      placeholder: "Buscar en Kinguin...",
+      ariaLabel: "Buscar en Kinguin",
+    };
+  }
+
   return {
     listPath: "/admin/products",
     placeholder:

@@ -2,10 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { HiOutlineCheck } from "react-icons/hi";
+import { HiOutlineCheck, HiOutlineCollection } from "react-icons/hi";
 
 import { SsrSearchInput } from "@/components/admin/ssr-search-input";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { cn } from "@/lib/utils";
 import type { SmmServiceListItemDto } from "@/types/smm-provider";
 
@@ -25,11 +32,22 @@ function buildPickerHref(overrides: {
   q?: string | undefined;
   page?: number;
 }): string {
-  const params = new URLSearchParams();
-  if (overrides.q) params.set("serviceQ", overrides.q);
+  const params = new URLSearchParams(
+    typeof window !== "undefined" ? window.location.search : "",
+  );
+
+  if (overrides.q) {
+    params.set("serviceQ", overrides.q);
+  } else {
+    params.delete("serviceQ");
+  }
+
   if (overrides.page && overrides.page > 1) {
     params.set("servicePage", String(overrides.page));
+  } else {
+    params.delete("servicePage");
   }
+
   const qs = params.toString();
   return qs ? `/admin/products/new?${qs}` : "/admin/products/new";
 }
@@ -74,30 +92,34 @@ export function SmmServicePicker({
         className="w-full"
       />
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <div className="max-h-64 overflow-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 bg-muted/80 text-xs text-muted-foreground backdrop-blur">
-              <tr>
-                <th className="px-3 py-2 font-medium">Servicio</th>
-                <th className="px-3 py-2 font-medium">Categoría</th>
-                <th className="px-3 py-2 font-medium">Rate USD</th>
-                <th className="px-3 py-2 font-medium">Provider</th>
-                <th className="w-10 px-2 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
+      {items.length === 0 ? (
+        <Empty className="rounded-xl border border-border bg-card p-8">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <HiOutlineCollection className="size-5" />
+            </EmptyMedia>
+            <EmptyTitle>Sin servicios</EmptyTitle>
+            <EmptyDescription>
+              No hay servicios para mostrar. Sincroniza un provider o ajusta la
+              búsqueda.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="max-h-64 overflow-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="sticky top-0 bg-muted/80 text-xs text-muted-foreground backdrop-blur">
                 <tr>
-                  <td
-                    colSpan={5}
-                    className="px-3 py-8 text-center text-muted-foreground"
-                  >
-                    No hay servicios para mostrar.
-                  </td>
+                  <th className="px-3 py-2 font-medium">Servicio</th>
+                  <th className="px-3 py-2 font-medium">Categoría</th>
+                  <th className="px-3 py-2 font-medium">Rate USD</th>
+                  <th className="px-3 py-2 font-medium">Provider</th>
+                  <th className="w-10 px-2 py-2" />
                 </tr>
-              ) : (
-                items.map((service) => {
+              </thead>
+              <tbody>
+                {items.map((service) => {
                   const selected = service.id === selectedId;
                   return (
                     <tr
@@ -128,12 +150,12 @@ export function SmmServicePicker({
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>

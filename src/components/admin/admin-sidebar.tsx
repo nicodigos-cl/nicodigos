@@ -7,6 +7,7 @@ import {
   CreditCardIcon,
   DashboardSquare01Icon,
   DeliveryTruck01Icon,
+  GameController01Icon,
   Logout01Icon,
   Package01Icon,
   ServerStack01Icon,
@@ -65,6 +66,12 @@ const mainNav: NavItem[] = [
     href: "/admin/services",
     icon: CatalogueIcon,
     match: (pathname) => pathname.startsWith("/admin/services"),
+  },
+  {
+    title: "Kinguin",
+    href: "/admin/kinguin",
+    icon: GameController01Icon,
+    match: (pathname) => pathname.startsWith("/admin/kinguin"),
   },
   {
     title: "Categorías",

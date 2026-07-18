@@ -6,8 +6,12 @@ import { flattenError } from "zod";
 import { Prisma, ProductKeyStatus, DeliveryMethod } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/actions/types";
 import { requireSession } from "@/lib/auth/session";
+import {
+  resolveKinguinLinkPayload,
+  writeKinguinRelatedRecords,
+} from "@/lib/kinguin/import";
 import prisma from "@/lib/prisma";
-import { DEFAULT_MARKUP_MIN_PCT } from "@/lib/smm-services/constants";
+import { DEFAULT_KINGUIN_MARKUP_PCT, DEFAULT_MARKUP_MIN_PCT } from "@/lib/smm-services/constants";
 import {
   addProductImageSchema,
   addProductKeysSchema,
@@ -164,36 +168,75 @@ export async function createProductAction(
       textQty: data.textQty,
     });
 
+    const kinguinLink =
+      data.deliveryMethod === DeliveryMethod.KINGUIN && data.kinguinId != null
+        ? await resolveKinguinLinkPayload(data.kinguinId)
+        : null;
+
+    const kinguinMarkupPct =
+      data.kinguinMarkupPct ?? DEFAULT_KINGUIN_MARKUP_PCT;
+
     const product = await prisma.$transaction(async (tx) => {
       const created = await tx.product.create({
         data: {
           name: data.name,
           slug: data.slug,
           description: data.description ?? null,
-          coverImageUrl: data.coverImageUrl ?? null,
+          coverImageUrl:
+            data.coverImageUrl ?? kinguinLink?.meta.coverImageUrl ?? null,
           status: data.status,
           deliveryMethod: data.deliveryMethod,
           price: pricing.price,
           compareAtPrice: pricing.compareAtPrice,
           currency: data.currency.toUpperCase(),
-          qty: data.qty,
-          textQty: smmFields?.textQty ?? data.textQty ?? null,
+          qty: kinguinLink?.availableQty ?? data.qty,
+          textQty:
+            smmFields?.textQty ??
+            (kinguinLink
+              ? (kinguinLink.cheapest.textQty ??
+                kinguinLink.cheapest.availableTextQty ??
+                null)
+              : data.textQty ?? null),
           isFeatured: data.isFeatured,
           isOffer: pricing.isOffer,
-          isPreorder: data.isPreorder,
-          regionId: data.regionId ?? null,
-          regionalLimitations: data.regionalLimitations ?? null,
-          countryLimitation: data.countryLimitation ?? [],
-          activationDetails: data.activationDetails ?? null,
-          releaseDate: parseReleaseDate(data.releaseDate),
-          ageRating: data.ageRating ?? null,
-          platform: data.platform ?? null,
-          genres: data.genres ?? [],
-          languages: data.languages ?? [],
-          developers: data.developers ?? [],
-          publishers: data.publishers ?? [],
-          tags: data.tags ?? [],
-          sourceCostPrice: data.sourceCostPrice ?? null,
+          isPreorder: data.isPreorder || Boolean(kinguinLink?.meta.isPreorder),
+          regionId: data.regionId ?? kinguinLink?.meta.regionId ?? null,
+          regionalLimitations:
+            data.regionalLimitations ??
+            kinguinLink?.meta.regionalLimitations ??
+            null,
+          countryLimitation:
+            data.countryLimitation?.length
+              ? data.countryLimitation
+              : (kinguinLink?.meta.countryLimitation ?? []),
+          activationDetails:
+            data.activationDetails ??
+            kinguinLink?.meta.activationDetails ??
+            null,
+          releaseDate:
+            parseReleaseDate(data.releaseDate) ??
+            kinguinLink?.meta.releaseDate ??
+            null,
+          ageRating: data.ageRating ?? kinguinLink?.meta.ageRating ?? null,
+          platform: data.platform ?? kinguinLink?.meta.platform ?? null,
+          genres: data.genres?.length
+            ? data.genres
+            : (kinguinLink?.meta.genres ?? []),
+          languages: data.languages?.length
+            ? data.languages
+            : (kinguinLink?.meta.languages ?? []),
+          developers: data.developers?.length
+            ? data.developers
+            : (kinguinLink?.meta.developers ?? []),
+          publishers: data.publishers?.length
+            ? data.publishers
+            : (kinguinLink?.meta.publishers ?? []),
+          tags: data.tags?.length ? data.tags : (kinguinLink?.meta.tags ?? []),
+          originalName: kinguinLink?.meta.originalName ?? null,
+          metacriticScore: kinguinLink?.meta.metacriticScore ?? null,
+          sourceCostPrice:
+            data.sourceCostPrice ??
+            (kinguinLink ? String(kinguinLink.costClp) : null),
           ...(smmFields
             ? {
                 smmApiUrl: smmFields.smmApiUrl,
@@ -210,15 +253,37 @@ export async function createProductAction(
                 smmSyncedAt: smmFields.smmSyncedAt,
               }
             : {}),
+          ...(kinguinLink
+            ? {
+                kinguinId: kinguinLink.remote.kinguinId,
+                kinguinProductId: kinguinLink.remote.productId,
+                kinguinOfferId: kinguinLink.cheapest.offerId,
+                kinguinMarkupPct,
+                kinguinSyncedAt: new Date(),
+              }
+            : {}),
         },
         select: { id: true },
       });
 
       await syncProductCategories(tx, created.id, data.categoryIds);
+
+      if (kinguinLink) {
+        await writeKinguinRelatedRecords(
+          tx,
+          created.id,
+          kinguinLink.remote,
+          kinguinLink.cheapest.offerId,
+        );
+      }
+
       return created;
     });
 
     revalidatePath("/admin/products");
+    if (kinguinLink) {
+      revalidatePath("/admin/kinguin");
+    }
     return { success: true, data: { id: product.id } };
   } catch (error) {
     if (
@@ -245,6 +310,30 @@ export async function createProductAction(
         success: false,
         message: "El servicio SMM seleccionado no existe.",
         fieldErrors: { smmServiceDbId: ["Servicio inválido"] },
+      };
+    }
+
+    if (error instanceof Error && error.message === "KINGUIN_ALREADY_IMPORTED") {
+      return {
+        success: false,
+        message: "Este producto Kinguin ya está importado.",
+        fieldErrors: { kinguinId: ["Ya importado"] },
+      };
+    }
+
+    if (error instanceof Error && error.message === "KINGUIN_PRODUCT_NOT_FOUND") {
+      return {
+        success: false,
+        message: "Producto no encontrado en Kinguin.",
+        fieldErrors: { kinguinId: ["No encontrado"] },
+      };
+    }
+
+    if (error instanceof Error && error.message === "KINGUIN_NO_OFFERS") {
+      return {
+        success: false,
+        message: "El producto Kinguin no tiene ofertas disponibles.",
+        fieldErrors: { kinguinId: ["Sin ofertas"] },
       };
     }
 

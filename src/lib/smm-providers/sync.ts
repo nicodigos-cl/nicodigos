@@ -16,6 +16,8 @@ const log = createLogger({ module: "smm-providers-sync" });
 const SMM_RATE_SCALE = 6;
 const SMM_RATE_MAX = new Prisma.Decimal("999999999999.999999");
 const SMM_INT_MAX = 2_147_483_647;
+/** Concurrent upserts per wave — keeps load bounded without a 5s interactive tx. */
+const UPSERT_CONCURRENCY = 40;
 
 export function parseSmmRate(raw: string): Prisma.Decimal {
   try {
@@ -44,6 +46,28 @@ function normalizeApiUrl(url: string): string {
 
 function ratesEqual(a: Prisma.Decimal, b: Prisma.Decimal): boolean {
   return a.equals(b);
+}
+
+async function mapPool<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>,
+): Promise<void> {
+  let index = 0;
+
+  async function run(): Promise<void> {
+    while (index < items.length) {
+      const current = index;
+      index += 1;
+      await worker(items[current] as T);
+    }
+  }
+
+  const runners = Array.from(
+    { length: Math.min(concurrency, Math.max(items.length, 1)) },
+    () => run(),
+  );
+  await Promise.all(runners);
 }
 
 export type SyncProviderResult = {
@@ -94,8 +118,7 @@ export async function syncProviderServices(
       apiKey: provider.apiKey,
     });
     const remoteServices = await client.services();
-    const remoteIds = remoteServices.map((item) => item.service);
-    const remoteIdSet = new Set(remoteIds);
+    const remoteIdSet = new Set(remoteServices.map((item) => item.service));
 
     const existingBefore = await prisma.smmService.findMany({
       where: { providerId: provider.id },
@@ -114,111 +137,112 @@ export async function syncProviderServices(
       newRate: string;
     }> = [];
 
-    const result = await prisma.$transaction(async (tx) => {
-      for (const item of remoteServices) {
-        const rate = parseSmmRate(item.rate);
-        const min = parseSmmInt(item.min);
-        const max = parseSmmInt(item.max);
+    for (const item of remoteServices) {
+      const rate = parseSmmRate(item.rate);
+      const previous = previousRates.get(item.service);
+      if (previous && !ratesEqual(previous, rate)) {
+        rateChanges.push({
+          remoteServiceId: item.service,
+          oldRate: previous.toString(),
+          newRate: rate.toString(),
+        });
+      }
+    }
 
-        const previous = previousRates.get(item.service);
-        if (previous && !ratesEqual(previous, rate)) {
-          rateChanges.push({
+    // Upserts outside a single interactive transaction — catalogs are large
+    // and the default 5s tx timeout was being exceeded.
+    await mapPool(remoteServices, UPSERT_CONCURRENCY, async (item) => {
+      const rate = parseSmmRate(item.rate);
+      const min = parseSmmInt(item.min);
+      const max = parseSmmInt(item.max);
+
+      await prisma.smmService.upsert({
+        where: {
+          providerId_remoteServiceId: {
+            providerId: provider.id,
             remoteServiceId: item.service,
-            oldRate: previous.toString(),
-            newRate: rate.toString(),
+          },
+        },
+        create: {
+          providerId: provider.id,
+          remoteServiceId: item.service,
+          name: item.name,
+          type: item.type,
+          category: item.category,
+          rate,
+          min,
+          max,
+          refill: Boolean(item.refill),
+          cancel: Boolean(item.cancel),
+          isActive: true,
+        },
+        update: {
+          name: item.name,
+          type: item.type,
+          category: item.category,
+          rate,
+          min,
+          max,
+          refill: Boolean(item.refill),
+          cancel: Boolean(item.cancel),
+          isActive: true,
+        },
+      });
+    });
+
+    const existing = await prisma.smmService.findMany({
+      where: { providerId: provider.id },
+      select: { id: true, remoteServiceId: true },
+    });
+
+    const toRemove = existing.filter(
+      (service) => !remoteIdSet.has(service.remoteServiceId),
+    );
+    const removedRemoteIds = toRemove.map((service) => service.remoteServiceId);
+
+    let archivedProducts = 0;
+
+    // Short transaction only for removals + provider status.
+    await prisma.$transaction(
+      async (tx) => {
+        if (removedRemoteIds.length > 0) {
+          const archived = await tx.product.updateMany({
+            where: {
+              deliveryMethod: DeliveryMethod.SMM,
+              smmServiceId: { in: removedRemoteIds },
+              status: { not: ProductStatus.ARCHIVED },
+              OR: [
+                { smmApiUrl: apiUrl },
+                { smmApiUrl: `${apiUrl}/` },
+                { smmApiUrl: provider.apiUrl },
+              ],
+            },
+            data: {
+              status: ProductStatus.ARCHIVED,
+            },
+          });
+          archivedProducts = archived.count;
+
+          await tx.smmService.deleteMany({
+            where: {
+              providerId: provider.id,
+              remoteServiceId: { in: removedRemoteIds },
+            },
           });
         }
 
-        await tx.smmService.upsert({
-          where: {
-            providerId_remoteServiceId: {
-              providerId: provider.id,
-              remoteServiceId: item.service,
-            },
-          },
-          create: {
-            providerId: provider.id,
-            remoteServiceId: item.service,
-            name: item.name,
-            type: item.type,
-            category: item.category,
-            rate,
-            min,
-            max,
-            refill: Boolean(item.refill),
-            cancel: Boolean(item.cancel),
-            isActive: true,
-          },
-          update: {
-            name: item.name,
-            type: item.type,
-            category: item.category,
-            rate,
-            min,
-            max,
-            refill: Boolean(item.refill),
-            cancel: Boolean(item.cancel),
-            isActive: true,
-          },
-        });
-      }
-
-      const existing = await tx.smmService.findMany({
-        where: { providerId: provider.id },
-        select: { id: true, remoteServiceId: true },
-      });
-
-      const toRemove = existing.filter(
-        (service) => !remoteIdSet.has(service.remoteServiceId),
-      );
-      const removedRemoteIds = toRemove.map((service) => service.remoteServiceId);
-
-      let archivedProducts = 0;
-
-      if (removedRemoteIds.length > 0) {
-        const archived = await tx.product.updateMany({
-          where: {
-            deliveryMethod: DeliveryMethod.SMM,
-            smmServiceId: { in: removedRemoteIds },
-            status: { not: ProductStatus.ARCHIVED },
-            OR: [
-              { smmApiUrl: apiUrl },
-              { smmApiUrl: `${apiUrl}/` },
-              { smmApiUrl: provider.apiUrl },
-            ],
-          },
+        await tx.smmProvider.update({
+          where: { id: provider.id },
           data: {
-            status: ProductStatus.ARCHIVED,
+            lastSyncedAt: new Date(),
+            lastError: null,
+            status: SmmProviderStatus.ACTIVE,
           },
         });
-        archivedProducts = archived.count;
+      },
+      { timeout: 30_000 },
+    );
 
-        await tx.smmService.deleteMany({
-          where: {
-            providerId: provider.id,
-            remoteServiceId: { in: removedRemoteIds },
-          },
-        });
-      }
-
-      await tx.smmProvider.update({
-        where: { id: provider.id },
-        data: {
-          lastSyncedAt: new Date(),
-          lastError: null,
-          status: SmmProviderStatus.ACTIVE,
-        },
-      });
-
-      return {
-        synced: remoteServices.length,
-        removed: toRemove.length,
-        archivedProducts,
-        rateChanges: rateChanges.length,
-      };
-    });
-
-    // Emit after commit so handlers read consistent DB state.
     for (const change of rateChanges) {
       await emitSmmServiceRateChanged({
         providerId: provider.id,
@@ -232,7 +256,10 @@ export async function syncProviderServices(
     return {
       providerId: provider.id,
       providerName: provider.name,
-      ...result,
+      synced: remoteServices.length,
+      removed: toRemove.length,
+      archivedProducts,
+      rateChanges: rateChanges.length,
     };
   } catch (error) {
     const message =

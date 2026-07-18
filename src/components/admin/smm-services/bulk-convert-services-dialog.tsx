@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { HiOutlineSparkles } from "react-icons/hi";
 import { toast } from "sonner";
@@ -58,9 +58,10 @@ export function BulkConvertServicesDialog({
   const [rows, setRows] = useState<DraftRow[]>([]);
   const [usdClpHint, setUsdClpHint] = useState<number | null>(null);
 
-  function initRows(list: SmmServiceListItemDto[]) {
+  useEffect(() => {
+    if (!open) return;
     setRows(
-      list.map((service) => ({
+      services.map((service) => ({
         serviceId: service.id,
         originalName: service.name,
         name: service.name,
@@ -73,14 +74,7 @@ export function BulkConvertServicesDialog({
     setCategoryId("");
     setMinMarkupPct(String(DEFAULT_MARKUP_MIN_PCT));
     setMaxMarkupPct(String(DEFAULT_MARKUP_MAX_PCT));
-  }
-
-  function handleOpenChange(nextOpen: boolean) {
-    if (nextOpen) {
-      initRows(services);
-    }
-    onOpenChange(nextOpen);
-  }
+  }, [open, services]);
 
   const categoryItems = useMemo(
     () => [
@@ -154,7 +148,7 @@ export function BulkConvertServicesDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Convertir {services.length} servicios</DialogTitle>
@@ -212,7 +206,7 @@ export function BulkConvertServicesDialog({
             onClick={handlePrefill}
           >
             <HiOutlineSparkles className="size-4" />
-            {isPending ? "Generando..." : "Generar con IA"}
+            {isPending ? "Generando..." : "Traducir / generar precios con IA"}
           </Button>
 
           <div className="overflow-x-auto rounded-2xl border border-border">

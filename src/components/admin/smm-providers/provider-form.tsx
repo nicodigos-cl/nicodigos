@@ -37,6 +37,7 @@ import {
   syncSmmProviderServicesAction,
   updateSmmProviderAction,
 } from "@/lib/actions/smm-providers";
+import { formatDateTime } from "@/lib/format-date";
 import { slugify } from "@/lib/products/format";
 import type { SmmProviderDetailDto } from "@/types/smm-provider";
 
@@ -407,11 +408,7 @@ export function ProviderForm({
 
               {provider?.lastSyncedAt ? (
                 <p className="text-xs text-muted-foreground">
-                  Última sync:{" "}
-                  {new Intl.DateTimeFormat("es-CL", {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  }).format(new Date(provider.lastSyncedAt))}
+                  Última sync: {formatDateTime(provider.lastSyncedAt)}
                 </p>
               ) : null}
 

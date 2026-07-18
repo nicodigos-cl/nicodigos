@@ -40,6 +40,7 @@ import {
   addProductKeysAction,
   revokeProductKeyAction,
 } from "@/lib/actions/products";
+import { formatDateTime } from "@/lib/format-date";
 import { productKeyStatusLabel } from "@/lib/products/status";
 import type { ProductKeyDto, ProductKeysPageResult } from "@/types/products";
 import type { ProductKeysQuery } from "@/lib/validations/products";
@@ -150,11 +151,7 @@ export function ProductKeysManager({
       {
         accessorKey: "createdAt",
         header: "Fecha de adición",
-        cell: ({ row }) =>
-          new Intl.DateTimeFormat("es-CL", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          }).format(new Date(row.original.createdAt)),
+        cell: ({ row }) => formatDateTime(row.original.createdAt),
       },
       {
         id: "actions",

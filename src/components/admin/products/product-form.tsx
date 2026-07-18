@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 import { ProductMediaManager } from "@/components/admin/products/product-media-manager";
 import { ProductStatusBadge } from "@/components/admin/products/product-status-badge";
+import { KinguinProductPicker } from "@/components/admin/products/kinguin-product-picker";
 import { SmmServicePicker } from "@/components/admin/products/smm-service-picker";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +46,7 @@ import {
 import { applyMarkupPct } from "@/lib/fx/markup";
 import { calculateMarginPercent, slugify } from "@/lib/products/format";
 import type { CategoryOptionDto, ProductDetailDto } from "@/types/products";
+import type { KinguinSearchHitDto } from "@/types/kinguin-admin";
 import type { SmmServiceListItemDto } from "@/types/smm-provider";
 
 type SmmPickerProps = {
@@ -58,6 +60,17 @@ type SmmPickerProps = {
   defaultMarkupPct: number;
 };
 
+type KinguinPickerProps = {
+  items: KinguinSearchHitDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  q: string | undefined;
+  eurClpRate: number;
+  defaultMarkupPct: number;
+};
+
 type ProductFormProps = {
   mode: "create" | "edit";
   categories: CategoryOptionDto[];
@@ -65,6 +78,7 @@ type ProductFormProps = {
   archiveSlot?: React.ReactNode;
   keysSlot?: React.ReactNode;
   smmPicker?: SmmPickerProps;
+  kinguinPicker?: KinguinPickerProps;
 };
 
 type FormState = {
@@ -178,6 +192,7 @@ export function ProductForm({
   archiveSlot,
   keysSlot,
   smmPicker,
+  kinguinPicker,
 }: ProductFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -185,6 +200,7 @@ export function ProductForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [form, setForm] = useState<FormState>(() => toFormState(product));
   const [smmServiceDbId, setSmmServiceDbId] = useState<string | null>(null);
+  const [kinguinId, setKinguinId] = useState<number | null>(null);
 
   const margin = useMemo(() => {
     const price = Number.parseFloat(form.price.replace(",", "."));
@@ -224,6 +240,34 @@ export function ProductForm({
 
   function handleClearSmmService() {
     setSmmServiceDbId(null);
+  }
+
+  function handleSelectKinguinProduct(hit: KinguinSearchHitDto) {
+    if (!kinguinPicker) return;
+    const priceEur = hit.priceEur;
+    const baseClp =
+      priceEur != null && Number.isFinite(priceEur)
+        ? Math.round(priceEur * kinguinPicker.eurClpRate)
+        : 0;
+    const priceClp = applyMarkupPct(baseClp, kinguinPicker.defaultMarkupPct);
+
+    setKinguinId(hit.kinguinId);
+    setForm((prev) => ({
+      ...prev,
+      deliveryMethod: "KINGUIN",
+      name: prev.name.trim() ? prev.name : hit.name,
+      slug: slugTouched ? prev.slug : slugify(hit.name),
+      coverImageUrl:
+        prev.coverImageUrl.trim() || hit.coverUrl || hit.coverThumbnailUrl || "",
+      platform: prev.platform.trim() || hit.platform || "",
+      qty: String(hit.qty || 0),
+      price: String(priceClp),
+      sourceCostPrice: baseClp > 0 ? String(baseClp) : prev.sourceCostPrice,
+    }));
+  }
+
+  function handleClearKinguinProduct() {
+    setKinguinId(null);
   }
 
   function toggleCategory(categoryId: string) {
@@ -275,6 +319,12 @@ export function ProductForm({
       categoryIds: form.categoryIds,
       smmServiceDbId:
         form.deliveryMethod === "SMM" ? (smmServiceDbId ?? undefined) : undefined,
+      kinguinId:
+        form.deliveryMethod === "KINGUIN" ? (kinguinId ?? undefined) : undefined,
+      kinguinMarkupPct:
+        form.deliveryMethod === "KINGUIN"
+          ? (kinguinPicker?.defaultMarkupPct ?? undefined)
+          : undefined,
     };
 
     startTransition(() => {
@@ -452,6 +502,9 @@ export function ProductForm({
                         if (value !== "SMM") {
                           setSmmServiceDbId(null);
                         }
+                        if (value !== "KINGUIN") {
+                          setKinguinId(null);
+                        }
                       }
                     }}
                   >
@@ -483,9 +536,31 @@ export function ProductForm({
                 />
               ) : null}
 
+              {mode === "create" &&
+              form.deliveryMethod === "KINGUIN" &&
+              kinguinPicker ? (
+                <KinguinProductPicker
+                  items={kinguinPicker.items}
+                  total={kinguinPicker.total}
+                  page={kinguinPicker.page}
+                  pageSize={kinguinPicker.pageSize}
+                  totalPages={kinguinPicker.totalPages}
+                  q={kinguinPicker.q}
+                  selectedKinguinId={kinguinId}
+                  onSelect={handleSelectKinguinProduct}
+                  onClear={handleClearKinguinProduct}
+                />
+              ) : null}
+
               {fieldError("smmServiceDbId") ? (
                 <p className="text-sm text-destructive">
                   {fieldError("smmServiceDbId")}
+                </p>
+              ) : null}
+
+              {fieldError("kinguinId") ? (
+                <p className="text-sm text-destructive">
+                  {fieldError("kinguinId")}
                 </p>
               ) : null}
 

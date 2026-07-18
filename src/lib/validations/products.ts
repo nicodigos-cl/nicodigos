@@ -225,6 +225,15 @@ const productBaseFields = {
     emptyToUndefined,
     z.string().cuid().optional(),
   ),
+  /** Remote Kinguin id to link when deliveryMethod is KINGUIN. */
+  kinguinId: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().positive().optional(),
+  ),
+  kinguinMarkupPct: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().min(0).max(1000).optional(),
+  ),
 };
 
 function refineOfferPricing<
@@ -245,9 +254,26 @@ function refineOfferPricing<
   }
 }
 
+function refineDeliveryLinks<
+  T extends {
+    deliveryMethod: (typeof deliveryMethodValues)[number];
+    smmServiceDbId?: string;
+    kinguinId?: number;
+  },
+>(data: T, ctx: z.RefinementCtx) {
+  if (data.deliveryMethod === DeliveryMethod.KINGUIN && data.kinguinId == null) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["kinguinId"],
+      message: "Selecciona un producto Kinguin para enlazar",
+    });
+  }
+}
+
 export const createProductSchema = z
   .object(productBaseFields)
-  .superRefine(refineOfferPricing);
+  .superRefine(refineOfferPricing)
+  .superRefine(refineDeliveryLinks);
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 

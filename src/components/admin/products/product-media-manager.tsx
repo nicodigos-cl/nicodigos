@@ -21,6 +21,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -225,9 +232,17 @@ export function ProductMediaManager({ product }: ProductMediaManagerProps) {
         </form>
 
         {product.images.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Todavía no hay imágenes en la galería.
-          </p>
+          <Empty className="border border-border p-8">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <HiOutlinePhotograph className="size-5" />
+              </EmptyMedia>
+              <EmptyTitle>Sin imágenes</EmptyTitle>
+              <EmptyDescription>
+                Todavía no hay imágenes en la galería.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <ul className="flex flex-col gap-3">
             {product.images.map((image, index) => {
