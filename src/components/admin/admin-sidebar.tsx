@@ -122,7 +122,7 @@ export function AdminSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-2">
               {mainNav.map((item) => {
                 const isActive = item.match
                   ? item.match(pathname)
@@ -134,6 +134,7 @@ export function AdminSidebar() {
                       isActive={isActive}
                       tooltip={item.title}
                       render={<Link href={item.href} />}
+                      className="h-11 gap-3 text-base [&_svg]:size-5"
                     >
                       <HugeiconsIcon icon={item.icon} strokeWidth={2} />
                       <span>{item.title}</span>
@@ -153,6 +154,7 @@ export function AdminSidebar() {
             <SidebarMenuButton
               tooltip="Ajustes"
               render={<Link href="/admin" />}
+              className="h-11 gap-3 text-base [&_svg]:size-5"
             >
               <HugeiconsIcon icon={Settings01Icon} strokeWidth={2} />
               <span>Ajustes</span>
@@ -161,7 +163,7 @@ export function AdminSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="Cerrar sesión"
-              className={cn("text-destructive hover:text-destructive")}
+              className={cn("text-destructive hover:text-destructive h-11 gap-3 text-base [&_svg]:size-5")}
               onClick={() => {
                 void signOut({
                   fetchOptions: {

@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
 
@@ -13,6 +14,20 @@ export async function requireSession() {
 
   if (!session?.user) {
     return null;
+  }
+
+  return session;
+}
+
+export async function requireAdminSession() {
+  const session = await getSession();
+
+  if (!session) {
+    redirect("/auth/login");
+  }
+
+  if (session.user.role !== "ADMIN") {
+    redirect("/");
   }
 
   return session;

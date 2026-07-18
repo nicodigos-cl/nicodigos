@@ -15,12 +15,18 @@ datasource db {
 // https://www.better-auth.com/docs/concepts/database#core-schema
 // ---------------------------------------------------------------------------
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
 model User {
   id            String    @id
   name          String
   email         String
   emailVerified Boolean   @default(false)
   image         String?
+  role          UserRole  @default(USER)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
