@@ -26,6 +26,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   orders        Order[]
+  cart          Cart?
   wishlist      Wishlist?
 
   @@unique([email])
@@ -223,6 +224,7 @@ model Product {
   keys               ProductKey[]
   offers             ProductOffer[]
   orderItems         OrderItem[]
+  cartItems          CartItem[]
   wishlistItems      WishlistItem[]
 
   createdAt DateTime @default(now())
@@ -486,6 +488,64 @@ model Payment {
   @@index([externalId])
   @@index([status])
   @@map("payment")
+}
+
+// ---------------------------------------------------------------------------
+// Cart
+// ---------------------------------------------------------------------------
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("cart")
+}
+
+model CartItem {
+  id        String       @id @default(cuid())
+  cartId    String
+  cart      Cart         @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int          @default(1)
+  smm       CartItemSmm?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  // No @@unique([cartId, productId]): SMM can add the same product with different links.
+  @@index([cartId])
+  @@index([productId])
+  @@map("cart_item")
+}
+
+model CartItemSmm {
+  id              String   @id @default(cuid())
+  cartItemId      String   @unique
+  cartItem        CartItem @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
+  link            String?
+  username        String?
+  quantity        Int?
+  comments        String?
+  runs            Int?
+  intervalMinutes Int?
+  usernames       String?
+  hashtags        String?
+  mediaUrl        String?
+  min             Int?
+  max             Int?
+  delayMinutes    Int?
+  posts           Int?
+  oldPosts        Int?
+  expiry          String?
+  answerNumber    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("cart_item_smm")
 }
 
 // ---------------------------------------------------------------------------
