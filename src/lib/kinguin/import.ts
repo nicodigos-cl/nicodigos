@@ -164,24 +164,27 @@ export async function writeKinguinRelatedRecords(
   const coverUrl = remote.images?.cover?.url;
   const coverThumb = remote.images?.cover?.thumbnail ?? coverUrl;
   if (coverUrl) {
-    await tx.productImage.create({
+    await tx.asset.create({
       data: {
         productId,
+        type: "IMAGE",
         url: coverUrl,
         thumbnailUrl: coverThumb ?? null,
         sortOrder: 0,
+        isCover: true,
       },
     });
   }
 
   const screenshots = remote.images?.screenshots ?? [];
   if (screenshots.length > 0) {
-    await tx.productImage.createMany({
+    await tx.asset.createMany({
       data: screenshots
         .filter((shot) => shot.url)
         .slice(0, 12)
         .map((shot, index) => ({
           productId,
+          type: "IMAGE" as const,
           url: shot.url as string,
           thumbnailUrl: shot.thumbnail ?? null,
           sortOrder: index + 1,
@@ -191,13 +194,16 @@ export async function writeKinguinRelatedRecords(
 
   const videos = remote.videos ?? [];
   if (videos.length > 0) {
-    await tx.productVideo.createMany({
+    await tx.asset.createMany({
       data: videos
         .filter((video) => video.video_id)
         .slice(0, 8)
         .map((video, index) => ({
           productId,
-          videoId: video.video_id as string,
+          type: "YOUTUBE" as const,
+          youtubeId: video.video_id as string,
+          url: `https://www.youtube.com/watch?v=${video.video_id}`,
+          thumbnailUrl: `https://i.ytimg.com/vi/${video.video_id}/hqdefault.jpg`,
           sortOrder: index,
         })),
     });

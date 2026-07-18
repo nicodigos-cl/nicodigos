@@ -5,6 +5,7 @@ import type {
 } from "@/generated/prisma/client";
 
 import type { VisualProductStatus } from "@/lib/products/status";
+import type { AssetDraft } from "@/types/assets";
 
 export type ProductCategoryDto = {
   id: string;
@@ -90,6 +91,7 @@ export type ProductDetailDto = {
   categoryIds: string[];
   categories: ProductCategoryDto[];
   images: ProductImageDto[];
+  assets: AssetDraft[];
   availableKeysCount: number;
   totalKeysCount: number;
   defaultOfferAvailableQty: number | null;

@@ -5,6 +5,7 @@ import {
   ProductKeyStatus,
   ProductStatus,
 } from "@/generated/prisma/client";
+import { assetsInputSchema } from "@/lib/validations/assets";
 
 const productStatusValues = [
   ProductStatus.DRAFT,
@@ -220,6 +221,7 @@ const productBaseFields = {
   tags: stringArrayFromCsv.optional(),
   sourceCostPrice: optionalDecimalStringSchema,
   categoryIds: z.array(z.string().cuid()).default([]),
+  assets: assetsInputSchema.default([]),
   /** DB id of `SmmService` to link when deliveryMethod is SMM. */
   smmServiceDbId: z.preprocess(
     emptyToUndefined,

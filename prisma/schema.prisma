@@ -182,6 +182,12 @@ enum PriceChangeDirection {
   DOWN
 }
 
+enum AssetType {
+  IMAGE
+  VIDEO
+  YOUTUBE
+}
+
 // ---------------------------------------------------------------------------
 // SMM providers & catalog services
 // ---------------------------------------------------------------------------
@@ -245,6 +251,7 @@ model Category {
   parent      Category?         @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
   children    Category[]        @relation("CategoryTree")
   products    ProductCategory[]
+  assets      Asset[]
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
@@ -312,8 +319,7 @@ model Product {
   smmSyncedAt    DateTime?
 
   categories         ProductCategory[]
-  images             ProductImage[]
-  videos             ProductVideo[]
+  assets             Asset[]
   systemRequirements ProductSystemRequirement[]
   keys               ProductKey[]
   offers             ProductOffer[]
@@ -379,31 +385,29 @@ model ProductCategory {
   @@map("product_category")
 }
 
-model ProductImage {
-  id           String   @id @default(cuid())
-  productId    String
-  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+model Asset {
+  id           String    @id @default(cuid())
+  type         AssetType
   url          String
+  objectKey    String?   @unique
+  youtubeId    String?
+  mimeType     String?
+  fileName     String?
+  sizeBytes    BigInt?
   thumbnailUrl String?
-  sortOrder    Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  altText      String?
+  sortOrder    Int       @default(0)
+  isCover      Boolean   @default(false)
+  productId    String?
+  product      Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  categoryId   String?
+  category     Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  @@index([productId])
-  @@map("product_image")
-}
-
-model ProductVideo {
-  id        String   @id @default(cuid())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  videoId   String
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([productId])
-  @@map("product_video")
+  @@index([productId, sortOrder])
+  @@index([categoryId, sortOrder])
+  @@map("asset")
 }
 
 model ProductSystemRequirement {

@@ -16,6 +16,42 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Cloudflare R2
+
+Product and category images are uploaded to R2 through its S3-compatible API.
+Configure these server-side variables before creating catalog records with images:
+
+```bash
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET=
+R2_PUBLIC_URL=https://media.example.com
+```
+
+`R2_PUBLIC_URL` must be the public bucket URL or a custom domain connected to
+the bucket. Because media files upload directly from the browser through a
+short-lived presigned URL, configure this CORS policy on the R2 bucket (replace
+the origin with the admin application's origin):
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://example.com"],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["Content-Type", "Cache-Control"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+Apply the Prisma migrations before starting the application:
+
+```bash
+bunx --bun prisma migrate deploy
+```
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

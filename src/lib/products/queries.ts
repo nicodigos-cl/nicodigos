@@ -98,7 +98,7 @@ function toListItemDto(
     categories: {
       category: { id: string; name: string; slug: string };
     }[];
-    images: { url: string; thumbnailUrl: string | null; sortOrder: number }[];
+    assets: { url: string; thumbnailUrl: string | null; sortOrder: number }[];
     _count: { keys: number };
     availableKeysCount: number;
     defaultOfferAvailableQty: number | null;
@@ -115,7 +115,7 @@ function toListItemDto(
 
   const price = decimalToString(product.price) ?? "0";
   const compareAtPrice = decimalToString(product.compareAtPrice);
-  const firstImage = product.images[0];
+  const firstImage = product.assets[0];
   const thumbnailUrl =
     product.coverImageUrl ??
     firstImage?.thumbnailUrl ??
@@ -195,7 +195,8 @@ export async function getProductsPage(
           },
           orderBy: { createdAt: "asc" },
         },
-        images: {
+        assets: {
+          where: { type: "IMAGE" },
           select: { url: true, thumbnailUrl: true, sortOrder: true },
           orderBy: { sortOrder: "asc" },
           take: 1,
@@ -297,12 +298,20 @@ export async function getProductById(
         },
         orderBy: { createdAt: "asc" },
       },
-      images: {
+      assets: {
         select: {
           id: true,
+          type: true,
           url: true,
+          objectKey: true,
+          youtubeId: true,
+          mimeType: true,
+          fileName: true,
+          sizeBytes: true,
           thumbnailUrl: true,
+          altText: true,
           sortOrder: true,
+          isCover: true,
         },
         orderBy: { sortOrder: "asc" },
       },
@@ -379,11 +388,16 @@ export async function getProductById(
       name: item.category.name,
       slug: item.category.slug,
     })),
-    images: product.images.map((image) => ({
+    images: product.assets.filter((asset) => asset.type === "IMAGE").map((image) => ({
       id: image.id,
       url: image.url,
       thumbnailUrl: image.thumbnailUrl,
       sortOrder: image.sortOrder,
+    })),
+    assets: product.assets.map((asset) => ({
+      ...asset,
+      localId: asset.id,
+      sizeBytes: asset.sizeBytes == null ? null : Number(asset.sizeBytes),
     })),
     availableKeysCount,
     totalKeysCount: product._count.keys,

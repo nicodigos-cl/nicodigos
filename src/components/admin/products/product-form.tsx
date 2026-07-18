@@ -11,7 +11,7 @@ import {
 } from "react-icons/hi";
 import { toast } from "sonner";
 
-import { ProductMediaManager } from "@/components/admin/products/product-media-manager";
+import { AssetField } from "@/components/admin/asset-field";
 import { ProductStatusBadge } from "@/components/admin/products/product-status-badge";
 import { KinguinProductPicker } from "@/components/admin/products/kinguin-product-picker";
 import { SmmServicePicker } from "@/components/admin/products/smm-service-picker";
@@ -48,6 +48,7 @@ import { calculateMarginPercent, slugify } from "@/lib/products/format";
 import type { CategoryOptionDto, ProductDetailDto } from "@/types/products";
 import type { KinguinSearchHitDto } from "@/types/kinguin-admin";
 import type { SmmServiceListItemDto } from "@/types/smm-provider";
+import type { AssetDraft } from "@/types/assets";
 
 type SmmPickerProps = {
   items: SmmServiceListItemDto[];
@@ -199,6 +200,7 @@ export function ProductForm({
   const [slugTouched, setSlugTouched] = useState(mode === "edit");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [form, setForm] = useState<FormState>(() => toFormState(product));
+  const [assets, setAssets] = useState<AssetDraft[]>(() => product?.assets ?? []);
   const [smmServiceDbId, setSmmServiceDbId] = useState<string | null>(null);
   const [kinguinId, setKinguinId] = useState<number | null>(null);
 
@@ -291,7 +293,7 @@ export function ProductForm({
       name: form.name,
       slug: form.slug,
       description: form.description || null,
-      coverImageUrl: form.coverImageUrl || null,
+      coverImageUrl: null,
       status: form.status,
       deliveryMethod: form.deliveryMethod,
       price: form.price,
@@ -317,6 +319,7 @@ export function ProductForm({
       tags: csvToArray(form.tags),
       sourceCostPrice: form.sourceCostPrice || null,
       categoryIds: form.categoryIds,
+      assets,
       smmServiceDbId:
         form.deliveryMethod === "SMM" ? (smmServiceDbId ?? undefined) : undefined,
       kinguinId:
@@ -398,6 +401,24 @@ export function ProductForm({
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
         <div className="flex flex-col gap-6">
+          <Card className="shadow-none ring-border">
+            <CardHeader>
+              <CardTitle>Fotos y videos</CardTitle>
+              <CardDescription>
+                Agrega varias fotografías, videos manuales o enlaces de YouTube. Marca una foto como portada.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AssetField
+                folder="products"
+                value={assets}
+                onChange={setAssets}
+                disabled={isPending}
+                error={fieldError("assets")}
+              />
+            </CardContent>
+          </Card>
+
           <Card className="shadow-none ring-border">
             <CardHeader>
               <CardTitle>Información general</CardTitle>
@@ -703,10 +724,6 @@ export function ProductForm({
               </Collapsible>
             </CardContent>
           </Card>
-
-          {mode === "edit" && product ? (
-            <ProductMediaManager product={product} />
-          ) : null}
 
           {keysSlot}
         </div>

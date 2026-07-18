@@ -11,6 +11,7 @@ import {
   writeKinguinRelatedRecords,
 } from "@/lib/kinguin/import";
 import prisma from "@/lib/prisma";
+import { deleteImageFromR2 } from "@/lib/r2";
 import { DEFAULT_KINGUIN_MARKUP_PCT, DEFAULT_MARKUP_MIN_PCT } from "@/lib/smm-services/constants";
 import {
   addProductImageSchema,
@@ -23,6 +24,7 @@ import {
   setCoverImageSchema,
   updateProductSchema,
 } from "@/lib/validations/products";
+import type { AssetInput } from "@/lib/validations/assets";
 
 function unauthorized<T>(): ActionResult<T> {
   return {
@@ -49,6 +51,34 @@ function parseReleaseDate(value: string | null | undefined): Date | null {
 
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function parseSubmission(rawInput: unknown): unknown {
+  if (!(rawInput instanceof FormData)) return rawInput;
+  const payload = rawInput.get("payload");
+  return typeof payload === "string" ? JSON.parse(payload) : null;
+}
+
+function assetCreateData(asset: AssetInput, owner: { productId?: string; categoryId?: string }) {
+  return {
+    type: asset.type,
+    url: asset.url,
+    objectKey: asset.objectKey ?? null,
+    youtubeId: asset.youtubeId ?? null,
+    mimeType: asset.mimeType ?? null,
+    fileName: asset.fileName ?? null,
+    sizeBytes: asset.sizeBytes != null ? BigInt(asset.sizeBytes) : null,
+    thumbnailUrl: asset.thumbnailUrl ?? null,
+    altText: asset.altText ?? null,
+    sortOrder: asset.sortOrder,
+    isCover: asset.type === "IMAGE" && asset.isCover,
+    ...owner,
+  };
+}
+
+function coverUrlFromAssets(assets: AssetInput[]): string | null {
+  return assets.find((asset) => asset.type === "IMAGE" && asset.isCover)?.url ??
+    assets.find((asset) => asset.type === "IMAGE")?.url ?? null;
 }
 
 function normalizeOfferFields(input: {
@@ -153,7 +183,14 @@ export async function createProductAction(
     return unauthorized();
   }
 
-  const parsed = createProductSchema.safeParse(rawInput);
+  let submission: unknown;
+  try {
+    submission = parseSubmission(rawInput);
+  } catch {
+    return { success: false, message: "Los datos del formulario son inválidos." };
+  }
+
+  const parsed = createProductSchema.safeParse(submission);
   if (!parsed.success) {
     return validationError(parsed.error);
   }
@@ -176,6 +213,18 @@ export async function createProductAction(
     const kinguinMarkupPct =
       data.kinguinMarkupPct ?? DEFAULT_KINGUIN_MARKUP_PCT;
 
+    if (
+      !coverUrlFromAssets(data.assets) &&
+      !data.coverImageUrl &&
+      !kinguinLink?.meta.coverImageUrl
+    ) {
+      return {
+        success: false,
+        message: "Agrega una imagen principal al producto.",
+        fieldErrors: { image: ["La imagen principal es obligatoria."] },
+      };
+    }
+
     const product = await prisma.$transaction(async (tx) => {
       const created = await tx.product.create({
         data: {
@@ -183,7 +232,10 @@ export async function createProductAction(
           slug: data.slug,
           description: data.description ?? null,
           coverImageUrl:
-            data.coverImageUrl ?? kinguinLink?.meta.coverImageUrl ?? null,
+            coverUrlFromAssets(data.assets) ??
+            data.coverImageUrl ??
+            kinguinLink?.meta.coverImageUrl ??
+            null,
           status: data.status,
           deliveryMethod: data.deliveryMethod,
           price: pricing.price,
@@ -267,6 +319,12 @@ export async function createProductAction(
       });
 
       await syncProductCategories(tx, created.id, data.categoryIds);
+
+      if (data.assets.length > 0) {
+        await tx.asset.createMany({
+          data: data.assets.map((asset) => assetCreateData(asset, { productId: created.id })),
+        });
+      }
 
       if (kinguinLink) {
         await writeKinguinRelatedRecords(
@@ -352,23 +410,40 @@ export async function updateProductAction(
     return unauthorized();
   }
 
-  const parsed = updateProductSchema.safeParse(rawInput);
+  let submission: unknown;
+  try {
+    submission = parseSubmission(rawInput);
+  } catch {
+    return { success: false, message: "Los datos del formulario son inválidos." };
+  }
+
+  const parsed = updateProductSchema.safeParse(submission);
   if (!parsed.success) {
     return validationError(parsed.error);
   }
 
   const data = parsed.data;
   const pricing = normalizeOfferFields(data);
+  let removedObjectKeys: string[] = [];
 
   try {
     await prisma.$transaction(async (tx) => {
+      const existingAssets = await tx.asset.findMany({
+        where: { productId: data.id },
+        select: { objectKey: true },
+      });
+      const retainedKeys = new Set(data.assets.flatMap((asset) => asset.objectKey ? [asset.objectKey] : []));
+      removedObjectKeys = existingAssets.flatMap((asset) =>
+        asset.objectKey && !retainedKeys.has(asset.objectKey) ? [asset.objectKey] : [],
+      );
+
       await tx.product.update({
         where: { id: data.id },
         data: {
           name: data.name,
           slug: data.slug,
           description: data.description ?? null,
-          coverImageUrl: data.coverImageUrl ?? null,
+          coverImageUrl: coverUrlFromAssets(data.assets) ?? data.coverImageUrl ?? null,
           status: data.status,
           deliveryMethod: data.deliveryMethod,
           price: pricing.price,
@@ -396,7 +471,16 @@ export async function updateProductAction(
       });
 
       await syncProductCategories(tx, data.id, data.categoryIds);
+
+      await tx.asset.deleteMany({ where: { productId: data.id } });
+      if (data.assets.length > 0) {
+        await tx.asset.createMany({
+          data: data.assets.map((asset) => assetCreateData(asset, { productId: data.id })),
+        });
+      }
     });
+
+    await Promise.all(removedObjectKeys.map((key) => deleteImageFromR2(key).catch(() => undefined)));
 
     revalidatePath("/admin/products");
     revalidatePath(`/admin/products/${data.id}`);
@@ -661,14 +745,15 @@ export async function addProductImageAction(
 
   try {
     const image = await prisma.$transaction(async (tx) => {
-      const maxSort = await tx.productImage.aggregate({
+      const maxSort = await tx.asset.aggregate({
         where: { productId },
         _max: { sortOrder: true },
       });
 
-      const created = await tx.productImage.create({
+      const created = await tx.asset.create({
         data: {
           productId,
+          type: "IMAGE",
           url,
           thumbnailUrl: thumbnailUrl ?? null,
           sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
@@ -719,10 +804,10 @@ export async function removeProductImageAction(
   const { productId, imageId } = parsed.data;
 
   try {
-    await prisma.$transaction(async (tx) => {
-      const image = await tx.productImage.findFirst({
-        where: { id: imageId, productId },
-        select: { id: true, url: true },
+    const objectKey = await prisma.$transaction(async (tx) => {
+      const image = await tx.asset.findFirst({
+        where: { id: imageId, productId, type: "IMAGE" },
+        select: { id: true, url: true, objectKey: true },
       });
 
       if (!image) {
@@ -734,21 +819,29 @@ export async function removeProductImageAction(
         select: { coverImageUrl: true },
       });
 
-      await tx.productImage.delete({ where: { id: image.id } });
+      await tx.asset.delete({ where: { id: image.id } });
 
       if (product?.coverImageUrl === image.url) {
-        const nextImage = await tx.productImage.findFirst({
-          where: { productId },
+        const nextImage = await tx.asset.findFirst({
+          where: { productId, type: "IMAGE" },
           orderBy: { sortOrder: "asc" },
-          select: { url: true },
+          select: { url: true, objectKey: true },
         });
 
         await tx.product.update({
           where: { id: productId },
-          data: { coverImageUrl: nextImage?.url ?? null },
+          data: {
+            coverImageUrl: nextImage?.url ?? null,
+          },
         });
       }
+
+      return image.objectKey;
     });
+
+    if (objectKey) {
+      await deleteImageFromR2(objectKey).catch(() => undefined);
+    }
 
     revalidatePath(`/admin/products/${productId}`);
     return { success: true, data: { id: imageId } };
@@ -782,7 +875,7 @@ export async function reorderProductImagesAction(
   try {
     await prisma.$transaction(
       imageIds.map((imageId, index) =>
-        prisma.productImage.updateMany({
+        prisma.asset.updateMany({
           where: { id: imageId, productId },
           data: { sortOrder: index },
         }),
@@ -818,9 +911,9 @@ export async function setCoverImageAction(
     let nextCover = coverImageUrl ?? null;
 
     if (imageId) {
-      const image = await prisma.productImage.findFirst({
-        where: { id: imageId, productId },
-        select: { url: true },
+      const image = await prisma.asset.findFirst({
+        where: { id: imageId, productId, type: "IMAGE" },
+        select: { url: true, objectKey: true },
       });
 
       if (!image) {
