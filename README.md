@@ -1,25 +1,110 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<p align="center">
+  <img src="public/logo.webp" alt="Nicodigos" width="120" height="120" />
+</p>
 
-## Getting Started
+<h1 align="center">Nicodigos</h1>
 
-First, run the development server:
+<p align="center">
+  Store de productos digitales en Chile: keys, servicios SMM y catálogo Kinguin,<br />
+  con checkout Flow.cl, panel admin y sync de proveedores.
+</p>
+
+<p align="center">
+  <a href="docs/README.md">Documentación</a> ·
+  <a href="docs/architecture.md">Arquitectura</a> ·
+  <a href="docs/patterns.md">Patrones</a> ·
+  <a href="docs/prisma.md">Prisma</a>
+</p>
+
+---
+
+## Qué es
+
+Nicodigos es una aplicación **Next.js 16** (App Router) + **Prisma 7** / PostgreSQL para vender y entregar productos digitales:
+
+- Catálogo con categorías, assets (R2) e inventario de keys
+- Tres métodos de entrega: **MANUAL**, **SMM** (paneles) y **KINGUIN** (ESA API)
+- Carrito, wishlist, órdenes, deliveries y pagos **Flow.cl**
+- Auth con **Better Auth** (email/OTP, OAuth opcional) y roles `USER` / `ADMIN`
+- Crons de sync (SMM / Kinguin) que actualizan rates y reprecian con markup + FX (Redis)
+
+## Stack
+
+| Área | Tecnología |
+| --- | --- |
+| Runtime | Bun, Next.js 16, React 19 |
+| DB | PostgreSQL, Prisma 7 (`@prisma/adapter-pg`) |
+| Auth | Better Auth + Prisma adapter |
+| Pagos | Flow.cl (`@nicotordev/flowcl-pagos`) |
+| Media | Cloudflare R2 (S3 API) |
+| UI | Tailwind 4, shadcn / Base UI, TanStack Query & Table |
+| Email | Resend + React Email |
+
+## Requisitos
+
+- Bun
+- PostgreSQL
+- Redis (cache USD/EUR → CLP)
+- Credenciales opcionales según feature: Flow, R2, Kinguin, Resend, OpenAI, Highlight
+
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+cp .env.example .env
+# Editar DATABASE_URL, BETTER_AUTH_*, CRON_SECRET, etc.
+
+# Base dedicada recomendada
+# createdb nicodigos_store
+
+bunx --bun prisma migrate deploy
+bunx --bun prisma generate
+
+bun run dev          # Next + pollers de cron
+# o solo web:
+bun run dev:web
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abrir [http://localhost:3000](http://localhost:3000). Admin: `/admin` (emails/dominios en `ADMIN_EMAILS`).
+
+## Scripts útiles
+
+| Script | Descripción |
+| --- | --- |
+| `bun run dev` | Web + todos los crons en local |
+| `bun run cron:sync-smm:once` | Una pasada de sync SMM |
+| `bun run cron:sync-kinguin:once` | Una pasada de sync Kinguin |
+| `bun run cron:cleanup-price-events:once` | Limpia eventos de precio viejos |
+| `bun run build` / `bun run start` | Producción |
+
+## Lógica del dominio (resumen)
+
+```
+Catálogo (Product) ──deliveryMethod──► MANUAL | SMM | KINGUIN
+        │
+        ▼
+Carrito → Checkout Flow → Order + Payment → Delivery
+                                              │
+                    sync crons ◄── SmmProvider / Kinguin ESA
+                         │
+                         ▼
+              domain events → reprecio + ProductPriceChangeEvent
+```
+
+Mutaciones van por **Server Actions** (`src/lib/actions`) con `ActionResult<T>`; lecturas por **queries**; reglas de sync/reprecio por **eventos de dominio**. Detalle en [docs/patterns.md](docs/patterns.md) y [docs/prisma.md](docs/prisma.md).
+
+## Prisma
+
+Schema en `prisma/schema.prisma`, client generado en `src/generated/prisma`, singleton en `src/lib/prisma.ts`.
+
+```bash
+bunx --bun prisma migrate dev --name my_change
+bunx --bun prisma studio
+```
 
 ## Cloudflare R2
 
-Product and category images are uploaded to R2 through its S3-compatible API.
-Configure these server-side variables before creating catalog records with images:
+Imágenes de producto/categoría suben con URL firmada al bucket S3-compatible. Variables:
 
 ```bash
 R2_ACCOUNT_ID=
@@ -29,10 +114,7 @@ R2_BUCKET=
 R2_PUBLIC_URL=https://media.example.com
 ```
 
-`R2_PUBLIC_URL` must be the public bucket URL or a custom domain connected to
-the bucket. Because media files upload directly from the browser through a
-short-lived presigned URL, configure this CORS policy on the R2 bucket (replace
-the origin with the admin application's origin):
+CORS del bucket (origen = tu admin):
 
 ```json
 [
@@ -46,27 +128,13 @@ the origin with the admin application's origin):
 ]
 ```
 
-Apply the Prisma migrations before starting the application:
+## Documentación
 
-```bash
-bunx --bun prisma migrate deploy
-```
+- [Índice docs](docs/README.md)
+- [Arquitectura y flujos](docs/architecture.md)
+- [Patrones de código](docs/patterns.md)
+- [Modelo Prisma](docs/prisma.md)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Licencia
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Proyecto privado (`private: true` en `package.json`).
