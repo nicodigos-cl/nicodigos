@@ -18,7 +18,7 @@ type Tx = Prisma.TransactionClient;
 export async function ensureDeliveriesForOrder(
   orderId: string,
   tx?: Tx,
-): Promise<{ created: number }> {
+): Promise<{ created: number; requested: number }> {
   const { getOperationalSettings } = await import("@/lib/settings/runtime");
   const settings = await getOperationalSettings();
   if (!settings.automaticDeliveryEnabled) {
@@ -26,7 +26,7 @@ export async function ensureDeliveriesForOrder(
       { orderId },
       "automatic deliveries disabled — skipping ensureDeliveriesForOrder",
     );
-    return { created: 0 };
+    return { created: 0, requested: 0 };
   }
 
   const client = tx;
@@ -42,14 +42,46 @@ export async function ensureDeliveriesForOrder(
     select: {
       id: true,
       deliveryMethod: true,
-      delivery: { select: { id: true } },
+      delivery: { select: { id: true, status: true } },
     },
   });
+  const order = await client.order.findUniqueOrThrow({
+    where: { id: orderId },
+    select: {
+      status: true,
+      payments: { where: { status: "PAID" }, take: 1, select: { id: true } },
+    },
+  });
+  const isPaid =
+    ["PAID", "PROCESSING", "FULFILLED", "PARTIALLY_FULFILLED"].includes(order.status) ||
+    order.payments.length > 0;
 
   let created = 0;
+  const deliveryIds: string[] = [];
+  const shouldRequest = (method: (typeof items)[number]["deliveryMethod"]) => {
+    if (!isPaid) return false;
+    if (!settings.autoSendAfterPayment) return false;
+    if (method === "MANUAL") {
+      return settings.manualDeliveryEnabled && settings.keysAutoAssign;
+    }
+    if (method === "SMM") return settings.smmAutoSend;
+    return true;
+  };
   for (const item of items) {
-    if (item.delivery) continue;
-    await client.delivery.create({
+    if (item.delivery) {
+      if (
+        shouldRequest(item.deliveryMethod) &&
+        ([
+          DeliveryStatus.PENDING,
+          DeliveryStatus.QUEUED,
+          DeliveryStatus.FAILED,
+        ] as DeliveryStatus[]).includes(item.delivery.status)
+      ) {
+        deliveryIds.push(item.delivery.id);
+      }
+      continue;
+    }
+    const delivery = await client.delivery.create({
       data: {
         orderItemId: item.id,
         deliveryMethod: item.deliveryMethod,
@@ -62,13 +94,31 @@ export async function ensureDeliveriesForOrder(
           },
         },
       },
+      select: { id: true },
     });
+    await client.delivery.update({
+      where: { id: delivery.id },
+      data: { idempotencyKey: `delivery:${delivery.id}` },
+    });
+    if (shouldRequest(item.deliveryMethod)) deliveryIds.push(delivery.id);
     created += 1;
   }
+
+  const requested = deliveryIds.length
+    ? await client.outboxEvent.createMany({
+        data: deliveryIds.map((deliveryId) => ({
+          type: "DELIVERY_REQUESTED" as const,
+          aggregateId: deliveryId,
+          idempotencyKey: `delivery-requested:${deliveryId}`,
+          payload: { deliveryId },
+        })),
+        skipDuplicates: true,
+      })
+    : { count: 0 };
 
   if (created > 0) {
     log.info({ orderId, created }, "Deliveries ensured for order");
   }
 
-  return { created };
+  return { created, requested: requested.count };
 }

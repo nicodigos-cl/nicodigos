@@ -4,10 +4,11 @@ import { useState, useTransition } from "react";
 import { HiOutlineEye, HiOutlineEyeOff } from "react-icons/hi";
 import { toast } from "sonner";
 
-import { DeliveryStatusBadge } from "@/components/admin/deliveries/delivery-status-badge";
+import { CustomerStatusBadge } from "@/components/dashboard/customer-status-badge";
 import { Button } from "@/components/ui/button";
 import { revealCustomerDeliverySecretAction } from "@/lib/actions/deliveries";
-import { formatDateTime } from "@/lib/format-date";
+import { formatCustomerDate } from "@/lib/customer-dashboard/format";
+import { getCustomerDeliveryStatusView } from "@/lib/customer-dashboard/status";
 import { deliveryContentTypeLabel } from "@/lib/validations/deliveries";
 import type { CustomerDeliveryDto } from "@/types/deliveries";
 
@@ -28,11 +29,11 @@ function CustomerSecret({
   const [pending, startTransition] = useTransition();
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 p-2 w-full">
-      <code className="min-w-0 flex-1 truncate font-mono text-xs text-foreground px-1 select-all">
+    <div className="flex w-full items-center gap-2 rounded-xl border border-border bg-muted/40 p-2">
+      <code className="min-w-0 flex-1 truncate px-1 font-mono text-xs text-foreground select-all">
         {value ?? masked}
       </code>
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex shrink-0 items-center gap-1">
         <Button
           type="button"
           size="icon-sm"
@@ -94,44 +95,62 @@ export function CustomerDeliveryCard({
 }: {
   delivery: CustomerDeliveryDto;
 }) {
+  const statusView = getCustomerDeliveryStatusView(delivery.status);
+
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-6">
+    <section className="space-y-6 rounded-2xl border border-border bg-card p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
         <div className="space-y-1">
           <span className="font-mono text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
-            Detalle del producto
+            Contenido de la entrega
           </span>
-          <h2 className="font-heading text-lg font-bold text-foreground leading-none">{delivery.productName}</h2>
+          <h2 className="font-heading text-lg font-semibold leading-none text-foreground">
+            {delivery.productName}
+          </h2>
         </div>
-        <DeliveryStatusBadge status={delivery.status} />
+        <CustomerStatusBadge
+          label={statusView.label}
+          tone={statusView.tone}
+        />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 text-sm">
+      <div className="grid gap-4 text-sm sm:grid-cols-2">
         <div>
           <span className="block text-xs text-muted-foreground">Cantidad</span>
           <span className="font-medium text-foreground">{delivery.quantity}</span>
         </div>
         {delivery.deliveredAt ? (
           <div>
-            <span className="block text-xs text-muted-foreground">Fecha de entrega</span>
-            <span className="font-medium text-foreground">{formatDateTime(delivery.deliveredAt)}</span>
+            <span className="block text-xs text-muted-foreground">
+              Fecha de entrega
+            </span>
+            <span className="font-medium text-foreground">
+              {formatCustomerDate(delivery.deliveredAt, "long")}
+            </span>
           </div>
         ) : null}
       </div>
 
       {delivery.customerMessage ? (
         <div className="rounded-xl border border-border/80 bg-muted/30 p-4">
-          <span className="block text-xs font-semibold text-muted-foreground mb-1">Nota de entrega</span>
+          <span className="mb-1 block text-xs font-semibold text-muted-foreground">
+            Nota de entrega
+          </span>
           <p className="text-sm text-foreground">{delivery.customerMessage}</p>
         </div>
       ) : null}
 
       {delivery.status === "DELIVERED" ? (
         <div className="space-y-4 pt-2">
-          <h3 className="font-heading text-base font-semibold text-foreground">Contenido entregado</h3>
+          <h3 className="font-heading text-base font-semibold text-foreground">
+            Contenido entregado
+          </h3>
           <div className="grid gap-4">
             {delivery.keys.map((key) => (
-              <div key={key.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <div
+                key={key.id}
+                className="space-y-3 rounded-xl border border-border bg-card p-4"
+              >
                 <div>
                   <p className="text-sm font-semibold text-foreground">
                     {key.label || deliveryContentTypeLabel[key.contentType]}
@@ -145,7 +164,7 @@ export function CustomerDeliveryCard({
                   masked={key.serialMasked}
                 />
                 {key.instructions ? (
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {key.instructions}
                   </p>
                 ) : null}
@@ -153,30 +172,48 @@ export function CustomerDeliveryCard({
             ))}
 
             {delivery.credentials.map((cred) => (
-              <div key={cred.id} className="rounded-xl border border-border bg-card p-4 space-y-4">
+              <div
+                key={cred.id}
+                className="space-y-4 rounded-xl border border-border bg-card p-4"
+              >
                 <div>
                   <p className="text-sm font-semibold text-foreground">
                     {cred.label || deliveryContentTypeLabel[cred.contentType]}
                   </p>
                 </div>
-                
+
                 <div className="grid gap-3 text-sm sm:grid-cols-2">
                   {cred.username ? (
                     <div>
-                      <span className="block text-xs text-muted-foreground">Usuario</span>
-                      <span className="font-medium text-foreground select-all">{cred.username}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        Usuario
+                      </span>
+                      <span className="font-medium text-foreground select-all">
+                        {cred.username}
+                      </span>
                     </div>
                   ) : null}
                   {cred.email ? (
                     <div>
-                      <span className="block text-xs text-muted-foreground">Email</span>
-                      <span className="font-medium text-foreground select-all">{cred.email}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        Email
+                      </span>
+                      <span className="font-medium text-foreground select-all">
+                        {cred.email}
+                      </span>
                     </div>
                   ) : null}
                   {cred.url ? (
                     <div className="sm:col-span-2">
-                      <span className="block text-xs text-muted-foreground">URL de acceso</span>
-                      <a href={cred.url} target="_blank" rel="noreferrer" className="text-sm font-medium text-primary hover:underline break-all">
+                      <span className="block text-xs text-muted-foreground">
+                        URL de acceso
+                      </span>
+                      <a
+                        href={cred.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="break-all text-sm font-medium text-primary hover:underline"
+                      >
                         {cred.url}
                       </a>
                     </div>
@@ -185,7 +222,9 @@ export function CustomerDeliveryCard({
 
                 {cred.hasPassword ? (
                   <div className="space-y-1.5">
-                    <span className="block text-xs text-muted-foreground">Contraseña</span>
+                    <span className="block text-xs text-muted-foreground">
+                      Contraseña
+                    </span>
                     <CustomerSecret
                       deliveryId={delivery.id}
                       kind="credential"
@@ -198,7 +237,9 @@ export function CustomerDeliveryCard({
 
                 {cred.hasToken ? (
                   <div className="space-y-1.5">
-                    <span className="block text-xs text-muted-foreground">Token / Token de acceso</span>
+                    <span className="block text-xs text-muted-foreground">
+                      Token / Token de acceso
+                    </span>
                     <CustomerSecret
                       deliveryId={delivery.id}
                       kind="credential"
@@ -211,8 +252,10 @@ export function CustomerDeliveryCard({
 
                 {cred.instructions || cred.notes ? (
                   <div className="border-t border-border pt-3">
-                    <span className="block text-xs font-semibold text-muted-foreground mb-1">Instrucciones</span>
-                    <p className="text-xs text-muted-foreground leading-normal">
+                    <span className="mb-1 block text-xs font-semibold text-muted-foreground">
+                      Instrucciones
+                    </span>
+                    <p className="text-xs leading-normal text-muted-foreground">
                       {cred.instructions || cred.notes}
                     </p>
                   </div>
@@ -223,27 +266,31 @@ export function CustomerDeliveryCard({
 
           {delivery.keys.length === 0 && delivery.credentials.length === 0 ? (
             <div className="rounded-xl border border-yellow-200/50 bg-yellow-500/5 p-4 text-sm text-yellow-800 dark:border-yellow-900/30 dark:bg-yellow-950/10 dark:text-yellow-400">
-              Entrega marcada como completada. Si esperabas contenido digital, por favor contacta soporte.
+              Entrega marcada como completada. Si esperabas contenido digital,
+              por favor contacta soporte.
             </div>
           ) : null}
         </div>
       ) : (
         <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-          El contenido digital se mostrará de forma segura en esta sección una vez que tu entrega sea procesada.
+          El contenido digital se mostrará de forma segura en esta sección una
+          vez que tu entrega sea procesada.
         </div>
       )}
 
       {delivery.events.length > 0 ? (
-        <div className="border-t border-border pt-5 space-y-4">
-          <h3 className="font-heading text-sm font-semibold text-foreground">Historial de actividad</h3>
-          <div className="relative border-l border-border pl-6 space-y-5 ml-2.5">
+        <div className="space-y-4 border-t border-border pt-5">
+          <h3 className="font-heading text-sm font-semibold text-foreground">
+            Historial de actividad
+          </h3>
+          <div className="relative ml-2.5 space-y-5 border-l border-border pl-6">
             {delivery.events.map((event) => (
               <div key={event.id} className="relative">
-                <span className="absolute -left-[31px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-border ring-4 ring-background" />
+                <span className="absolute -left-[31px] top-1 flex size-2.5 items-center justify-center rounded-full bg-border ring-4 ring-background" />
                 <p className="text-xs font-medium text-muted-foreground">
-                  {formatDateTime(event.createdAt)}
+                  {formatCustomerDate(event.createdAt, "long")}
                 </p>
-                <p className="text-sm font-medium text-foreground mt-0.5">
+                <p className="mt-0.5 text-sm font-medium text-foreground">
                   {event.message || event.status}
                 </p>
               </div>

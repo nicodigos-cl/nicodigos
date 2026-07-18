@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import {
   HiOutlineMail,
   HiOutlinePaperAirplane,
-  HiOutlineQuestionMarkCircle,
 } from "react-icons/hi";
 
 import { Button } from "@/components/ui/button";
@@ -39,8 +38,8 @@ export function SupportForm({
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:p-6 sm:flex-row sm:items-center sm:gap-6">
-        <div className="rounded-xl bg-primary/10 p-3 text-primary shrink-0 self-start sm:self-center">
+      <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-6">
+        <div className="shrink-0 self-start rounded-xl bg-primary/10 p-3 text-primary sm:self-center">
           <HiOutlineMail className="size-6" />
         </div>
         <div className="space-y-1">
@@ -85,13 +84,13 @@ export function SupportForm({
           });
         }}
       >
-        <div className="flex items-center gap-2 pb-2 border-b border-border">
+        <div className="flex items-center gap-2 border-b border-border pb-2">
           <h2 className="font-heading text-lg font-bold text-foreground">
             Enviar una solicitud
           </h2>
         </div>
         {(orderId || deliveryId) && (
-          <div className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
             {orderId && (
               <span>
                 Pedido vinculado:{" "}
@@ -115,7 +114,7 @@ export function SupportForm({
           <div className="space-y-1.5 sm:col-span-1">
             <Label
               htmlFor="category"
-              className="text-xs font-semibold text-muted-foreground uppercase tracking-wider"
+              className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             >
               Categoría
             </Label>
@@ -151,7 +150,7 @@ export function SupportForm({
           <div className="space-y-1.5 sm:col-span-1">
             <Label
               htmlFor="subject"
-              className="text-xs font-semibold text-muted-foreground uppercase tracking-wider"
+              className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             >
               Asunto
             </Label>
@@ -170,7 +169,7 @@ export function SupportForm({
         <div className="space-y-1.5">
           <Label
             htmlFor="message"
-            className="text-xs font-semibold text-muted-foreground uppercase tracking-wider"
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
           >
             Mensaje
           </Label>
@@ -190,56 +189,13 @@ export function SupportForm({
           <Button
             type="submit"
             disabled={pending}
-            className="w-full sm:w-auto gap-2 font-medium"
+            className="w-full gap-2 font-medium sm:w-auto"
           >
             <HiOutlinePaperAirplane className="size-4 rotate-90" />
             <span>{pending ? "Enviando…" : "Enviar ticket"}</span>
           </Button>
         </div>
       </form>
-
-      <section className="rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-4">
-        <div className="flex items-center gap-2 border-b border-border pb-3">
-          <HiOutlineQuestionMarkCircle className="size-5 text-muted-foreground" />
-          <h2 className="font-heading text-lg font-bold text-foreground">
-            Preguntas frecuentes
-          </h2>
-        </div>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 pt-1">
-          <div className="space-y-1.5">
-            <h3 className="font-semibold text-sm text-foreground">
-              ¿Dónde está mi key o cuenta?
-            </h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Abre la pestaña{" "}
-              <span className="font-medium text-foreground">Mis entregas</span>.
-              El contenido sensible como claves y usuarios se mantiene cifrado y
-              oculto hasta que decidas revelarlo y copiarlo de forma segura.
-            </p>
-          </div>
-          <div className="space-y-1.5">
-            <h3 className="font-semibold text-sm text-foreground">
-              ¿Mi pago fue aprobado?
-            </h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Revisa el estado de la transacción en la pestaña de{" "}
-              <span className="font-medium text-foreground">Transacciones</span>
-              . Si tu pago falló o está pendiente, verás una alerta para poder
-              reintentar la compra de inmediato.
-            </p>
-          </div>
-          <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
-            <h3 className="font-semibold text-sm text-foreground">
-              ¿Cómo avanzo un servicio SMM?
-            </h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Para los servicios de redes sociales (SMM), es necesario que
-              configures la URL de destino. Puedes ingresar este enlace
-              ingresando a los detalles de la entrega en tu panel de control.
-            </p>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

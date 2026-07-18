@@ -152,6 +152,12 @@ export function getCustomerDeliveryStatusView(
         description: "Todavía estamos preparando esta entrega.",
         tone: "warning",
       };
+    case "QUEUED":
+      return {
+        label: "En cola",
+        description: "Tu entrega quedó en cola y comenzará pronto.",
+        tone: "info",
+      };
     case "PROCESSING":
       return {
         label: "En proceso",
@@ -169,6 +175,12 @@ export function getCustomerDeliveryStatusView(
         label: "Requiere revisión",
         description: "Hubo un problema. Nuestro equipo lo está revisando.",
         tone: "danger",
+      };
+    case "MANUAL_REVIEW":
+      return {
+        label: "En revisión manual",
+        description: "Nuestro equipo debe revisar esta entrega antes de continuar.",
+        tone: "warning",
       };
     case "CANCELED":
       return {

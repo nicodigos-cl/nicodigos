@@ -3,9 +3,19 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { HiOutlineTruck } from "react-icons/hi";
 
-import { CustomerDeliveriesMobileList } from "@/components/dashboard/customer-deliveries-mobile-list";
-import { CustomerDeliveriesTable } from "@/components/dashboard/customer-deliveries-table";
 import { CustomerListPagination } from "@/components/dashboard/customer-list-pagination";
+import { DeliveriesFilters } from "@/components/dashboard/deliveries/deliveries-filters";
+import { DeliveriesMobileList } from "@/components/dashboard/deliveries/deliveries-mobile-list";
+import { DeliveriesSummary } from "@/components/dashboard/deliveries/deliveries-summary";
+import { DeliveriesTable } from "@/components/dashboard/deliveries/deliveries-table";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -15,14 +25,14 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
 import { getSession } from "@/lib/auth/session";
 import { getCustomerDeliveriesPage } from "@/lib/customer-dashboard/queries";
 import {
-  customerDeliveriesFilterValues,
+  CUSTOMER_DELIVERIES_PATH,
+  CUSTOMER_ORDERS_PATH,
+  customerDeliveriesPath,
+} from "@/lib/customer-dashboard/paths";
+import {
   customerDeliveriesListQuerySchema,
   type CustomerDeliveriesListQuery,
 } from "@/lib/customer-dashboard/validations";
@@ -30,20 +40,6 @@ import { parseSearchParamsRecord } from "@/lib/validations/products";
 
 export const metadata: Metadata = {
   title: "Mis entregas",
-};
-
-const filterLabels: Record<
-  (typeof customerDeliveriesFilterValues)[number],
-  string
-> = {
-  all: "Todas",
-  available: "Disponibles",
-  processing: "En proceso",
-  completed: "Completadas",
-  problems: "Con problemas",
-  keys: "Keys",
-  accounts: "Cuentas",
-  smm: "SMM",
 };
 
 type PageProps = {
@@ -54,14 +50,28 @@ function buildDeliveriesHref(
   query: CustomerDeliveriesListQuery,
   page: number,
 ): string {
-  const params = new URLSearchParams();
-  if (page > 1) params.set("page", String(page));
-  if (query.pageSize !== 10) params.set("pageSize", String(query.pageSize));
-  if (query.filter !== "all") params.set("filter", query.filter);
-  if (query.status) params.set("status", query.status);
-  if (query.method) params.set("method", query.method);
-  const qs = params.toString();
-  return qs ? `/dashboard/deliveries?${qs}` : "/dashboard/deliveries";
+  return customerDeliveriesPath({
+    page: page > 1 ? page : undefined,
+    pageSize: query.pageSize !== 10 ? query.pageSize : undefined,
+    q: query.q,
+    filter: query.filter !== "all" ? query.filter : undefined,
+    method: query.method,
+    sort: query.sort !== "newest" ? query.sort : undefined,
+    from: query.from,
+    to: query.to,
+  });
+}
+
+function hasActiveFilters(query: CustomerDeliveriesListQuery): boolean {
+  return Boolean(
+    query.q ||
+      query.filter !== "all" ||
+      query.method ||
+      query.status ||
+      query.from ||
+      query.to ||
+      query.sort !== "newest",
+  );
 }
 
 export default async function CustomerDeliveriesPage({
@@ -69,48 +79,61 @@ export default async function CustomerDeliveriesPage({
 }: PageProps) {
   const session = await getSession();
   if (!session?.user) {
-    redirect("/auth/login?callbackUrl=/dashboard/deliveries");
+    redirect(`/auth/login?callbackUrl=${CUSTOMER_DELIVERIES_PATH}`);
   }
 
   const raw = parseSearchParamsRecord(await searchParams);
   const parsed = customerDeliveriesListQuerySchema.safeParse(raw);
   if (!parsed.success) {
-    redirect("/dashboard/deliveries");
+    redirect(CUSTOMER_DELIVERIES_PATH);
   }
 
   const query = parsed.data;
   const result = await getCustomerDeliveriesPage(session.user.id, query);
-  const hasFilters = query.filter !== "all" || Boolean(query.status || query.method);
+  const hasFilters = hasActiveFilters(query);
   const isEmpty = result.total === 0 && !hasFilters;
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="space-y-1">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">
-          Mis entregas
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Keys, cuentas y servicios asociados a tus compras.
-        </p>
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink render={<Link href="/dashboard" />}>
+              Cuenta
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Mis entregas</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
+            Mis entregas
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Keys, cuentas y servicios asociados a tus compras.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          render={<Link href={CUSTOMER_ORDERS_PATH} />}
+          nativeButton={false}
+          className="shrink-0"
+        >
+          Ver mis pedidos
+        </Button>
       </div>
 
-      <form className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row">
-        <NativeSelect
-          name="filter"
-          defaultValue={query.filter}
-          aria-label="Filtrar entregas"
-          className="sm:max-w-xs"
-        >
-          {customerDeliveriesFilterValues.map((filter) => (
-            <NativeSelectOption key={filter} value={filter}>
-              {filterLabels[filter]}
-            </NativeSelectOption>
-          ))}
-        </NativeSelect>
-        <Button type="submit" variant="outline">
-          Filtrar
-        </Button>
-      </form>
+      <DeliveriesSummary
+        metrics={result.metrics}
+        activeFilter={query.filter}
+      />
+
+      <DeliveriesFilters query={query} />
 
       {isEmpty ? (
         <Empty className="border border-border bg-card">
@@ -125,11 +148,8 @@ export default async function CustomerDeliveriesPage({
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button
-              render={<Link href="/dashboard/pedidos" />}
-              nativeButton={false}
-            >
-              Ver mis pedidos
+            <Button render={<Link href="/" />} nativeButton={false}>
+              Explorar productos
             </Button>
           </EmptyContent>
         </Empty>
@@ -141,26 +161,26 @@ export default async function CustomerDeliveriesPage({
             </EmptyMedia>
             <EmptyTitle>Sin resultados</EmptyTitle>
             <EmptyDescription>
-              No hay entregas que coincidan con este filtro.
+              No hay entregas que coincidan con los filtros actuales.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button
               variant="outline"
-              render={<Link href="/dashboard/deliveries" />}
+              render={<Link href={CUSTOMER_DELIVERIES_PATH} />}
               nativeButton={false}
             >
-              Ver todas
+              Limpiar filtros
             </Button>
           </EmptyContent>
         </Empty>
       ) : (
         <>
           <div className="hidden md:block">
-            <CustomerDeliveriesTable data={result.items} />
+            <DeliveriesTable data={result.items} />
           </div>
           <div className="md:hidden">
-            <CustomerDeliveriesMobileList data={result.items} />
+            <DeliveriesMobileList data={result.items} />
           </div>
           <CustomerListPagination
             page={result.page}

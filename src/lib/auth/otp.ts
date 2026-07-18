@@ -28,11 +28,13 @@ export function buildAuthOtpPath({
   otp,
   type,
   from,
+  callbackUrl,
 }: {
   email: string;
   otp?: string;
   type: AuthOtpType;
   from?: "login" | "register";
+  callbackUrl?: string;
 }) {
   const params = new URLSearchParams({
     email,
@@ -40,6 +42,15 @@ export function buildAuthOtpPath({
   });
   if (otp) params.set("otp", otp);
   if (from) params.set("from", from);
+  if (
+    callbackUrl &&
+    callbackUrl.startsWith("/") &&
+    !callbackUrl.startsWith("//") &&
+    !callbackUrl.includes("://") &&
+    callbackUrl !== AUTH_HOME_PATH
+  ) {
+    params.set("callbackUrl", callbackUrl);
+  }
   return `/auth/otp?${params.toString()}`;
 }
 
@@ -48,6 +59,7 @@ export function buildAuthOtpUrl(args: {
   otp: string;
   type: AuthOtpType;
   from?: "login" | "register";
+  callbackUrl?: string;
 }) {
   return `${getAppBaseUrl()}${buildAuthOtpPath(args)}`;
 }

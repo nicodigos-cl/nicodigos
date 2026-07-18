@@ -269,12 +269,27 @@ export type CustomerOrdersPageResult = {
   metrics: CustomerOrderMetrics;
 };
 
+export type CustomerDeliveryMetrics = {
+  totalDeliveries: number;
+  available: number;
+  processing: number;
+  needsAttention: number;
+};
+
 export type CustomerDeliveriesPageResult = {
   items: CustomerDeliverySummary[];
   total: number;
   page: number;
   pageSize: number;
   totalPages: number;
+  metrics: CustomerDeliveryMetrics;
+};
+
+export type CustomerTransactionMetrics = {
+  totalTransactions: number;
+  paid: number;
+  pending: number;
+  failed: number;
 };
 
 export type CustomerTransactionsPageResult = {
@@ -283,6 +298,7 @@ export type CustomerTransactionsPageResult = {
   page: number;
   pageSize: number;
   totalPages: number;
+  metrics: CustomerTransactionMetrics;
 };
 
 export type CustomerOrderTimelineEventType =
@@ -398,6 +414,8 @@ export type CustomerSecurityView = {
   email: string;
   emailVerified: boolean;
   hasPassword: boolean;
+  accountCreatedAt: string;
+  lastActivityAt: string | null;
   providers: Array<{
     id: string;
     providerId: string;

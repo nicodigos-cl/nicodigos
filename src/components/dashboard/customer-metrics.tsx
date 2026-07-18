@@ -9,6 +9,10 @@ import {
   HiOutlineCalendar,
 } from "react-icons/hi";
 
+import {
+  customerDeliveriesPath,
+  customerOrdersPath,
+} from "@/lib/customer-dashboard/paths";
 import type { CustomerDashboardMetrics } from "@/lib/customer-dashboard/types";
 import { formatDateTime } from "@/lib/format-date";
 import { formatMoney } from "@/lib/products/format";
@@ -17,7 +21,7 @@ const cards = [
   {
     key: "orders" as const,
     title: "Pedidos",
-    href: "/dashboard/pedidos",
+    href: customerOrdersPath(),
     linkLabel: "Ver mis pedidos",
     icon: HiOutlineShoppingBag,
     colorClass: "text-blue-500 bg-blue-500/10 dark:text-blue-400 dark:bg-blue-500/10",
@@ -25,7 +29,7 @@ const cards = [
   {
     key: "availableDeliveries" as const,
     title: "Entregas disponibles",
-    href: "/dashboard/deliveries?filter=available",
+    href: customerDeliveriesPath({ filter: "available" }),
     linkLabel: "Ver mis entregas",
     icon: HiOutlineTruck,
     colorClass: "text-emerald-500 bg-emerald-500/10 dark:text-emerald-400 dark:bg-emerald-500/10",
@@ -33,7 +37,7 @@ const cards = [
   {
     key: "servicesInProgress" as const,
     title: "Servicios en progreso",
-    href: "/dashboard/deliveries?filter=smm",
+    href: customerDeliveriesPath({ filter: "smm" }),
     linkLabel: "Ver servicios",
     icon: HiOutlineClipboardList,
     colorClass: "text-amber-500 bg-amber-500/10 dark:text-amber-400 dark:bg-amber-500/10",
@@ -41,7 +45,7 @@ const cards = [
   {
     key: "completedPurchases" as const,
     title: "Compras completadas",
-    href: "/dashboard/pedidos?status=completed",
+    href: customerOrdersPath({ status: "completed" }),
     linkLabel: "Ver historial",
     icon: HiOutlineBadgeCheck,
     colorClass: "text-violet-500 bg-violet-500/10 dark:text-violet-400 dark:bg-violet-500/10",

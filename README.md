@@ -39,7 +39,7 @@ Nicodigos es una aplicación **Next.js 16** (App Router) + **Prisma 7** / Postgr
 | Media | Cloudflare R2 (S3 API) |
 | UI | Tailwind 4, shadcn / Base UI, TanStack Query & Table |
 | Email | Resend + React Email |
-| Comunicaciones | Resend Inbound/Webhooks + OneSignal Web Push |
+| Comunicaciones | Resend Inbound/Webhooks + OneSignal Web Push + soporte en vivo (WS) |
 
 ## Requisitos
 
@@ -61,22 +61,32 @@ cp .env.example .env
 bunx --bun prisma migrate deploy
 bunx --bun prisma generate
 
-bun run dev          # Next + pollers de cron
+bun run dev          # Next + pollers de cron + delivery worker + support WS
 # o solo web:
 bun run dev:web
+# o solo gateway WS:
+bun run worker:support-ws
 ```
 
 Abrir [http://localhost:3000](http://localhost:3000). Admin: `/admin` (emails/dominios en `ADMIN_EMAILS`).
+
+Para chat en vivo local: define `SUPPORT_WS_SECRET` y opcionalmente `NEXT_PUBLIC_SUPPORT_WS_URL=ws://127.0.0.1:3011/ws`.
 
 ## Scripts útiles
 
 | Script | Descripción |
 | --- | --- |
-| `bun run dev` | Web + todos los crons en local |
+| `bun run dev` | Web + crons + delivery worker + support WS |
 | `bun run cron:sync-smm:once` | Una pasada de sync SMM |
 | `bun run cron:sync-kinguin:once` | Una pasada de sync Kinguin |
 | `bun run cron:cleanup-price-events:once` | Limpia eventos de precio viejos |
+| `bun run worker:delivery` | Worker BullMQ de fulfillment y email |
+| `bun run worker:support-ws` | Gateway WebSocket de soporte en vivo |
 | `bun run build` / `bun run start` | Producción |
+
+En producción, ejecuta `bun run worker:delivery` como proceso persistente y programa
+`GET` o `POST /api/cron/publish-outbox` con `CRON_SECRET` (idealmente cada minuto).
+El proceso web por sí solo no consume las colas BullMQ.
 
 ## Lógica del dominio (resumen)
 
@@ -84,7 +94,9 @@ Abrir [http://localhost:3000](http://localhost:3000). Admin: `/admin` (emails/do
 Catálogo (Product) ──deliveryMethod──► MANUAL | SMM | KINGUIN
         │
         ▼
-Carrito → Checkout Flow → Order + Payment → Delivery
+Carrito → Checkout Flow → Order + Payment → Delivery + OutboxEvent
+                                                ↓
+                                     BullMQ delivery / email
                                               │
                     sync crons ◄── SmmProvider / Kinguin ESA
                          │

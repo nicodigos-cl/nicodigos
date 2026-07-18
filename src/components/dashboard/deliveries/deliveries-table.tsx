@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { HiOutlineEye } from "react-icons/hi";
 
 import { CustomerStatusBadge } from "@/components/dashboard/customer-status-badge";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import type { CustomerDeliverySummary } from "@/lib/customer-dashboard/types";
-import { formatDateTime } from "@/lib/format-date";
+import { formatCustomerDate } from "@/lib/customer-dashboard/format";
+import {
+  customerDeliveryPath,
+  customerOrderPath,
+} from "@/lib/customer-dashboard/paths";
 
 const columns: ColumnDef<CustomerDeliverySummary>[] = [
   {
@@ -17,15 +20,28 @@ const columns: ColumnDef<CustomerDeliverySummary>[] = [
     cell: ({ row }) => (
       <div className="min-w-0">
         <Link
-          href={`/dashboard/deliveries/${row.original.id}`}
+          href={customerDeliveryPath(row.original.id)}
           className="font-medium hover:underline"
         >
           {row.original.productName}
         </Link>
-        <p className="text-xs text-muted-foreground">
-          {row.original.methodLabel} · {row.original.orderNumber}
+        <p className="truncate text-xs text-muted-foreground">
+          {row.original.methodLabel}
+          {row.original.hasSecretsAvailable ? " · Contenido listo" : ""}
         </p>
       </div>
+    ),
+  },
+  {
+    id: "order",
+    header: "Pedido",
+    cell: ({ row }) => (
+      <Link
+        href={customerOrderPath(row.original.orderId)}
+        className="text-sm font-medium hover:underline"
+      >
+        #{row.original.orderNumber}
+      </Link>
     ),
   },
   {
@@ -47,7 +63,9 @@ const columns: ColumnDef<CustomerDeliverySummary>[] = [
     header: "Fecha",
     cell: ({ row }) => (
       <span className="text-sm text-muted-foreground">
-        {formatDateTime(row.original.deliveredAt ?? row.original.createdAt)}
+        {formatCustomerDate(
+          row.original.deliveredAt ?? row.original.createdAt,
+        )}
       </span>
     ),
   },
@@ -55,20 +73,21 @@ const columns: ColumnDef<CustomerDeliverySummary>[] = [
     id: "actions",
     header: "",
     cell: ({ row }) => (
-      <Button
-        size="sm"
-        variant="ghost"
-        render={<Link href={row.original.primaryAction.href} />}
-        nativeButton={false}
-      >
-        <HiOutlineEye className="size-4" />
-        {row.original.primaryAction.label}
-      </Button>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          render={<Link href={row.original.primaryAction.href} />}
+          nativeButton={false}
+        >
+          {row.original.primaryAction.label}
+        </Button>
+      </div>
     ),
   },
 ];
 
-export function CustomerDeliveriesTable({
+export function DeliveriesTable({
   data,
 }: {
   data: CustomerDeliverySummary[];

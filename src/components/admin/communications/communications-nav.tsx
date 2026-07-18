@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HiOutlineBell, HiOutlineCog6Tooth, HiOutlineEnvelope, HiOutlineRectangleStack, HiOutlineUserGroup } from "react-icons/hi2";
+import { HiOutlineBell, HiOutlineChatBubbleLeftRight, HiOutlineCog6Tooth, HiOutlineEnvelope, HiOutlineRectangleStack, HiOutlineUserGroup } from "react-icons/hi2";
 import { cn } from "@/lib/utils";
 
 const links = [
+  { href: "/admin/communications/live", label: "En vivo", icon: HiOutlineChatBubbleLeftRight },
   { href: "/admin/communications/email", label: "Correo", icon: HiOutlineEnvelope },
   { href: "/admin/communications/web-push", label: "Notificaciones web", icon: HiOutlineBell },
   { href: "/admin/communications/templates", label: "Plantillas", icon: HiOutlineRectangleStack },

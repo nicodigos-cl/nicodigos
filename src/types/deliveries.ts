@@ -17,6 +17,7 @@ export type DeliveryListItemDto = {
   progressSummary: string;
   needsManualAttention: boolean;
   orderId: string;
+  userId: string;
   orderEmail: string;
   customerName: string | null;
   userName: string;

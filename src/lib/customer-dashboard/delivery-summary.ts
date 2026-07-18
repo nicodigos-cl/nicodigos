@@ -26,15 +26,19 @@ export function deriveCustomerOrderDeliverySummary(input: {
 }): CustomerOrderDeliverySummary {
   const { totalItems, deliveries } = input;
   const deliveredCount = deliveries.filter((d) => d.status === "DELIVERED").length;
-  const processingCount = deliveries.filter((d) => d.status === "PROCESSING").length;
+  const processingCount = deliveries.filter(
+    (d) => d.status === "QUEUED" || d.status === "PROCESSING",
+  ).length;
   const pendingCount = deliveries.filter((d) => d.status === "PENDING").length;
-  const failedCount = deliveries.filter((d) => d.status === "FAILED").length;
+  const failedCount = deliveries.filter(
+    (d) => d.status === "FAILED" || d.status === "MANUAL_REVIEW",
+  ).length;
   const canceledCount = deliveries.filter((d) => d.status === "CANCELED").length;
 
   const availableDeliveryId =
     deliveries.find((d) => d.status === "DELIVERED")?.id ?? null;
   const failedDeliveryId =
-    deliveries.find((d) => d.status === "FAILED")?.id ?? null;
+    deliveries.find((d) => d.status === "FAILED" || d.status === "MANUAL_REVIEW")?.id ?? null;
 
   let label = "Sin entrega iniciada";
   let tone: CustomerStatusTone = "neutral";
@@ -90,6 +94,6 @@ export function deriveCustomerOrderDeliverySummary(input: {
 }
 
 export function getCustomerDeliveryErrorMessage(status: DeliveryStatus): string {
-  if (status !== "FAILED") return "";
+  if (status !== "FAILED" && status !== "MANUAL_REVIEW") return "";
   return "No pudimos completar esta entrega automáticamente. Nuestro equipo está revisándola.";
 }

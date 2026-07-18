@@ -28,6 +28,10 @@ import {
   orderListSelect,
 } from "@/lib/customer-dashboard/order-mappers";
 import {
+  buildCustomerDeliveriesOrderBy,
+  buildCustomerDeliveriesWhere,
+} from "@/lib/customer-dashboard/delivery-filters";
+import {
   buildCustomerOrdersOrderBy,
   buildCustomerOrdersWhere,
 } from "@/lib/customer-dashboard/order-filters";
@@ -42,16 +46,22 @@ import {
   getCustomerSmmStatusView,
   resolveOrderPrimaryAction,
 } from "@/lib/customer-dashboard/status";
+import {
+  buildCustomerTransactionsOrderBy,
+  buildCustomerTransactionsWhere,
+} from "@/lib/customer-dashboard/transaction-filters";
 import type {
   CustomerBuyAgainProduct,
   CustomerDashboardViewModel,
   CustomerDeliveriesPageResult,
+  CustomerDeliveryMetrics,
   CustomerDeliverySummary,
   CustomerOrderDetail,
   CustomerOrderMetrics,
   CustomerOrdersPageResult,
   CustomerProfileCompleteness,
   CustomerSecurityView,
+  CustomerTransactionMetrics,
   CustomerTransactionSummary,
   CustomerTransactionsPageResult,
 } from "@/lib/customer-dashboard/types";
@@ -119,14 +129,18 @@ function mapDeliverySummary(row: {
     row.deliveryMethod === DeliveryMethod.SMM &&
     !hasTarget &&
     (row.status === DeliveryStatus.PENDING ||
+      row.status === DeliveryStatus.QUEUED ||
       row.status === DeliveryStatus.PROCESSING)
   ) {
     actionLabel = "Completar información";
   } else if (row.status === DeliveryStatus.DELIVERED) {
     actionLabel = "Ver entrega";
-  } else if (row.status === DeliveryStatus.FAILED) {
+  } else if (
+    row.status === DeliveryStatus.FAILED ||
+    row.status === DeliveryStatus.MANUAL_REVIEW
+  ) {
     actionLabel = "Contactar soporte";
-    href = `/dashboard/support?deliveryId=${row.id}`;
+    href = `/dashboard/support?deliveryId=${row.id}&category=delivery`;
   }
 
   return {
@@ -312,13 +326,14 @@ export async function getCustomerDashboard(
         item.smm &&
         !item.smm.hasTarget &&
         (item.status === DeliveryStatus.PENDING ||
+          item.status === DeliveryStatus.QUEUED ||
           item.status === DeliveryStatus.PROCESSING)
       ) {
         return 0;
       }
       if (item.status === DeliveryStatus.DELIVERED) return 1;
-      if (item.status === DeliveryStatus.FAILED) return 2;
-      if (item.status === DeliveryStatus.PROCESSING) return 3;
+      if (item.status === DeliveryStatus.FAILED || item.status === DeliveryStatus.MANUAL_REVIEW) return 2;
+      if (item.status === DeliveryStatus.QUEUED || item.status === DeliveryStatus.PROCESSING) return 3;
       return 4;
     };
     return score(a) - score(b);
@@ -374,7 +389,7 @@ export async function getCustomerDashboard(
       orderItem: { order: { userId } },
       deliveryMethod: DeliveryMethod.SMM,
       status: {
-        in: [DeliveryStatus.PENDING, DeliveryStatus.PROCESSING],
+        in: [DeliveryStatus.PENDING, DeliveryStatus.QUEUED, DeliveryStatus.PROCESSING],
       },
     },
   });
@@ -636,55 +651,62 @@ export async function getCustomerOrdersPage(
   };
 }
 
+export async function getCustomerDeliveryMetrics(
+  userId: string,
+): Promise<CustomerDeliveryMetrics> {
+  const ownerWhere: Prisma.DeliveryWhereInput = {
+    orderItem: { order: { userId } },
+  };
+
+  const [totalDeliveries, available, processing, needsAttention] =
+    await Promise.all([
+      prisma.delivery.count({ where: ownerWhere }),
+      prisma.delivery.count({
+        where: { ...ownerWhere, status: DeliveryStatus.DELIVERED },
+      }),
+      prisma.delivery.count({
+        where: {
+          ...ownerWhere,
+          status: {
+            in: [
+              DeliveryStatus.PENDING,
+              DeliveryStatus.QUEUED,
+              DeliveryStatus.PROCESSING,
+            ],
+          },
+        },
+      }),
+      prisma.delivery.count({
+        where: {
+          ...ownerWhere,
+          status: {
+            in: [DeliveryStatus.FAILED, DeliveryStatus.MANUAL_REVIEW],
+          },
+        },
+      }),
+    ]);
+
+  return {
+    totalDeliveries,
+    available,
+    processing,
+    needsAttention,
+  };
+}
+
 export async function getCustomerDeliveriesPage(
   userId: string,
   query: CustomerDeliveriesListQuery,
 ): Promise<CustomerDeliveriesPageResult> {
-  const where: Prisma.DeliveryWhereInput = {
-    orderItem: { order: { userId } },
-  };
-  const and: Prisma.DeliveryWhereInput[] = [];
-
-  switch (query.filter) {
-    case "available":
-      where.status = DeliveryStatus.DELIVERED;
-      break;
-    case "processing":
-      where.status = {
-        in: [DeliveryStatus.PENDING, DeliveryStatus.PROCESSING],
-      };
-      break;
-    case "completed":
-      where.status = DeliveryStatus.DELIVERED;
-      break;
-    case "problems":
-      where.status = DeliveryStatus.FAILED;
-      break;
-    case "keys":
-      where.deliveryMethod = DeliveryMethod.KINGUIN;
-      break;
-    case "accounts":
-      and.push({
-        credentials: { some: {} },
-      });
-      break;
-    case "smm":
-      where.deliveryMethod = DeliveryMethod.SMM;
-      break;
-    default:
-      break;
-  }
-
-  if (query.status) where.status = query.status;
-  if (query.method) where.deliveryMethod = query.method;
-  if (and.length > 0) where.AND = and;
-
+  const where = buildCustomerDeliveriesWhere(userId, query);
+  const orderBy = buildCustomerDeliveriesOrderBy(query.sort);
   const skip = (query.page - 1) * query.pageSize;
-  const [total, rows] = await prisma.$transaction([
+
+  const [total, rows, metrics] = await Promise.all([
     prisma.delivery.count({ where }),
     prisma.delivery.findMany({
       where,
-      orderBy: { updatedAt: "desc" },
+      orderBy,
       skip,
       take: query.pageSize,
       select: {
@@ -707,6 +729,7 @@ export async function getCustomerDeliveriesPage(
         },
       },
     }),
+    getCustomerDeliveryMetrics(userId),
   ]);
 
   return {
@@ -721,6 +744,48 @@ export async function getCustomerDeliveriesPage(
     page: query.page,
     pageSize: query.pageSize,
     totalPages: Math.max(1, Math.ceil(total / query.pageSize)),
+    metrics,
+  };
+}
+
+export async function getCustomerTransactionMetrics(
+  userId: string,
+): Promise<CustomerTransactionMetrics> {
+  const ownerWhere: Prisma.PaymentWhereInput = { order: { userId } };
+
+  const [totalTransactions, paid, pending, failed] = await Promise.all([
+    prisma.payment.count({ where: ownerWhere }),
+    prisma.payment.count({
+      where: { ...ownerWhere, status: PaymentStatus.PAID },
+    }),
+    prisma.payment.count({
+      where: {
+        ...ownerWhere,
+        status: {
+          in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING],
+        },
+      },
+    }),
+    prisma.payment.count({
+      where: {
+        ...ownerWhere,
+        status: {
+          in: [
+            PaymentStatus.FAILED,
+            PaymentStatus.REJECTED,
+            PaymentStatus.EXPIRED,
+            PaymentStatus.CANCELLED,
+          ],
+        },
+      },
+    }),
+  ]);
+
+  return {
+    totalTransactions,
+    paid,
+    pending,
+    failed,
   };
 }
 
@@ -728,13 +793,15 @@ export async function getCustomerTransactionsPage(
   userId: string,
   query: CustomerTransactionsListQuery,
 ): Promise<CustomerTransactionsPageResult> {
-  const where: Prisma.PaymentWhereInput = { order: { userId } };
+  const where = buildCustomerTransactionsWhere(userId, query);
+  const orderBy = buildCustomerTransactionsOrderBy(query.sort);
   const skip = (query.page - 1) * query.pageSize;
-  const [total, rows] = await prisma.$transaction([
+
+  const [total, rows, metrics] = await Promise.all([
     prisma.payment.count({ where }),
     prisma.payment.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy,
       skip,
       take: query.pageSize,
       select: {
@@ -748,6 +815,7 @@ export async function getCustomerTransactionsPage(
         orderId: true,
       },
     }),
+    getCustomerTransactionMetrics(userId),
   ]);
 
   return {
@@ -769,6 +837,7 @@ export async function getCustomerTransactionsPage(
     page: query.page,
     pageSize: query.pageSize,
     totalPages: Math.max(1, Math.ceil(total / query.pageSize)),
+    metrics,
   };
 }
 
@@ -919,6 +988,7 @@ export async function getCustomerOrderDetail(
       }
       if (
         delivery.status !== DeliveryStatus.PENDING &&
+        delivery.status !== DeliveryStatus.QUEUED &&
         delivery.status !== DeliveryStatus.PROCESSING
       ) {
         return false;
@@ -1246,7 +1316,7 @@ export async function getCustomerDeliveryDetail(
     id: event.id,
     status: event.status,
     message:
-      event.status === DeliveryStatus.FAILED
+      (event.status === DeliveryStatus.FAILED || event.status === DeliveryStatus.MANUAL_REVIEW)
         ? "Hubo un problema con la entrega. Soporte está al tanto."
         : event.message,
     createdAt: event.createdAt.toISOString(),
@@ -1300,6 +1370,7 @@ export async function getCustomerDeliveryDetail(
       row.deliveryMethod === DeliveryMethod.SMM &&
       !hasTarget &&
       (row.status === DeliveryStatus.PENDING ||
+        row.status === DeliveryStatus.QUEUED ||
         row.status === DeliveryStatus.PROCESSING),
     canResendEmail: row.status === DeliveryStatus.DELIVERED,
   };
@@ -1334,7 +1405,12 @@ export async function getCustomerSecurityView(
   const [user, sessions, accounts] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { email: true, emailVerified: true },
+      select: {
+        email: true,
+        emailVerified: true,
+        createdAt: true,
+        lastActivityAt: true,
+      },
     }),
     prisma.session.findMany({
       where: { userId },
@@ -1365,6 +1441,8 @@ export async function getCustomerSecurityView(
     email: user.email,
     emailVerified: user.emailVerified,
     hasPassword: accounts.some((account) => Boolean(account.password)),
+    accountCreatedAt: user.createdAt.toISOString(),
+    lastActivityAt: user.lastActivityAt?.toISOString() ?? null,
     providers: accounts
       .filter((account) => account.providerId !== "credential")
       .map((account) => ({

@@ -119,6 +119,7 @@ export function mapOrderSummaryFromRow(order: OrderListRow): CustomerOrderSummar
       }
       if (
         delivery.status !== DeliveryStatus.PENDING &&
+        delivery.status !== DeliveryStatus.QUEUED &&
         delivery.status !== DeliveryStatus.PROCESSING
       ) {
         return false;
@@ -130,7 +131,9 @@ export function mapOrderSummaryFromRow(order: OrderListRow): CustomerOrderSummar
   const total = decimalToString(order.total) ?? "0";
   const deliveryStatus =
     deliveries.find((d) => d.status === DeliveryStatus.DELIVERED)?.status ??
+    deliveries.find((d) => d.status === DeliveryStatus.MANUAL_REVIEW)?.status ??
     deliveries.find((d) => d.status === DeliveryStatus.FAILED)?.status ??
+    deliveries.find((d) => d.status === DeliveryStatus.QUEUED)?.status ??
     deliveries.find((d) => d.status === DeliveryStatus.PROCESSING)?.status ??
     deliveries[0]?.status ??
     null;
@@ -273,7 +276,7 @@ export function buildCustomerOrderTimeline(input: {
     }
     seenDeliveryStatuses.add(key);
 
-    if (event.status === DeliveryStatus.PROCESSING) {
+    if (event.status === DeliveryStatus.QUEUED || event.status === DeliveryStatus.PROCESSING) {
       events.push({
         id: event.id,
         type: "DELIVERY_PROCESSING",
@@ -311,7 +314,7 @@ export function buildCustomerOrderTimeline(input: {
         createdAt: event.createdAt.toISOString(),
         tone: "success",
       });
-    } else if (event.status === DeliveryStatus.FAILED) {
+    } else if (event.status === DeliveryStatus.FAILED || event.status === DeliveryStatus.MANUAL_REVIEW) {
       events.push({
         id: event.id,
         type: "DELIVERY_FAILED",

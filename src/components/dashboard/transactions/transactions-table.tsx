@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { HiOutlineEye } from "react-icons/hi";
 
 import { CustomerStatusBadge } from "@/components/dashboard/customer-status-badge";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
+import { formatCustomerDate } from "@/lib/customer-dashboard/format";
+import { customerOrderPath } from "@/lib/customer-dashboard/paths";
 import type { CustomerTransactionSummary } from "@/lib/customer-dashboard/types";
-import { formatDateTime } from "@/lib/format-date";
 import { formatMoney } from "@/lib/products/format";
 
 const columns: ColumnDef<CustomerTransactionSummary>[] = [
@@ -16,12 +16,17 @@ const columns: ColumnDef<CustomerTransactionSummary>[] = [
     accessorKey: "orderNumber",
     header: "Pedido",
     cell: ({ row }) => (
-      <Link
-        href={`/dashboard/pedidos/${row.original.orderId}`}
-        className="font-medium hover:underline"
-      >
-        {row.original.orderNumber}
-      </Link>
+      <div className="min-w-0">
+        <Link
+          href={customerOrderPath(row.original.orderId)}
+          className="font-medium hover:underline"
+        >
+          Pedido #{row.original.orderNumber}
+        </Link>
+        <p className="truncate text-xs text-muted-foreground">
+          {row.original.methodLabel}
+        </p>
+      </div>
     ),
   },
   {
@@ -32,15 +37,6 @@ const columns: ColumnDef<CustomerTransactionSummary>[] = [
         label={row.original.statusView.label}
         tone={row.original.statusView.tone}
       />
-    ),
-  },
-  {
-    id: "method",
-    header: "Método",
-    cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground">
-        {row.original.methodLabel}
-      </span>
     ),
   },
   {
@@ -57,7 +53,7 @@ const columns: ColumnDef<CustomerTransactionSummary>[] = [
     header: "Fecha",
     cell: ({ row }) => (
       <span className="text-sm text-muted-foreground">
-        {formatDateTime(row.original.createdAt)}
+        {formatCustomerDate(row.original.createdAt)}
       </span>
     ),
   },
@@ -67,18 +63,17 @@ const columns: ColumnDef<CustomerTransactionSummary>[] = [
     cell: ({ row }) => (
       <Button
         size="sm"
-        variant="ghost"
-        render={<Link href={`/dashboard/pedidos/${row.original.orderId}`} />}
+        variant="outline"
+        render={<Link href={customerOrderPath(row.original.orderId)} />}
         nativeButton={false}
       >
-        <HiOutlineEye className="size-4" />
         Ver pedido
       </Button>
     ),
   },
 ];
 
-export function CustomerTransactionsTable({
+export function TransactionsTable({
   data,
 }: {
   data: CustomerTransactionSummary[];

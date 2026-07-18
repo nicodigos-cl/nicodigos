@@ -159,7 +159,7 @@ export function DashboardSidebar() {
               {group.label}
             </SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu className="gap-1">
+              <SidebarMenu className="gap-2">
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   const isActive = item.match

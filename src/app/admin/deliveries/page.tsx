@@ -16,6 +16,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { requireAdminSession } from "@/lib/auth/session";
 import {
   getDeliveriesPage,
   getDeliveryMetrics,
@@ -30,6 +31,7 @@ type DeliveriesPageProps = {
 export default async function DeliveriesPage({
   searchParams,
 }: DeliveriesPageProps) {
+  await requireAdminSession();
   const rawParams = parseSearchParamsRecord(await searchParams);
   const parsed = deliveriesListQuerySchema.safeParse(rawParams);
 

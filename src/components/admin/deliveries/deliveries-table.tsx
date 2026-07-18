@@ -6,6 +6,7 @@ import {
   HiOutlineClipboardCopy,
   HiOutlineDotsHorizontal,
   HiOutlineEye,
+  HiOutlineUser,
 } from "react-icons/hi";
 import { toast } from "sonner";
 
@@ -43,6 +44,12 @@ function DeliveryActions({ delivery }: { delivery: DeliveryListItemDto }) {
           render={<Link href={`/admin/orders/${delivery.orderId}`} />}
         >
           Ver pedido
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          render={<Link href={`/admin/users/${delivery.userId}`} />}
+        >
+          <HiOutlineUser className="size-4" />
+          Ver cliente
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -97,9 +104,12 @@ export const deliveriesColumns: ColumnDef<DeliveryListItemDto>[] = [
     header: "Cliente",
     cell: ({ row }) => (
       <div className="min-w-0 max-w-40">
-        <p className="truncate text-sm font-medium">
+        <Link
+          href={`/admin/users/${row.original.userId}`}
+          className="block truncate text-sm font-medium hover:underline text-primary"
+        >
           {row.original.customerName || row.original.userName}
-        </p>
+        </Link>
         <p className="truncate text-xs text-muted-foreground">
           {row.original.orderEmail}
         </p>

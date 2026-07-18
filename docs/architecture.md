@@ -12,8 +12,9 @@ Nicodigos es un ecommerce digital en CLP orientado a Chile: catálogo propio, fu
 | Auth | Better Auth (email/password + OTP, OAuth opcional) |
 | Pagos | Flow.cl (`@nicotordev/flowcl-pagos`) |
 | Media | Cloudflare R2 (presigned upload) |
-| Cache FX | Redis (USD/EUR → CLP) |
+| Cache / jobs | Redis (USD/EUR → CLP) + BullMQ + live support pub/sub |
 | Email | Resend + React Email |
+| Live support | WebSocket gateway dedicado (`scripts/support-ws.ts`) |
 | Observabilidad | Pino + Highlight.io |
 
 ## Dominio
@@ -91,13 +92,31 @@ public/logo.webp       # Marca
 
 1. Actions de carrito mutan `Cart` / `CartItem`.
 2. `checkoutFromCartAction` / `startCheckoutPaymentAction` crean `Order` + `Payment` e inician Flow.
-3. Confirmación Flow marca pago y dispara fulfillment según `deliveryMethod`.
+3. Confirmación Flow marca pago, crea `Delivery` y `OutboxEvent` en una sola transacción.
+4. El publisher de outbox encola `delivery.fulfill`; el worker consulta PostgreSQL y ejecuta MANUAL, SMM o Kinguin.
+5. PostgreSQL conserva el estado auditable; Redis solo transporta `{ deliveryId }`.
+
+### Fulfillment asíncrono
+
+- Cola `delivery`: asignación de keys y solicitudes remotas, con retry/backoff.
+- Cola `email`: notificaciones del ciclo de entrega.
+- `OutboxEvent` evita perder el job entre el commit del pago y Redis.
+- `Delivery.idempotencyKey`, el claim de estado y las referencias externas protegen contra duplicados.
+- SMM sin respuesta concluyente pasa a `MANUAL_REVIEW`; no se repite una compra incierta.
+- Kinguin consulta primero `orderExternalId` para conciliar antes de crear una orden.
 
 ### Admin
 
 - Rutas bajo `/admin/*` protegidas con `requireAdminSession`.
 - Rol `ADMIN` se asigna automáticamente si el email (o dominio) está en `ADMIN_EMAILS`.
 
+### Soporte en vivo (Railway)
+
+- Persistencia en `CommunicationThread` / `CommunicationMessage` con `channel = LIVE_CHAT`.
+- Next.js mint ticket HMAC (`POST /api/support/ws-ticket`) y publica eventos a Redis `support:events`.
+- Servicio dedicado `support-ws` (`bun scripts/support-ws.ts`) hace fan-out por WebSocket.
+- Deploy Railway: servicio público WSS aparte del web; vars `SUPPORT_WS_SECRET`, `REDIS_URL`, `NEXT_PUBLIC_SUPPORT_WS_URL`.
+
 ## Variables de entorno
 
-Ver `.env.example`. Obligatorias en práctica: `DATABASE_URL`, `BETTER_AUTH_*`, `CRON_SECRET`, y según features: Flow, R2, Kinguin, Redis, Resend, OpenAI.
+Ver `.env.example`. Obligatorias en práctica: `DATABASE_URL`, `BETTER_AUTH_*`, `CRON_SECRET`, y según features: Flow, R2, Kinguin, Redis, Resend, OpenAI, `SUPPORT_WS_SECRET` para chat en vivo.

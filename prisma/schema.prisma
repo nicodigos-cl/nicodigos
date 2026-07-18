@@ -241,10 +241,23 @@ enum OrderStatus {
 
 enum DeliveryStatus {
   PENDING
+  QUEUED
   PROCESSING
   DELIVERED
   FAILED
+  MANUAL_REVIEW
   CANCELED
+}
+
+enum OutboxEventType {
+  DELIVERY_REQUESTED
+}
+
+enum OutboxEventStatus {
+  PENDING
+  PROCESSING
+  PUBLISHED
+  FAILED
 }
 
 enum DeliveryEventSource {
@@ -721,15 +734,21 @@ model OrderItemSmm {
 }
 
 model Delivery {
-  id              String         @id @default(cuid())
-  orderItemId     String         @unique
-  orderItem       OrderItem      @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
-  status          DeliveryStatus @default(PENDING)
-  deliveryMethod  DeliveryMethod
-  errorMessage    String?
-  deliveredAt     DateTime?
-  customerMessage String?
-  lastSyncedAt    DateTime?
+  id                  String         @id @default(cuid())
+  orderItemId         String         @unique
+  orderItem           OrderItem      @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  status              DeliveryStatus @default(PENDING)
+  deliveryMethod      DeliveryMethod
+  errorMessage        String?
+  lastError           String?
+  attemptCount        Int            @default(0)
+  queuedAt            DateTime?
+  processingStartedAt DateTime?
+  deliveredAt         DateTime?
+  failedAt            DateTime?
+  idempotencyKey      String?        @unique
+  customerMessage     String?
+  lastSyncedAt        DateTime?
 
   // Remote order refs (Kinguin / SMM)
   externalOrderId String?
@@ -760,6 +779,27 @@ model Delivery {
   @@index([createdAt])
   @@index([updatedAt])
   @@map("delivery")
+}
+
+/// Transactional handoff from PostgreSQL to asynchronous infrastructure.
+model OutboxEvent {
+  id             String            @id @default(cuid())
+  type           OutboxEventType
+  status         OutboxEventStatus @default(PENDING)
+  aggregateId    String
+  idempotencyKey String            @unique
+  payload        Json?
+  attemptCount   Int               @default(0)
+  availableAt    DateTime          @default(now())
+  processingAt   DateTime?
+  publishedAt    DateTime?
+  lastError      String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([status, availableAt])
+  @@index([type, aggregateId])
+  @@map("outbox_event")
 }
 
 model DeliveryKey {
@@ -1201,6 +1241,7 @@ model AdminSettingsEvent {
 enum CommunicationChannel {
   EMAIL
   WEB_PUSH
+  LIVE_CHAT
 }
 
 enum CommunicationDirection {
@@ -1288,6 +1329,7 @@ model CommunicationThread {
   subject        String
   status         CommunicationThreadStatus   @default(OPEN)
   priority       CommunicationPriority       @default(NORMAL)
+  channel        CommunicationChannel        @default(EMAIL)
   category       String?
   userId         String?
   user           User?                       @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -1311,6 +1353,7 @@ model CommunicationThread {
   updatedAt      DateTime                    @updatedAt
 
   @@index([status, lastMessageAt])
+  @@index([channel, status, lastMessageAt])
   @@index([userId, lastMessageAt])
   @@index([assignedUserId, status])
   @@index([orderId])

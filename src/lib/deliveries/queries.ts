@@ -51,6 +51,7 @@ function buildWhere(input: DeliveriesListQuery): Prisma.DeliveryWhereInput {
     and.push({
       OR: [
         { status: DeliveryStatus.FAILED },
+        { status: DeliveryStatus.MANUAL_REVIEW },
         { errorMessage: { not: null } },
       ],
     });
@@ -60,9 +61,9 @@ function buildWhere(input: DeliveriesListQuery): Prisma.DeliveryWhereInput {
       OR: [
         {
           deliveryMethod: DeliveryMethod.MANUAL,
-          status: { in: [DeliveryStatus.PENDING, DeliveryStatus.PROCESSING] },
+          status: { in: [DeliveryStatus.PENDING, DeliveryStatus.QUEUED, DeliveryStatus.PROCESSING] },
         },
-        { status: DeliveryStatus.FAILED },
+        { status: { in: [DeliveryStatus.FAILED, DeliveryStatus.MANUAL_REVIEW] } },
       ],
     });
   }
@@ -160,10 +161,11 @@ function needsManualAttention(input: {
   status: DeliveryStatus;
   method: DeliveryMethod;
 }): boolean {
-  if (input.status === DeliveryStatus.FAILED) return true;
+  if (input.status === DeliveryStatus.FAILED || input.status === DeliveryStatus.MANUAL_REVIEW) return true;
   if (
     input.method === DeliveryMethod.MANUAL &&
     (input.status === DeliveryStatus.PENDING ||
+      input.status === DeliveryStatus.QUEUED ||
       input.status === DeliveryStatus.PROCESSING)
   ) {
     return true;
@@ -230,6 +232,7 @@ export async function getDeliveriesPage(
             order: {
               select: {
                 id: true,
+                userId: true,
                 email: true,
                 customerName: true,
                 user: { select: { name: true } },
@@ -267,6 +270,7 @@ export async function getDeliveriesPage(
         method: row.deliveryMethod,
       }),
       orderId: row.orderItem.order.id,
+      userId: row.orderItem.order.userId,
       orderEmail: row.orderItem.order.email,
       customerName: row.orderItem.order.customerName,
       userName: row.orderItem.order.user.name,
@@ -314,13 +318,13 @@ export async function getDeliveryMetrics(
         where: { ...base, status: DeliveryStatus.PENDING },
       }),
       prisma.delivery.count({
-        where: { ...base, status: DeliveryStatus.PROCESSING },
+        where: { ...base, status: { in: [DeliveryStatus.QUEUED, DeliveryStatus.PROCESSING] } },
       }),
       prisma.delivery.count({
         where: { ...base, status: DeliveryStatus.DELIVERED },
       }),
       prisma.delivery.count({
-        where: { ...base, status: DeliveryStatus.FAILED },
+        where: { ...base, status: { in: [DeliveryStatus.FAILED, DeliveryStatus.MANUAL_REVIEW] } },
       }),
       prisma.delivery.count({
         where: {
@@ -331,10 +335,10 @@ export async function getDeliveryMetrics(
                 {
                   deliveryMethod: DeliveryMethod.MANUAL,
                   status: {
-                    in: [DeliveryStatus.PENDING, DeliveryStatus.PROCESSING],
+                    in: [DeliveryStatus.PENDING, DeliveryStatus.QUEUED, DeliveryStatus.PROCESSING],
                   },
                 },
-                { status: DeliveryStatus.FAILED },
+                { status: { in: [DeliveryStatus.FAILED, DeliveryStatus.MANUAL_REVIEW] } },
               ],
             },
           ],
@@ -715,7 +719,7 @@ export async function getCustomerDeliveryForUser(
       id: e.id,
       status: e.status,
       message:
-        e.status === DeliveryStatus.FAILED
+        (e.status === DeliveryStatus.FAILED || e.status === DeliveryStatus.MANUAL_REVIEW)
           ? "Hubo un problema con la entrega. Soporte está al tanto."
           : e.message,
       createdAt: e.createdAt.toISOString(),

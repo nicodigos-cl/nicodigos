@@ -24,7 +24,8 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/lib/auth-client";
 import { makeUserAdminByEnv } from "@/lib/auth/admin";
-import { AUTH_HOME_PATH } from "@/lib/auth/otp";
+import { navigateAfterAuth } from "@/lib/auth/callback-url";
+import { AUTH_HOME_PATH, buildAuthOtpPath } from "@/lib/auth/otp";
 import { turnstileFetchOptions } from "@/lib/turnstile";
 import {
   loginFormSchema,
@@ -79,7 +80,12 @@ export function LoginForm({
 
     toast.success("Revisa tu correo");
     router.push(
-      `/auth/otp?email=${encodeURIComponent(email)}&type=sign-in&from=login`,
+      buildAuthOtpPath({
+        email,
+        type: "sign-in",
+        from: "login",
+        callbackUrl: callbackURL,
+      }),
     );
   }
 
@@ -116,16 +122,20 @@ export function LoginForm({
           type: "email-verification",
         });
         router.push(
-          `/auth/otp?email=${encodeURIComponent(values.email)}&type=email-verification&from=login`,
+          buildAuthOtpPath({
+            email: values.email,
+            type: "email-verification",
+            from: "login",
+            callbackUrl: callbackURL,
+          }),
         );
       }
       return;
     }
 
-    await makeUserAdminByEnv(values.email);
+    void makeUserAdminByEnv(values.email).catch(() => undefined);
     toast.success("Sesión iniciada");
-    router.push(callbackURL);
-    router.refresh();
+    navigateAfterAuth(callbackURL);
   }
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {

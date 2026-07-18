@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently -k -n web,crons -c cyan,magenta \"bun --bun next dev\" \"bun scripts/dev-crons.ts\"",
+    "dev": "concurrently -k -n web,crons,delivery,support -c cyan,magenta,yellow,green \"bun --bun next dev\" \"bun scripts/dev-crons.ts\" \"bun --conditions=react-server scripts/delivery-worker.ts\" \"bun scripts/support-ws.ts\"",
     "dev:web": "bun --bun next dev",
     "cron:all": "bun scripts/dev-crons.ts",
     "cron:all:once": "bun scripts/dev-crons.ts --once",
@@ -13,6 +13,8 @@
     "cron:sync-kinguin:once": "bun scripts/dev-cron-sync-kinguin.ts --once",
     "cron:cleanup-price-events": "bun scripts/dev-cron-cleanup-price-events.ts",
     "cron:cleanup-price-events:once": "bun scripts/dev-cron-cleanup-price-events.ts --once",
+    "worker:delivery": "bun --conditions=react-server scripts/delivery-worker.ts",
+    "worker:support-ws": "bun scripts/support-ws.ts",
     "build": "bun --bun next build",
     "start": "bun --bun next start",
     "lint": "eslint",
@@ -39,6 +41,7 @@
     "@tanstack/react-table": "^8.21.3",
     "axios": "^1.18.1",
     "better-auth": "^1.6.23",
+    "bullmq": "^5.80.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -74,6 +77,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@tanstack/eslint-plugin-query": "^5.101.2",
+    "@types/bun": "^1.3.14",
     "@types/ioredis": "^5.0.0",
     "@types/node": "^26.1.1",
     "@types/pg": "^8.20.0",

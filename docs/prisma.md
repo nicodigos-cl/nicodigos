@@ -85,6 +85,7 @@ Order 1─* OrderItem 1─0..1 OrderItemSmm
                     1─0..1 Delivery 1─* DeliveryKey
                                    1─* DeliveryEvent
 Order 1─* Payment
+OutboxEvent → entrega transaccional hacia BullMQ
 ```
 
 ### Carrito y wishlist
@@ -140,3 +141,5 @@ Errores conocidos a mapear en actions:
 | Lecturas listados | `src/lib/*/queries.ts` |
 | Reprecio por sync | `src/lib/events/handlers/*` |
 | Cleanup eventos precio | cron `cleanup-price-change-events` |
+| Publicación de fulfillment | `OutboxEvent` + cron `publish-outbox` |
+| Soporte en vivo | `src/lib/support-live/*` + `scripts/support-ws.ts` |

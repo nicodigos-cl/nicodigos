@@ -13,3 +13,13 @@ export function resolveSafeCallbackUrl(
   if (raw.includes("://") || raw.includes("\\")) return fallback;
   return raw;
 }
+
+/**
+ * Full navigation after auth so the session cookie is visible to proxy/SSR.
+ * Soft `router.push` can race the cookie and bounce back to login.
+ */
+export function navigateAfterAuth(
+  callbackURL: string | null | undefined = AUTH_HOME_PATH,
+): void {
+  window.location.assign(resolveSafeCallbackUrl(callbackURL));
+}

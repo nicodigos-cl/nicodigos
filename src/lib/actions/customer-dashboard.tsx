@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { flattenError } from "zod";
 
 import {
@@ -11,6 +12,7 @@ import {
 } from "@/generated/prisma/client";
 
 import type { ActionResult } from "@/lib/actions/types";
+import { auth } from "@/lib/auth";
 import { requireSession } from "@/lib/auth/session";
 import {
   isOwnershipError,
@@ -20,9 +22,11 @@ import {
 import { supportEmail } from "@/lib/customer-dashboard/format";
 import {
   buyAgainSchema,
+  changeCustomerPasswordSchema,
   createSupportRequestSchema,
   resendDeliveryEmailSchema,
   retryPaymentSchema,
+  revokeAllOtherSessionsSchema,
   revokeSessionSchema,
   submitSmmTargetSchema,
   updateCustomerBillingSchema,
@@ -542,6 +546,100 @@ export async function revokeOtherSessionAction(
   );
 
   return { success: true, data: { ok: true } };
+}
+
+export async function revokeAllOtherSessionsAction(
+  rawInput: unknown,
+): Promise<ActionResult<{ revoked: number }>> {
+  const session = await requireSession();
+  if (!session?.user) return unauthorized();
+
+  const parsed = revokeAllOtherSessionsSchema.safeParse(parseSubmission(rawInput));
+  if (!parsed.success) return validationError(parsed.error);
+
+  const revoked = await prisma.$transaction(async (tx) => {
+    const deleted = await tx.session.deleteMany({
+      where: {
+        userId: session.user.id,
+        token: { not: session.session.token },
+      },
+    });
+    await tx.userAdminEvent.create({
+      data: {
+        userId: session.user.id,
+        type: UserAdminEventType.SESSIONS_REVOKED_ALL,
+        actorUserId: session.user.id,
+        actorEmail: session.user.email,
+        message: "El cliente cerró todas sus otras sesiones",
+        metadata: { revoked: deleted.count, keptCurrent: true },
+      },
+    });
+    return deleted.count;
+  });
+
+  revalidatePath("/dashboard/security");
+  log.info(
+    { action: "revokeAllOtherSessions", userId: session.user.id, revoked, result: "success" },
+    "Customer revoked all other sessions",
+  );
+  return { success: true, data: { revoked } };
+}
+
+export async function changeCustomerPasswordAction(
+  rawInput: unknown,
+): Promise<ActionResult<{ ok: true }>> {
+  const session = await requireSession();
+  if (!session?.user) return unauthorized();
+
+  const parsed = changeCustomerPasswordSchema.safeParse(parseSubmission(rawInput));
+  if (!parsed.success) return validationError(parsed.error);
+
+  const credential = await prisma.account.findFirst({
+    where: { userId: session.user.id, providerId: "credential", password: { not: null } },
+    select: { id: true },
+  });
+  if (!credential) {
+    return {
+      success: false,
+      message: "Esta cuenta todavía no tiene contraseña. Usa el flujo de recuperación para crear una.",
+    };
+  }
+
+  try {
+    await auth.api.changePassword({
+      headers: await headers(),
+      body: {
+        currentPassword: parsed.data.currentPassword,
+        newPassword: parsed.data.newPassword,
+        revokeOtherSessions: parsed.data.revokeOtherSessions,
+      },
+    });
+    await prisma.userAdminEvent.create({
+      data: {
+        userId: session.user.id,
+        type: UserAdminEventType.PROFILE_UPDATED,
+        actorUserId: session.user.id,
+        actorEmail: session.user.email,
+        message: "Contraseña actualizada por el cliente",
+        metadata: { revokedOtherSessions: parsed.data.revokeOtherSessions },
+      },
+    });
+    revalidatePath("/dashboard/security");
+    log.info(
+      { action: "changePassword", userId: session.user.id, result: "success" },
+      "Customer changed password",
+    );
+    return { success: true, data: { ok: true } };
+  } catch (error) {
+    log.warn(
+      { action: "changePassword", userId: session.user.id, errorCode: error instanceof Error ? error.name : "UNKNOWN" },
+      "Customer password change rejected",
+    );
+    return {
+      success: false,
+      message: "No pudimos cambiar la contraseña. Comprueba tu contraseña actual.",
+    };
+  }
 }
 
 export async function buyAgainAction(

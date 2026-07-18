@@ -21,13 +21,13 @@ export default async function CustomerSecurityPage() {
   );
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="mx-auto flex w-full flex-col gap-7">
       <div className="space-y-1">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">
           Seguridad
         </h1>
         <p className="text-sm text-muted-foreground">
-          Revisa sesiones, verificación de email y acceso a tu cuenta.
+          Protege tu cuenta, actualiza tu contraseña y controla dónde tienes sesiones abiertas.
         </p>
       </div>
       <SecuritySessions security={security} />

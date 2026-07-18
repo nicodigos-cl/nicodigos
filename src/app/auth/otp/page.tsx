@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { AuthOtpForm } from "@/components/auth/auth-otp-form";
 import { AuthOtpShell } from "@/components/auth/auth-otp-shell";
+import { resolveSafeCallbackUrl } from "@/lib/auth/callback-url";
 import { authOtpCopy, isAuthOtpType } from "@/lib/auth/otp";
 
 export const metadata: Metadata = {
@@ -15,6 +16,7 @@ type OtpPageProps = {
     otp?: string;
     type?: string;
     from?: string;
+    callbackUrl?: string;
   }>;
 };
 
@@ -27,6 +29,7 @@ export default async function OtpPage({ searchParams }: OtpPageProps) {
       ? params.from
       : undefined;
   const initialOtp = params.otp?.replace(/\D/g, "").slice(0, 6) ?? "";
+  const callbackURL = resolveSafeCallbackUrl(params.callbackUrl);
 
   if (!email || !type) {
     redirect("/auth/login");
@@ -49,6 +52,7 @@ export default async function OtpPage({ searchParams }: OtpPageProps) {
         type={type}
         initialOtp={initialOtp}
         from={from}
+        callbackURL={callbackURL}
       />
     </AuthOtpShell>
   );

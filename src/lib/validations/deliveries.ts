@@ -2,9 +2,11 @@ import { z } from "zod";
 
 export const deliveryStatusValues = [
   "PENDING",
+  "QUEUED",
   "PROCESSING",
   "DELIVERED",
   "FAILED",
+  "MANUAL_REVIEW",
   "CANCELED",
 ] as const;
 
@@ -112,9 +114,11 @@ export type DeliveriesListQuery = z.infer<typeof deliveriesListQuerySchema>;
 
 export const deliveryStatusLabel: Record<DeliveryStatus, string> = {
   PENDING: "Pendiente",
+  QUEUED: "En cola",
   PROCESSING: "Procesando",
   DELIVERED: "Entregada",
   FAILED: "Fallida",
+  MANUAL_REVIEW: "Revisión manual",
   CANCELED: "Cancelada",
 };
 

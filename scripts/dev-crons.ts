@@ -10,6 +10,12 @@ const ONCE = process.argv.includes("--once");
 
 const JOBS = [
   {
+    name: "cron-publish-outbox",
+    path: "/api/cron/publish-outbox",
+    intervalMs: envInt("CRON_PUBLISH_OUTBOX_INTERVAL_MS", 5_000),
+    initialDelayMs: envInt("CRON_PUBLISH_OUTBOX_INITIAL_DELAY_MS", 3_000),
+  },
+  {
     name: "cron-sync-smm",
     path: "/api/cron/sync-smm-services",
     intervalMs: envInt("CRON_SYNC_SMM_INTERVAL_MS", 300_000),

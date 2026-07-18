@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/lib/auth-client";
 import { makeUserAdminByEnv } from "@/lib/auth/admin";
-import { AUTH_HOME_PATH } from "@/lib/auth/otp";
+import { AUTH_HOME_PATH, buildAuthOtpPath } from "@/lib/auth/otp";
 import { turnstileFetchOptions } from "@/lib/turnstile";
 import {
   registerFormSchema,
@@ -77,10 +77,15 @@ export function RegisterForm() {
       return;
     }
 
-    await makeUserAdminByEnv(values.email);
+    void makeUserAdminByEnv(values.email).catch(() => undefined);
     toast.success("Cuenta creada. Revisa tu correo.");
     router.push(
-      `/auth/otp?email=${encodeURIComponent(values.email)}&type=email-verification&from=register`,
+      buildAuthOtpPath({
+        email: values.email,
+        type: "email-verification",
+        from: "register",
+        callbackUrl: AUTH_HOME_PATH,
+      }),
     );
   }
 

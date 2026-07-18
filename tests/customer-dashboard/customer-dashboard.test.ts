@@ -22,7 +22,9 @@ import {
   resolveOrderPrimaryAction,
 } from "@/lib/customer-dashboard/status";
 import {
+  changeCustomerPasswordSchema,
   customerOrdersListQuerySchema,
+  revokeAllOtherSessionsSchema,
   submitSmmTargetSchema,
   updateCustomerBillingSchema,
 } from "@/lib/customer-dashboard/validations";
@@ -154,6 +156,19 @@ describe("customer payment summary", () => {
 });
 
 describe("customer delivery summary", () => {
+  test("groups queued work as processing and manual review as a problem", () => {
+    const summary = deriveCustomerOrderDeliverySummary({
+      totalItems: 2,
+      deliveries: [
+        { id: "queued", status: "QUEUED" },
+        { id: "review", status: "MANUAL_REVIEW" },
+      ],
+    });
+    expect(summary.processingCount).toBe(1);
+    expect(summary.failedCount).toBe(1);
+    expect(summary.failedDeliveryId).toBe("review");
+  });
+
   test("summarizes partial deliveries", () => {
     const summary = deriveCustomerOrderDeliverySummary({
       totalItems: 3,
@@ -262,6 +277,19 @@ describe("customer dashboard validations", () => {
       businessActivity: "",
     });
     expect(result.success).toBeFalse();
+  });
+
+  test("validates password changes and explicit session revocation", () => {
+    expect(
+      changeCustomerPasswordSchema.safeParse({
+        currentPassword: "current-password",
+        newPassword: "new-password",
+        confirmPassword: "different-password",
+        revokeOtherSessions: true,
+      }).success,
+    ).toBeFalse();
+    expect(revokeAllOtherSessionsSchema.safeParse({ confirm: false }).success).toBeFalse();
+    expect(revokeAllOtherSessionsSchema.safeParse({ confirm: true }).success).toBeTrue();
   });
 });
 

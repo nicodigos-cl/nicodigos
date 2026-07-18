@@ -1,11 +1,13 @@
 import type { DeliveryMethod, DeliveryStatus } from "@/generated/prisma/client";
 
 const TRANSITIONS: Record<DeliveryStatus, readonly DeliveryStatus[]> = {
-  PENDING: ["PROCESSING", "DELIVERED", "FAILED", "CANCELED"],
-  PROCESSING: ["DELIVERED", "FAILED", "CANCELED", "PENDING"],
+  PENDING: ["QUEUED", "PROCESSING", "DELIVERED", "FAILED", "MANUAL_REVIEW", "CANCELED"],
+  QUEUED: ["PROCESSING", "DELIVERED", "FAILED", "MANUAL_REVIEW", "CANCELED", "PENDING"],
+  PROCESSING: ["DELIVERED", "FAILED", "MANUAL_REVIEW", "CANCELED", "PENDING", "QUEUED"],
   DELIVERED: ["FAILED"],
-  FAILED: ["PENDING", "PROCESSING", "DELIVERED", "CANCELED"],
-  CANCELED: ["PENDING", "PROCESSING"],
+  FAILED: ["PENDING", "QUEUED", "PROCESSING", "DELIVERED", "MANUAL_REVIEW", "CANCELED"],
+  MANUAL_REVIEW: ["PENDING", "QUEUED", "PROCESSING", "DELIVERED", "FAILED", "CANCELED"],
+  CANCELED: ["PENDING", "QUEUED", "PROCESSING"],
 };
 
 export function canTransitionDeliveryStatus(
@@ -44,7 +46,7 @@ export function getAllowedDeliveryActions(input: {
   const { status, method, hasExternalOrderId, hasKeysOrCredentials } = input;
   const actions: DeliveryAdminAction[] = [];
 
-  if (status === "PENDING" || status === "PROCESSING" || status === "FAILED") {
+  if (["PENDING", "QUEUED", "PROCESSING", "FAILED", "MANUAL_REVIEW"].includes(status)) {
     if (method === "MANUAL") {
       actions.push("save_draft");
       if (canTransitionDeliveryStatus(status, "PROCESSING")) {
@@ -91,21 +93,21 @@ export function getAllowedDeliveryActions(input: {
   }
 
   if (
-    (status === "PENDING" || status === "PROCESSING" || status === "FAILED") &&
+    ["PENDING", "QUEUED", "PROCESSING", "FAILED", "MANUAL_REVIEW"].includes(status) &&
     canTransitionDeliveryStatus(status, "FAILED")
   ) {
     actions.push("mark_failed");
   }
 
   if (
-    (status === "PENDING" || status === "PROCESSING" || status === "FAILED") &&
+    ["PENDING", "QUEUED", "PROCESSING", "FAILED", "MANUAL_REVIEW"].includes(status) &&
     canTransitionDeliveryStatus(status, "CANCELED")
   ) {
     actions.push("cancel");
   }
 
   if (
-    (status === "FAILED" || status === "CANCELED") &&
+    (status === "FAILED" || status === "MANUAL_REVIEW" || status === "CANCELED") &&
     canTransitionDeliveryStatus(status, "PENDING")
   ) {
     actions.push("reopen");
@@ -117,9 +119,11 @@ export function getAllowedDeliveryActions(input: {
 
 export const deliveryStatusLabel: Record<DeliveryStatus, string> = {
   PENDING: "Pendiente",
+  QUEUED: "En cola",
   PROCESSING: "Procesando",
   DELIVERED: "Entregada",
   FAILED: "Fallida",
+  MANUAL_REVIEW: "Revisión manual",
   CANCELED: "Cancelada",
 };
 

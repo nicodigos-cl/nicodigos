@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { AuthOtpShell } from "@/components/auth/auth-otp-shell";
 import { Button } from "@/components/ui/button";
+import { resolveSafeCallbackUrl } from "@/lib/auth/callback-url";
 import { AUTH_HOME_PATH, buildAuthOtpPath } from "@/lib/auth/otp";
 
 export const metadata: Metadata = {
@@ -14,6 +15,7 @@ type VerifyEmailPageProps = {
   searchParams: Promise<{
     status?: string;
     email?: string;
+    callbackUrl?: string;
   }>;
 };
 
@@ -21,6 +23,7 @@ export default async function VerifyEmailPage({
   searchParams,
 }: VerifyEmailPageProps) {
   const params = await searchParams;
+  const callbackURL = resolveSafeCallbackUrl(params.callbackUrl);
 
   if (params.status === "success") {
     return (
@@ -29,11 +32,11 @@ export default async function VerifyEmailPage({
         description="Tu cuenta ya está lista."
       >
         <Button
-          render={<Link href={AUTH_HOME_PATH} />}
+          render={<Link href={callbackURL} />}
           nativeButton={false}
           className="w-full rounded-xl"
         >
-          Ir al dashboard
+          Continuar
         </Button>
       </AuthOtpShell>
     );
@@ -49,6 +52,7 @@ export default async function VerifyEmailPage({
       email,
       type: "email-verification",
       from: "login",
+      callbackUrl: callbackURL !== AUTH_HOME_PATH ? callbackURL : undefined,
     }),
   );
 }

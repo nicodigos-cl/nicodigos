@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/lib/auth-client";
+import { navigateAfterAuth } from "@/lib/auth/callback-url";
 import {
   AUTH_HOME_PATH,
   AUTH_OTP_LENGTH,
@@ -37,6 +38,7 @@ type AuthOtpFormProps = {
   type: AuthOtpType;
   initialOtp?: string;
   from?: "login" | "register";
+  callbackURL?: string;
 };
 
 export function AuthOtpForm({
@@ -44,6 +46,7 @@ export function AuthOtpForm({
   type,
   initialOtp = "",
   from,
+  callbackURL = AUTH_HOME_PATH,
 }: AuthOtpFormProps) {
   const router = useRouter();
   const copy = authOtpCopy(type);
@@ -103,10 +106,9 @@ export function AuthOtpForm({
         return;
       }
 
-      await makeUserAdminByEnv(email);
+      void makeUserAdminByEnv(email).catch(() => undefined);
       toast.success("Correo verificado");
-      router.push(AUTH_HOME_PATH);
-      router.refresh();
+      navigateAfterAuth(callbackURL);
       return;
     }
 
@@ -123,10 +125,9 @@ export function AuthOtpForm({
         return;
       }
 
-      await makeUserAdminByEnv(email);
+      void makeUserAdminByEnv(email).catch(() => undefined);
       toast.success("Sesión iniciada");
-      router.push(AUTH_HOME_PATH);
-      router.refresh();
+      navigateAfterAuth(callbackURL);
       return;
     }
 

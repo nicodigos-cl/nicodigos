@@ -8,7 +8,10 @@ import type { threadListQuerySchema } from "@/lib/validations/communications";
 type ThreadQuery = z.infer<typeof threadListQuerySchema>;
 
 export async function getEmailThreads(query: ThreadQuery, actorUserId?: string) {
-  const where: Prisma.CommunicationThreadWhereInput = { deletedAt: null };
+  const where: Prisma.CommunicationThreadWhereInput = {
+    deletedAt: null,
+    channel: "EMAIL",
+  };
   if (query.mailbox === "archived") where.status = "ARCHIVED";
   else if (query.mailbox === "spam") where.status = "SPAM";
   else if (query.mailbox === "sent") where.messages = { some: { direction: "OUTBOUND", status: { not: "DRAFT" }, deletedAt: null } };
@@ -71,7 +74,7 @@ export async function getEmailThreads(query: ThreadQuery, actorUserId?: string) 
 
 export async function getEmailThread(threadId: string) {
   const thread = await prisma.communicationThread.findFirst({
-    where: { id: threadId, deletedAt: null },
+    where: { id: threadId, deletedAt: null, channel: "EMAIL" },
     select: {
       id: true, subject: true, status: true, priority: true, category: true, unreadCount: true,
       assignedUserId: true, assignedEmail: true, orderId: true, deliveryId: true,

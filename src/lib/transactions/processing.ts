@@ -48,7 +48,7 @@ export async function processVerifiedFlowPayment(input: { token: string; snapsho
       }
       const deliveries = await ensureDeliveriesForOrder(payment.orderId, tx);
       deliveriesCreated = deliveries.created;
-      if (deliveries.created > 0) await appendPaymentEvent(tx, { paymentId: payment.id, type: PaymentEventType.FULFILLMENT_STARTED, source, message: `Se crearon ${deliveries.created} entrega(s) de forma idempotente.`, actor: input.actor, idempotencyKey: `fulfillment-started:${payment.id}` });
+      if (deliveries.requested > 0) await appendPaymentEvent(tx, { paymentId: payment.id, type: PaymentEventType.FULFILLMENT_STARTED, source, message: `Se solicitaron ${deliveries.requested} entrega(s) asíncronas de forma idempotente.`, actor: input.actor, idempotencyKey: `fulfillment-started:${payment.id}` });
     }
     return { paymentId: payment.id, changed, deliveriesCreated };
   });

@@ -124,6 +124,13 @@ export const customerDeliveriesFilterValues = [
   "smm",
 ] as const;
 
+export const customerDeliverySortValues = [
+  "newest",
+  "oldest",
+  "delivered_newest",
+  "delivered_oldest",
+] as const;
+
 export const customerDeliveriesListQuerySchema = z.object({
   page: z.preprocess(
     emptyToUndefined,
@@ -134,15 +141,27 @@ export const customerDeliveriesListQuerySchema = z.object({
     z.coerce
       .number()
       .int()
-      .refine((value) => value === 10 || value === 20 || value === 50, {
+      .refine((value) => value === 10 || value === 20, {
         message: "pageSize inválido",
       })
       .default(10),
   ),
+  q: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .max(120)
+      .regex(/^[\p{L}\p{N}\s#\-_.]+$/u, "Búsqueda inválida")
+      .transform((value) => value.replace(/\s+/g, " "))
+      .optional(),
+  ),
+  /** Visual category filter (maps to status/method combinations). */
   filter: z.preprocess(
     emptyToUndefined,
     z.enum(customerDeliveriesFilterValues).default("all"),
   ),
+  /** Legacy exact enum filter — still accepted for backwards compatibility. */
   status: z.preprocess(
     emptyToUndefined,
     z.enum(deliveryStatusValues).optional(),
@@ -151,11 +170,44 @@ export const customerDeliveriesListQuerySchema = z.object({
     emptyToUndefined,
     z.enum(deliveryMethodValues).optional(),
   ),
+  sort: z.preprocess(
+    emptyToUndefined,
+    z.enum(customerDeliverySortValues).default("newest"),
+  ),
+  from: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida")
+      .optional(),
+  ),
+  to: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida")
+      .optional(),
+  ),
 });
 
 export type CustomerDeliveriesListQuery = z.infer<
   typeof customerDeliveriesListQuerySchema
 >;
+
+export const customerTransactionStatusFilterValues = [
+  "all",
+  "pending",
+  "paid",
+  "failed",
+  "refunded",
+] as const;
+
+export const customerTransactionSortValues = [
+  "newest",
+  "oldest",
+  "amount_desc",
+  "amount_asc",
+] as const;
 
 export const customerTransactionsListQuerySchema = z.object({
   page: z.preprocess(
@@ -167,10 +219,42 @@ export const customerTransactionsListQuerySchema = z.object({
     z.coerce
       .number()
       .int()
-      .refine((value) => value === 10 || value === 20 || value === 50, {
+      .refine((value) => value === 10 || value === 20, {
         message: "pageSize inválido",
       })
       .default(10),
+  ),
+  q: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .max(120)
+      .regex(/^[\p{L}\p{N}\s#\-_.]+$/u, "Búsqueda inválida")
+      .transform((value) => value.replace(/\s+/g, " "))
+      .optional(),
+  ),
+  status: z.preprocess(
+    emptyToUndefined,
+    z.enum(customerTransactionStatusFilterValues).default("all"),
+  ),
+  sort: z.preprocess(
+    emptyToUndefined,
+    z.enum(customerTransactionSortValues).default("newest"),
+  ),
+  from: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida")
+      .optional(),
+  ),
+  to: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida")
+      .optional(),
   ),
 });
 
@@ -324,6 +408,31 @@ export const createSupportRequestSchema = z.object({
 export const revokeSessionSchema = z.object({
   sessionId: z.string().min(1).max(128),
 });
+
+export const revokeAllOtherSessionsSchema = z.object({
+  confirm: z.literal(true, {
+    error: "Debes confirmar el cierre de las otras sesiones.",
+  }),
+});
+
+export const changeCustomerPasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Ingresa tu contraseña actual").max(128),
+    newPassword: z
+      .string()
+      .min(8, "La nueva contraseña debe tener al menos 8 caracteres")
+      .max(128, "La nueva contraseña es demasiado larga"),
+    confirmPassword: z.string().min(1, "Confirma la nueva contraseña").max(128),
+    revokeOtherSessions: z.boolean().default(true),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirmPassword"],
+  })
+  .refine((data) => data.currentPassword !== data.newPassword, {
+    message: "La nueva contraseña debe ser distinta a la actual",
+    path: ["newPassword"],
+  });
 
 export const buyAgainSchema = z.object({
   productId: z.string().cuid(),

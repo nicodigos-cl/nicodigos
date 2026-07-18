@@ -8,6 +8,7 @@ import {
 
 import {
   CUSTOMER_ORDERS_PATH,
+  customerDeliveriesPath,
   customerOrdersPath,
 } from "@/lib/customer-dashboard/paths";
 import type { CustomerOrderMetrics } from "@/lib/customer-dashboard/types";
@@ -34,7 +35,7 @@ const cards = [
   {
     key: "availableDeliveries" as const,
     title: "Entregas disponibles",
-    href: "/dashboard/deliveries?filter=available",
+    href: customerDeliveriesPath({ filter: "available" }),
     linkLabel: "Ver entregas",
     icon: HiOutlineTruck,
     isActive: () => false,
