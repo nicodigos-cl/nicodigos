@@ -1,7 +1,18 @@
 import * as Sentry from "@sentry/nextjs";
 
+function sentryEnvironment(): string {
+  return (
+    process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ??
+    process.env.SENTRY_ENVIRONMENT ??
+    process.env.RAILWAY_ENVIRONMENT_NAME ??
+    process.env.NODE_ENV ??
+    "development"
+  );
+}
+
 Sentry.init({
-  dsn: process.env.SENTRY_DSN,
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN ?? process.env.SENTRY_DSN,
+  environment: sentryEnvironment(),
   dataCollection: {
     // To disable sending user data and HTTP bodies, uncomment the lines below. For more info visit:
     // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#dataCollection
