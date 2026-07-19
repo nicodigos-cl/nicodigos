@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { ElementType } from "react";
 import {
   DesktopIcon,
@@ -130,11 +131,11 @@ export default function StoreCategories({
   return (
     <section
       aria-label="Destacados de la tienda"
-      className={cn("relative py-16 sm:py-24", className)}
+      className={cn("relative py-4 sm:py-24", className)}
     >
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Encabezado Premium de Sección */}
-        <div className="mx-auto max-w-2xl text-center mb-12 sm:mb-16">
+        {/* Encabezado Premium de Sección (Oculto en Móviles) */}
+        <div className="mx-auto max-w-2xl text-center mb-12 sm:mb-16 max-sm:hidden">
           <h2 className="text-xs font-bold uppercase tracking-widest text-primary">
             Categorías principales
           </h2>
@@ -147,7 +148,28 @@ export default function StoreCategories({
           </p>
         </div>
 
-        <BentoGrid className="auto-rows-[18rem] grid-cols-1 gap-4 sm:auto-rows-[20rem] sm:grid-cols-2 lg:auto-rows-[22rem] lg:grid-cols-3">
+        {/* Circular Category Buttons for Mobile Grid */}
+        <div className="grid grid-cols-4 items-start justify-items-center gap-1.5 sm:hidden mb-6 mt-1 px-1">
+          {tiles.map((tile) => {
+            const Icon = tile.Icon;
+            return (
+              <Link
+                key={tile.name}
+                href={tile.href}
+                className="flex flex-col items-center text-center group active:scale-95 transition-all w-full"
+              >
+                <div className="size-14 rounded-full bg-primary/10 border border-primary/15 text-primary flex items-center justify-center shadow-xs transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                  <Icon className="size-6 shrink-0" />
+                </div>
+                <span className="mt-1.5 text-[10px] font-extrabold text-foreground/95 tracking-tight leading-tight line-clamp-2 px-1">
+                  {tile.name}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+
+        <BentoGrid className="hidden sm:grid auto-rows-[18rem] grid-cols-1 gap-4 sm:auto-rows-[20rem] sm:grid-cols-2 lg:auto-rows-[22rem] lg:grid-cols-3">
           {tiles.map((tile) => (
             <BentoCard
               key={tile.name}

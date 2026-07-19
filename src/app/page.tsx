@@ -1,5 +1,5 @@
-import StoreFooter from "@/components/layout/store-footer";
-import StoreNav from "@/components/layout/store-nav";
+import Link from "next/link";
+import StoreLayout from "@/components/layout/store-layout";
 import StoreCategories from "@/components/store/store-categories";
 import StoreCTA from "@/components/store/store-cta";
 import StoreHero from "@/components/store/store-hero";
@@ -32,28 +32,28 @@ export default async function Home() {
   ]);
 
   return (
-    <div className="min-h-full bg-background">
-      <StoreNav />
-      <main>
-        <StoreHero />
-        <StoreProductBands>
-          <StoreCategories
-            categories={categories.map((category) => ({
-              name: category.name,
-              href: category.href,
-              slug: category.slug,
-            }))}
-          />
-          <StorePopularProducts products={popularProducts} />
-        </StoreProductBands>
-        <StoreCTA />
-        <StoreProductBands>
-          <StoreTrendingProducts products={trendingProducts} />
-          <StoreNewProducts products={newProducts} />
-          <StoreOfferProducts products={offerProducts} />
-        </StoreProductBands>
-      </main>
-      <StoreFooter />
-    </div>
+    <StoreLayout>
+      <StoreHero />
+      <StoreProductBands>
+        <StoreCategories
+          categories={categories.map((category) => ({
+            name: category.name,
+            href: category.href,
+            slug: category.slug,
+          }))}
+        />
+        <StorePopularProducts products={popularProducts} />
+      </StoreProductBands>
+      <StoreProductBands>
+        <StoreTrendingProducts products={trendingProducts} />
+      </StoreProductBands>
+      
+      <StoreCTA />
+      
+      <StoreProductBands>
+        <StoreNewProducts products={newProducts} />
+        <StoreOfferProducts products={offerProducts} />
+      </StoreProductBands>
+    </StoreLayout>
   );
 }

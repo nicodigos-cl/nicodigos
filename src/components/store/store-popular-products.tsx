@@ -24,12 +24,12 @@ export default function StorePopularProducts({
       aria-labelledby="popular-products-heading"
       className={cn("relative", className)}
     >
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2
               id="popular-products-heading"
-              className="font-heading text-2xl font-bold tracking-tight text-foreground sm:text-3xl"
+              className="font-heading text-xl font-bold tracking-tight text-foreground sm:text-3xl"
             >
               Productos populares
             </h2>
@@ -39,10 +39,10 @@ export default function StorePopularProducts({
           </div>
         </div>
 
-        <ul className="mt-8 grid list-none grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4 xl:gap-x-8">
+        <ul className="mt-4 sm:mt-8 grid list-none grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-2 lg:grid-cols-4 sm:gap-x-6 sm:gap-y-10 xl:gap-x-8">
           {products.map((product) => (
             <li key={product.id} className="group relative">
-              <div className="relative overflow-hidden rounded-2xl bg-muted ring-1 ring-border">
+              <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-muted ring-1 ring-border">
                 {product.imageUrl ? (
                   <Image
                     alt=""
@@ -59,32 +59,32 @@ export default function StorePopularProducts({
                   />
                 )}
                 {product.isOffer ? (
-                  <Badge className="absolute top-3 left-3 shadow-sm">
+                  <Badge className="absolute top-2 left-2 sm:top-3 sm:left-3 shadow-sm text-[10px] sm:text-xs px-1.5 py-0.5 sm:px-2.5 sm:py-0.5">
                     Oferta
                   </Badge>
                 ) : null}
               </div>
 
-              <div className="mt-4 flex justify-between gap-3">
+              <div className="mt-2 sm:mt-4 flex flex-col sm:flex-row justify-between gap-1 sm:gap-3">
                 <div className="min-w-0">
-                  <h3 className="truncate text-sm font-medium text-foreground">
+                  <h3 className="truncate text-xs sm:text-sm font-medium text-foreground">
                     <Link href={product.href} className="hover:text-primary">
                       <span aria-hidden="true" className="absolute inset-0" />
                       {product.name}
                     </Link>
                   </h3>
                   {product.categoryName ? (
-                    <p className="mt-1 truncate text-sm text-muted-foreground">
+                    <p className="mt-0.5 sm:mt-1 truncate text-[10px] sm:text-sm text-muted-foreground">
                       {product.categoryName}
                     </p>
                   ) : null}
                 </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-sm font-medium tabular-nums text-foreground">
+                <div className="shrink-0 text-left sm:text-right flex items-baseline gap-1.5 sm:block">
+                  <p className="text-xs sm:text-sm font-medium tabular-nums text-foreground">
                     {formatMoney(product.price, product.currency)}
                   </p>
                   {product.isOffer && product.compareAtPrice ? (
-                    <p className="text-xs tabular-nums text-muted-foreground line-through">
+                    <p className="text-[10px] sm:text-xs tabular-nums text-muted-foreground line-through">
                       {formatMoney(product.compareAtPrice, product.currency)}
                     </p>
                   ) : null}

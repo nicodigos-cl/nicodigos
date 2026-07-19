@@ -24,7 +24,7 @@ const offers = [
   {
     name: "Entrega digital",
     description: "Keys y servicios al instante",
-    href: "/categorias",
+    href: "/categories",
     icon: HiOutlineLightningBolt,
   },
   {
@@ -65,7 +65,7 @@ export default function StoreHero({ className }: StoreHeroProps) {
       aria-label="Inicio"
       className={cn("flex flex-col w-full bg-background", className)}
     >
-      <div className="relative overflow-hidden border-b border-primary/15 bg-primary/10 py-16 sm:py-24 lg:py-28 xl:py-32 w-full">
+      <div className="relative overflow-hidden border-b border-primary/15 bg-primary/10 py-4 pb-8 sm:py-24 lg:py-28 xl:py-32 w-full">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 z-1 bg-linear-to-br from-primary/20 via-primary/5 to-transparent"
@@ -88,7 +88,7 @@ export default function StoreHero({ className }: StoreHeroProps) {
                 Entrega inmediata en todo Chile
               </div>
 
-              <h1 className="mt-6 font-heading text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl max-w-4xl leading-none">
+              <h1 className="mt-5 font-heading text-3xl font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl max-w-4xl leading-tight sm:leading-none">
                 Productos digitales,{" "}
                 <span className="text-primary font-black relative">
                   entrega inmediata
@@ -99,22 +99,22 @@ export default function StoreHero({ className }: StoreHeroProps) {
                   width={48}
                   height={48}
                   unoptimized
-                  className="ml-1 inline-block size-8 align-middle sm:size-10 lg:size-12 hover:scale-110 transition-transform duration-300"
+                  className="ml-1 inline-block size-6 align-middle sm:size-10 lg:size-12 hover:scale-110 transition-transform duration-300"
                   priority
                 />
               </h1>
 
-              <p className="mt-6 max-w-2xl text-base text-foreground/80 sm:text-lg sm:leading-relaxed">
+              <p className="mt-4 sm:mt-6 max-w-2xl text-sm text-foreground/80 sm:text-lg sm:leading-relaxed">
                 Consigue keys de juegos, licencias de software y servicios SMM
                 al mejor precio. Compra de forma segura en Chile con CLP y
                 recibe al instante.
               </p>
 
-              <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start w-full sm:w-auto px-4 sm:px-0">
+              <div className="mt-6 sm:mt-10 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start w-full sm:w-auto px-2 sm:px-0">
                 <Button
                   size="lg"
                   className="group rounded-xl px-8 font-semibold shadow-md shadow-primary/10 hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 w-full sm:w-auto flex items-center justify-center gap-1 cursor-pointer"
-                  render={<Link href="/categorias" />}
+                  render={<Link href="/categories" />}
                   nativeButton={false}
                 >
                   Explorar catálogo
@@ -131,7 +131,7 @@ export default function StoreHero({ className }: StoreHeroProps) {
                 </Button>
               </div>
 
-              <div className="mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-y-2 gap-x-6 text-xs text-muted-foreground font-medium select-none">
+              <div className="mt-6 sm:mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-y-1.5 gap-x-4 sm:gap-x-6 text-[10px] sm:text-xs text-muted-foreground font-medium select-none">
                 <span className="flex items-center gap-1.5">
                   <span className="text-primary font-bold">✓</span> Compra 100%
                   Segura
@@ -148,7 +148,7 @@ export default function StoreHero({ className }: StoreHeroProps) {
                 </span>
               </div>
 
-              <div className="mt-8 w-full max-w-xl">
+              <div className="mt-8 w-full max-w-xl hidden sm:block">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   Pago seguro vía Flow · Webpay · Transferencia y más
                 </p>
@@ -171,7 +171,7 @@ export default function StoreHero({ className }: StoreHeroProps) {
               </div>
             </div>
 
-            <div className="relative mx-auto w-full max-w-sm sm:max-w-md lg:max-w-none">
+            <div className="hidden lg:block relative mx-auto w-full max-w-sm sm:max-w-md lg:max-w-none">
               <div className="absolute inset-8 sm:inset-12 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
               <Image
                 src={MASCOT_IMAGE}
@@ -187,7 +187,7 @@ export default function StoreHero({ className }: StoreHeroProps) {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 -mt-10 sm:-mt-12 relative z-20 w-full mb-16">
+      <div className="hidden sm:block mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 -mt-10 sm:-mt-12 relative z-20 w-full mb-16">
         <div className="rounded-2xl border border-border/50 bg-background/95 backdrop-blur-md shadow-xl shadow-black/5 overflow-hidden">
           <ul
             role="list"

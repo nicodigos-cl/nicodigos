@@ -19,7 +19,7 @@ export default function StoreTrendingProducts({
       eyebrow="Tendencia"
       title="Productos en tendencia"
       description="Lo que más se está pidiendo ahora mismo en Nicodigos."
-      href="/categorias"
+      href="/categories"
       ctaLabel="Ver tendencias"
       products={products}
       badgeMode="auto"

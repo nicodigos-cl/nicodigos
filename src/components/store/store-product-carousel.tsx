@@ -61,7 +61,7 @@ export default function StoreProductCarousel({
   id,
   title,
   description,
-  href = "/categorias",
+  href = "/catalog",
   ctaLabel = "Ver catálogo",
   eyebrow,
   products,
@@ -77,17 +77,14 @@ export default function StoreProductCarousel({
   const config = toneConfig[tone];
 
   return (
-    <section
-      aria-labelledby={headingId}
-      className={cn("relative", className)}
-    >
-      <div className="relative z-10 mx-auto max-w-7xl py-16 sm:py-20">
-        <div className="md:flex md:items-end md:justify-between gap-4">
+    <section aria-labelledby={headingId} className={cn("relative", className)}>
+      <div className="relative z-10 mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-20 lg:px-8">
+        <div className="flex items-end justify-between gap-4">
           <div className="max-w-2xl">
             {eyebrow ? (
               <p
                 className={cn(
-                  "text-xs font-bold uppercase tracking-widest",
+                  "text-[10px] sm:text-xs font-bold uppercase tracking-widest",
                   config.eyebrow,
                 )}
               >
@@ -97,19 +94,29 @@ export default function StoreProductCarousel({
             <h2
               id={headingId}
               className={cn(
-                "font-heading text-2xl font-bold tracking-tight text-foreground sm:text-3xl",
-                eyebrow && "mt-2",
+                "font-heading text-xl sm:text-3xl font-bold tracking-tight text-foreground",
+                eyebrow && "mt-0.5 sm:mt-2",
               )}
             >
               {title}
             </h2>
-            <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+            <p className="hidden sm:block mt-2 text-sm text-muted-foreground sm:text-base">
               {description}
             </p>
           </div>
+
+          {/* Mobile 'Ver más' link */}
           <Link
             href={href}
-            className="mt-4 hidden shrink-0 rounded-full border border-border/60 bg-background/70 px-4 py-2 text-sm font-medium text-primary backdrop-blur-sm transition-colors hover:border-primary/40 hover:bg-background md:mt-0 md:inline-flex"
+            className="mb-1 sm:hidden shrink-0 text-xs font-bold text-primary active:opacity-70 transition-opacity"
+          >
+            Ver más &rarr;
+          </Link>
+
+          {/* Desktop CTA button */}
+          <Link
+            href={href}
+            className="hidden sm:inline-flex shrink-0 rounded-full border border-border/60 bg-background/70 px-4 py-2 text-sm font-medium text-primary backdrop-blur-sm transition-colors hover:border-primary/40 hover:bg-background"
           >
             {ctaLabel}
             <span aria-hidden="true" className="ml-1">
@@ -118,7 +125,7 @@ export default function StoreProductCarousel({
           </Link>
         </div>
 
-        <div className="relative mt-10">
+        <div className="relative mt-4 sm:mt-10">
           <Carousel
             opts={{
               align: "start",
@@ -132,26 +139,26 @@ export default function StoreProductCarousel({
                 return (
                   <CarouselItem
                     key={product.id}
-                    className="pl-3 basis-[45%] sm:basis-1/2 md:basis-1/3 lg:basis-1/4"
+                    className="pl-3 basis-[40%] sm:basis-1/2 md:basis-1/3 lg:basis-1/4"
                   >
                     <article className="group relative h-full">
                       <div
                         className={cn(
-                          "relative h-36 w-full overflow-hidden rounded-2xl bg-muted/80 ring-1 ring-border/80 transition-all duration-300 sm:h-56 lg:h-72 xl:h-80",
+                          "relative h-32 w-full overflow-hidden rounded-xl bg-muted/80 ring-1 ring-border/80 transition-all duration-300 sm:h-56 lg:h-72 xl:h-80 sm:rounded-2xl",
                           "group-hover:ring-primary/25 group-hover:shadow-lg group-hover:shadow-primary/5",
                           tone === "offers" && "ring-primary/15",
-                          tone === "new" && "rounded-3xl",
+                          tone === "new" && "rounded-2xl sm:rounded-3xl",
                         )}
                       >
                         {product.imageUrl ? (
-                           <Image
-                             alt={product.name}
-                             src={product.imageUrl}
-                             fill
-                             unoptimized
-                             sizes="(max-width: 640px) 45vw, (max-width: 1024px) 33vw, 25vw"
-                             className="object-cover transition-transform duration-500 group-hover:scale-105"
-                           />
+                          <Image
+                            alt={product.name}
+                            src={product.imageUrl}
+                            fill
+                            unoptimized
+                            sizes="(max-width: 640px) 45vw, (max-width: 1024px) 33vw, 25vw"
+                            className="object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
                         ) : (
                           <div className="size-full bg-muted" aria-hidden />
                         )}
@@ -159,8 +166,7 @@ export default function StoreProductCarousel({
                           <Badge
                             className={cn(
                               "absolute top-2 left-2 shadow-sm text-[10px] px-1.5 py-0.5",
-                              tone === "new" &&
-                                "bg-foreground text-background",
+                              tone === "new" && "bg-foreground text-background",
                               tone === "offers" &&
                                 "bg-primary text-primary-foreground",
                             )}
@@ -171,7 +177,10 @@ export default function StoreProductCarousel({
                       </div>
 
                       <h3 className="mt-2 text-xs sm:text-sm font-medium text-foreground line-clamp-2 leading-snug">
-                        <Link href={product.href} className="hover:text-primary">
+                        <Link
+                          href={product.href}
+                          className="hover:text-primary"
+                        >
                           <span className="absolute inset-0" />
                           {product.name}
                         </Link>
@@ -202,18 +211,6 @@ export default function StoreProductCarousel({
             <CarouselPrevious className="hidden sm:flex -left-3 lg:-left-12 border-border/70 bg-background/90 backdrop-blur-sm" />
             <CarouselNext className="hidden sm:flex -right-3 lg:-right-12 border-border/70 bg-background/90 backdrop-blur-sm" />
           </Carousel>
-        </div>
-
-        <div className="mt-8 text-sm md:hidden">
-          <Link
-            href={href}
-            className="inline-flex items-center font-medium text-primary hover:text-primary/80"
-          >
-            {ctaLabel}
-            <span aria-hidden="true" className="ml-1">
-              →
-            </span>
-          </Link>
         </div>
       </div>
     </section>

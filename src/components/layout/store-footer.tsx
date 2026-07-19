@@ -25,7 +25,7 @@ type SocialItem = {
 
 const navigation = {
   store: [
-    { name: "Catálogo", href: "/categorias" },
+    { name: "Catálogo", href: "/categories" },
     { name: "Ofertas", href: "/?filtro=ofertas" },
     { name: "Keys y juegos", href: "/categories/juegos" },
     { name: "Software", href: "/categories/software" },
