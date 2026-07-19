@@ -11,6 +11,7 @@ import {
   getCachedKinguinBalance,
   getCachedKinguinRegionName,
 } from "@/lib/kinguin/balance";
+import { resolvePersistedOfferQty } from "@/lib/kinguin/offers";
 import type {
   CategoryOptionDto,
   ProductDetailDto,
@@ -217,7 +218,7 @@ export async function getProductsPage(
         },
         offers: {
           where: { isDefault: true },
-          select: { availableQty: true, qty: true },
+          select: { availableQty: true, qty: true, textQty: true },
           take: 1,
         },
       },
@@ -248,8 +249,9 @@ export async function getProductsPage(
     return toListItemDto({
       ...product,
       availableKeysCount: availableKeysByProduct.get(product.id) ?? 0,
-      defaultOfferAvailableQty:
-        defaultOffer?.availableQty ?? defaultOffer?.qty ?? null,
+      defaultOfferAvailableQty: defaultOffer
+        ? resolvePersistedOfferQty(defaultOffer)
+        : null,
       _count: product._count,
     });
   });
@@ -331,7 +333,7 @@ export async function getProductById(
       },
       offers: {
         where: { isDefault: true },
-        select: { availableQty: true, qty: true },
+        select: { availableQty: true, qty: true, textQty: true },
         take: 1,
       },
     },
@@ -355,8 +357,9 @@ export async function getProductById(
     textQty: product.textQty,
     availableKeysCount,
     totalKeysCount: product._count.keys,
-    defaultOfferAvailableQty:
-      defaultOffer?.availableQty ?? defaultOffer?.qty ?? null,
+    defaultOfferAvailableQty: defaultOffer
+      ? resolvePersistedOfferQty(defaultOffer)
+      : null,
   });
 
   const price = decimalToString(product.price) ?? "0";
@@ -414,8 +417,9 @@ export async function getProductById(
     })),
     availableKeysCount,
     totalKeysCount: product._count.keys,
-    defaultOfferAvailableQty:
-      defaultOffer?.availableQty ?? defaultOffer?.qty ?? null,
+    defaultOfferAvailableQty: defaultOffer
+      ? resolvePersistedOfferQty(defaultOffer)
+      : null,
     stockAvailable: stock.available,
     stockLabel: stock.label,
     createdAt: product.createdAt.toISOString(),
@@ -918,7 +922,7 @@ export async function getStoreProductBySlug(
       },
       offers: {
         where: { isDefault: true },
-        select: { availableQty: true, qty: true },
+        select: { availableQty: true, qty: true, textQty: true },
         take: 1,
       },
     },
@@ -942,8 +946,9 @@ export async function getStoreProductBySlug(
     textQty: product.textQty,
     availableKeysCount,
     totalKeysCount: product._count.keys,
-    defaultOfferAvailableQty:
-      defaultOffer?.availableQty ?? defaultOffer?.qty ?? null,
+    defaultOfferAvailableQty: defaultOffer
+      ? resolvePersistedOfferQty(defaultOffer)
+      : null,
   });
 
   const isKinguin = product.deliveryMethod === "KINGUIN";
@@ -1084,11 +1089,16 @@ function buildInStockWhere(): Prisma.ProductWhereInput {
         deliveryMethod: "KINGUIN",
         OR: [
           { qty: { gt: 0 } },
+          { textQty: { gt: 0 } },
           {
             offers: {
               some: {
                 isDefault: true,
-                availableQty: { gt: 0 },
+                OR: [
+                  { availableQty: { gt: 0 } },
+                  { qty: { gt: 0 } },
+                  { textQty: { gt: 0 } },
+                ],
               },
             },
           },

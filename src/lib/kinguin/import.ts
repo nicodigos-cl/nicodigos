@@ -9,6 +9,7 @@ import {
 import { applyMarkupPct, eurToClp } from "@/lib/fx/eur-clp";
 import {
   offerAvailableQty,
+  offerPersistAvailableQty,
   parseReleaseDate,
   pickCheapestOffer,
 } from "@/lib/kinguin/offers";
@@ -151,8 +152,8 @@ export async function writeKinguinRelatedRecords(
         kinguinOfferId: offer.offerId,
         price: offer.price,
         qty: offer.qty ?? 0,
-        textQty: offer.textQty ?? 0,
-        availableQty: offer.availableQty ?? null,
+        textQty: offer.textQty ?? offer.availableTextQty ?? 0,
+        availableQty: offerPersistAvailableQty(offer),
         isPreorder: Boolean(offer.isPreorder),
         releaseDate: parseReleaseDate(offer.releaseDate),
         merchantName: offer.merchantName ?? null,

@@ -195,7 +195,7 @@ export function ImportKinguinDialog({
                           ) : null}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          qty {offer.availableQty ?? offer.qty}
+                          qty {Math.max(offer.availableQty ?? 0, offer.qty)}
                         </p>
                       </div>
                       <span className="shrink-0 tabular-nums">

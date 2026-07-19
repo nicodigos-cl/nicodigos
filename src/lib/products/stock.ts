@@ -43,7 +43,12 @@ export function getProductStock(input: ProductStockInput): ProductStockInfo {
       };
     }
     case "KINGUIN": {
-      const available = input.defaultOfferAvailableQty ?? input.qty;
+      // Offer rows may lack text-key qty until re-sync; product.qty/textQty are authoritative fallbacks.
+      const available = Math.max(
+        input.defaultOfferAvailableQty ?? 0,
+        input.textQty ?? 0,
+        input.qty,
+      );
 
       return {
         available,
