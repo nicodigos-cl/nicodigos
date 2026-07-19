@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -101,6 +101,14 @@ function UserAccountMenu({
 }) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Avoid hydration mismatch: session isPending differs between SSR and client.
+  const disableTrigger = mounted && isPending;
 
   if (isMobile) {
     return (
@@ -111,7 +119,7 @@ function UserAccountMenu({
           size="icon"
           className="rounded-xl h-10 w-10 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
           aria-label="Menú de cuenta"
-          disabled={isPending}
+          disabled={disableTrigger}
           onClick={() => setOpen(true)}
         >
           <HiOutlineUser className="size-5 text-sidebar-foreground" />
@@ -212,7 +220,7 @@ function UserAccountMenu({
             size="icon"
             className="rounded-xl h-10 w-10 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
             aria-label="Menú de cuenta"
-            disabled={isPending}
+            disabled={disableTrigger}
           />
         }
       >

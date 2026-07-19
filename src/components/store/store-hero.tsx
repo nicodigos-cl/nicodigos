@@ -33,6 +33,7 @@ const offers = [
 
 const TEXTURE_IMAGE = "/images/hero/texture.webp";
 const CHILE_FLAG_IMAGE = "/images/hero/chile.webp";
+const MASCOT_IMAGE = "/images/mascot/hero-nicodigos-robot.webp";
 
 type StoreHeroProps = {
   className?: string;
@@ -44,12 +45,7 @@ export default function StoreHero({ className }: StoreHeroProps) {
       aria-label="Inicio"
       className={cn("flex flex-col w-full bg-background", className)}
     >
-      {/* Hero Section Principal */}
-      <div className="relative overflow-hidden border-b border-border/40 bg-sidebar/35 py-24 sm:py-32 lg:py-40 xl:py-48 w-full flex flex-col items-center text-center">
-
-
-
-        {/* Imagen de Textura de Fondo — unoptimized: already WebP, skip /_next/image */}
+      <div className="relative overflow-hidden border-b border-border/40 bg-sidebar/35 py-16 sm:py-24 lg:py-28 xl:py-32 w-full">
         <Image
           src={TEXTURE_IMAGE}
           alt=""
@@ -59,77 +55,92 @@ export default function StoreHero({ className }: StoreHeroProps) {
           sizes="100vw"
           className="object-cover absolute inset-0 z-1 opacity-20 pointer-events-none select-none"
         />
-        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 w-full flex flex-col items-center">
-          {/* Badge con indicador interactivo */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3.5 py-1.5 text-xs font-semibold text-primary/90 transition-all duration-300 hover:border-primary/40 hover:bg-primary/10 select-none">
-            <span className="flex h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-            Entrega inmediata en todo Chile
-          </div>
 
-          {/* Título Principal */}
-          <h1 className="mt-6 font-heading text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl max-w-4xl leading-none">
-            Productos digitales,{" "}
-            <span className="text-primary font-black relative">
-              entrega inmediata
-            </span>{" "}
-            <Image
-              src={CHILE_FLAG_IMAGE}
-              alt="Chile"
-              width={48}
-              height={48}
-              unoptimized
-              className="ml-1 inline-block size-8 align-middle sm:size-10 lg:size-12 hover:scale-110 transition-transform duration-300"
-              priority
-            />
-          </h1>
+        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 w-full">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-12 xl:gap-16">
+            <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3.5 py-1.5 text-xs font-semibold text-primary/90 transition-all duration-300 hover:border-primary/40 hover:bg-primary/10 select-none">
+                <span className="flex h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                Entrega inmediata en todo Chile
+              </div>
 
-          {/* Descripción */}
-          <p className="mt-6 max-w-2xl text-base text-foreground/80 sm:text-lg sm:leading-relaxed">
-            Consigue keys de juegos, licencias de software y servicios SMM al
-            mejor precio. Compra de forma segura en Chile con CLP y recibe al
-            instante.
-          </p>
+              <h1 className="mt-6 font-heading text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl max-w-4xl leading-none">
+                Productos digitales,{" "}
+                <span className="text-primary font-black relative">
+                  entrega inmediata
+                </span>{" "}
+                <Image
+                  src={CHILE_FLAG_IMAGE}
+                  alt="Chile"
+                  width={48}
+                  height={48}
+                  unoptimized
+                  className="ml-1 inline-block size-8 align-middle sm:size-10 lg:size-12 hover:scale-110 transition-transform duration-300"
+                  priority
+                />
+              </h1>
 
-          {/* Botones de Acción */}
-          <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center w-full sm:w-auto px-4 sm:px-0">
-            <Button
-              size="lg"
-              className="group rounded-xl px-8 font-semibold shadow-md shadow-primary/10 hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 w-full sm:w-auto flex items-center justify-center gap-1 cursor-pointer"
-              render={<Link href="/categorias" />}
-              nativeButton={false}
-            >
-              Explorar catálogo
-              <HiArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="rounded-xl px-8 font-semibold hover:bg-muted hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 w-full sm:w-auto cursor-pointer"
-              render={<Link href="/?filtro=ofertas" />}
-              nativeButton={false}
-            >
-              Ver ofertas
-            </Button>
-          </div>
+              <p className="mt-6 max-w-2xl text-base text-foreground/80 sm:text-lg sm:leading-relaxed">
+                Consigue keys de juegos, licencias de software y servicios SMM
+                al mejor precio. Compra de forma segura en Chile con CLP y
+                recibe al instante.
+              </p>
 
-          {/* Confianza / Beneficios Rápidos Sutiles */}
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-y-2 gap-x-6 text-xs text-muted-foreground font-medium select-none">
-            <span className="flex items-center gap-1.5">
-              <span className="text-primary font-bold">✓</span> Compra 100% Segura
-            </span>
-            <span className="hidden sm:inline h-3 w-px bg-border/60" />
-            <span className="flex items-center gap-1.5">
-              <span className="text-primary font-bold">✓</span> Soporte en Chile
-            </span>
-            <span className="hidden sm:inline h-3 w-px bg-border/60" />
-            <span className="flex items-center gap-1.5">
-              <span className="text-primary font-bold">✓</span> Transacciones en CLP
-            </span>
+              <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start w-full sm:w-auto px-4 sm:px-0">
+                <Button
+                  size="lg"
+                  className="group rounded-xl px-8 font-semibold shadow-md shadow-primary/10 hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 w-full sm:w-auto flex items-center justify-center gap-1 cursor-pointer"
+                  render={<Link href="/categorias" />}
+                  nativeButton={false}
+                >
+                  Explorar catálogo
+                  <HiArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="rounded-xl px-8 font-semibold hover:bg-muted hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 w-full sm:w-auto cursor-pointer"
+                  render={<Link href="/?filtro=ofertas" />}
+                  nativeButton={false}
+                >
+                  Ver ofertas
+                </Button>
+              </div>
+
+              <div className="mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-y-2 gap-x-6 text-xs text-muted-foreground font-medium select-none">
+                <span className="flex items-center gap-1.5">
+                  <span className="text-primary font-bold">✓</span> Compra 100%
+                  Segura
+                </span>
+                <span className="hidden sm:inline h-3 w-px bg-border/60" />
+                <span className="flex items-center gap-1.5">
+                  <span className="text-primary font-bold">✓</span> Soporte en
+                  Chile
+                </span>
+                <span className="hidden sm:inline h-3 w-px bg-border/60" />
+                <span className="flex items-center gap-1.5">
+                  <span className="text-primary font-bold">✓</span> Transacciones
+                  en CLP
+                </span>
+              </div>
+            </div>
+
+            <div className="relative mx-auto w-full max-w-sm sm:max-w-md lg:max-w-none">
+              <div className="absolute inset-8 sm:inset-12 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+              <Image
+                src={MASCOT_IMAGE}
+                alt="Mascota Nicodigos"
+                width={900}
+                height={900}
+                priority
+                unoptimized
+                className="relative z-10 mx-auto h-auto w-full max-w-[280px] sm:max-w-[360px] lg:max-w-[420px] drop-shadow-xl select-none"
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Barra Flotante de Beneficios */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 -mt-10 sm:-mt-12 relative z-20 w-full mb-16">
         <div className="rounded-2xl border border-border/50 bg-background/95 backdrop-blur-md shadow-xl shadow-black/5 overflow-hidden">
           <ul

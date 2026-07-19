@@ -1,8 +1,9 @@
 import StoreNav from "@/components/layout/store-nav";
 import StoreCategories from "@/components/store/store-categories";
+import StoreCTA from "@/components/store/store-cta";
+import { StoreFloatingEmojis } from "@/components/store/store-floating-emojis";
 import StoreHero from "@/components/store/store-hero";
 import StorePopularProducts from "@/components/store/store-popular-products";
-import StoreCTA from "@/components/store/store-cta";
 import { getStoreNavCategories } from "@/lib/categories/queries";
 import { getPopularStoreProducts } from "@/lib/products/queries";
 
@@ -17,14 +18,19 @@ export default async function Home() {
       <StoreNav />
       <main>
         <StoreHero />
-        <StoreCategories
-          categories={categories.map((category) => ({
-            name: category.name,
-            href: category.href,
-            slug: category.slug,
-          }))}
-        />
-        <StorePopularProducts products={popularProducts} />
+        <div className="relative overflow-hidden">
+          <StoreFloatingEmojis emojiCount={5} iconCount={7} className="z-20" />
+          <div className="relative z-10">
+            <StoreCategories
+              categories={categories.map((category) => ({
+                name: category.name,
+                href: category.href,
+                slug: category.slug,
+              }))}
+            />
+            <StorePopularProducts products={popularProducts} />
+          </div>
+        </div>
         <StoreCTA />
       </main>
     </div>

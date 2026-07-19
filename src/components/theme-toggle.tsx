@@ -30,9 +30,17 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
         "rounded-xl h-10 w-10 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200",
         className,
       )}
-      aria-label={isDark ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
-      disabled={!mounted}
-      onClick={() => setTheme(isDark ? "light" : "dark")}
+      aria-label={
+        mounted
+          ? isDark
+            ? "Cambiar a tema claro"
+            : "Cambiar a tema oscuro"
+          : "Cambiar tema"
+      }
+      onClick={() => {
+        if (!mounted) return;
+        setTheme(isDark ? "light" : "dark");
+      }}
     >
       {isDark ? (
         <HiOutlineSun className="size-5 text-sidebar-foreground" />
