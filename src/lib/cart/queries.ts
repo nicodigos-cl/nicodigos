@@ -4,6 +4,11 @@ import { DeliveryMethod } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { decimalToString } from "@/lib/products/format";
 import {
+  estimateSmmLineTotalClp,
+  smmEffectiveUnitPriceClp,
+} from "@/lib/products/smm-pricing";
+import { calculateVolumeDiscountPrice } from "@/lib/products/volume-discount";
+import {
   isSmmOrderFieldsComplete,
   type SmmOrderFieldsPayload,
 } from "@/lib/validations/smm-order-fields";
@@ -87,8 +92,30 @@ function toCartLine(item: {
     assets: Array<{ url: string; thumbnailUrl: string | null }>;
   };
 }): CartLineDto {
-  const unitPrice = decimalToString(item.product.price) ?? "0";
-  const lineTotal = (Number.parseFloat(unitPrice) * item.quantity).toFixed(2);
+  const catalogPrice = decimalToString(item.product.price) ?? "0";
+  const catalogPriceNumber = Number.parseFloat(catalogPrice);
+  const isSmm = item.product.deliveryMethod === DeliveryMethod.SMM;
+
+  let unitPrice: string;
+  let lineTotal: string;
+
+  if (isSmm) {
+    unitPrice = smmEffectiveUnitPriceClp(
+      catalogPriceNumber,
+      item.product.smmServiceType,
+      item.quantity,
+    ).toFixed(2);
+    lineTotal = estimateSmmLineTotalClp(
+      catalogPriceNumber,
+      item.product.smmServiceType,
+      item.quantity,
+    ).toFixed(2);
+  } else {
+    const vol = calculateVolumeDiscountPrice(catalogPriceNumber, item.quantity, false);
+    unitPrice = vol.unitPrice.toFixed(2);
+    lineTotal = vol.lineTotal.toFixed(2);
+  }
+
   const cover =
     item.product.coverImageUrl ??
     item.product.assets[0]?.thumbnailUrl ??
@@ -96,7 +123,6 @@ function toCartLine(item: {
     null;
 
   const smm = toSmmDto(item.smm);
-  const isSmm = item.product.deliveryMethod === DeliveryMethod.SMM;
   const smmComplete = isSmm
     ? isSmmOrderFieldsComplete(
         item.product.smmServiceType,

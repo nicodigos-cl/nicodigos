@@ -24,6 +24,8 @@ type SmmOrderFieldsFormProps = {
   fieldErrors?: Record<string, string[]>;
   disabled?: boolean;
   idPrefix?: string;
+  /** Hide fields managed outside this form (e.g. quantity on PDP). */
+  omitFields?: SmmOrderFieldKey[];
   onChange?: (values: SmmOrderFieldsPayload) => void;
 };
 
@@ -39,9 +41,13 @@ export function SmmOrderFieldsForm({
   fieldErrors = {},
   disabled = false,
   idPrefix = "smm",
+  omitFields = [],
   onChange,
 }: SmmOrderFieldsFormProps) {
-  const fields = requiredSmmFieldsForType(serviceType);
+  const omit = new Set(omitFields);
+  const fields = requiredSmmFieldsForType(serviceType).filter(
+    (field) => !omit.has(field.key),
+  );
   const [values, setValues] = useState<SmmOrderFieldsPayload>(() => ({
     ...emptyPayload(),
     ...(initialValues ?? {}),

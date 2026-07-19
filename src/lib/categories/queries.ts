@@ -14,7 +14,7 @@ import type {
 } from "@/types/categories";
 
 function categoryHref(slug: string): string {
-  return `/categorias/${slug}`;
+  return `/categories/${slug}`;
 }
 
 function buildOrderBy(

@@ -11,12 +11,20 @@ import {
 } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/actions/types";
 import { requireSession } from "@/lib/auth/session";
-import { ensureCartForUser, getCartForUser } from "@/lib/cart/queries";
+import {
+  ensureCartForUser,
+  getCartForUser,
+} from "@/lib/cart/queries";
 import {
   createFlowPaymentForOrder,
   getOrCreateFlowRedirectUrl,
 } from "@/lib/flow/payments";
 import prisma from "@/lib/prisma";
+import {
+  estimateSmmLineTotalClp,
+  smmEffectiveUnitPriceClp,
+} from "@/lib/products/smm-pricing";
+import { calculateVolumeDiscountPrice } from "@/lib/products/volume-discount";
 import {
   BOLETA_NAMED_THRESHOLD_CLP,
   validateCheckoutBilling,
@@ -100,7 +108,8 @@ async function findOrCreateCustomer(input: {
     data: {
       id,
       email: input.email.toLowerCase(),
-      name: input.customerName?.trim() || input.email.split("@")[0] || "Cliente",
+      name:
+        input.customerName?.trim() || input.email.split("@")[0] || "Cliente",
       emailVerified: false,
       role: UserRole.USER,
     },
@@ -108,9 +117,7 @@ async function findOrCreateCustomer(input: {
   });
 }
 
-export async function createOrderAction(
-  rawInput: unknown,
-): Promise<
+export async function createOrderAction(rawInput: unknown): Promise<
   ActionResult<{
     id: string;
     checkoutUrl: string;
@@ -125,7 +132,10 @@ export async function createOrderAction(
   try {
     input = parseSubmission(rawInput);
   } catch {
-    return { success: false, message: "Los datos del formulario son inválidos." };
+    return {
+      success: false,
+      message: "Los datos del formulario son inválidos.",
+    };
   }
 
   const parsed = createOrderSchema.safeParse(input);
@@ -157,7 +167,9 @@ export async function createOrderAction(
       };
     }
 
-    const productMap = new Map(products.map((product) => [product.id, product]));
+    const productMap = new Map(
+      products.map((product) => [product.id, product]),
+    );
     const currency = products[0]?.currency ?? "CLP";
 
     let subtotal = 0;
@@ -231,9 +243,7 @@ export async function createOrderAction(
 
 export async function createPaymentLinkAction(
   rawInput: unknown,
-): Promise<
-  ActionResult<{ checkoutUrl: string; paymentRedirectUrl: string }>
-> {
+): Promise<ActionResult<{ checkoutUrl: string; paymentRedirectUrl: string }>> {
   if (!(await requireAdminActor())) {
     return unauthorized();
   }
@@ -286,9 +296,8 @@ export async function updateOrderStatusAction(
       parsed.data.status === OrderStatus.PROCESSING ||
       parsed.data.status === OrderStatus.FULFILLED
     ) {
-      const { ensureDeliveriesForOrder } = await import(
-        "@/lib/deliveries/ensure"
-      );
+      const { ensureDeliveriesForOrder } =
+        await import("@/lib/deliveries/ensure");
       await ensureDeliveriesForOrder(parsed.data.id);
       revalidatePath("/admin/deliveries");
     }
@@ -339,7 +348,9 @@ export async function startCheckoutPaymentAction(
 
 export async function checkoutFromCartAction(
   rawInput: unknown,
-): Promise<ActionResult<{ orderId: string; redirectUrl: string; checkoutUrl: string }>> {
+): Promise<
+  ActionResult<{ orderId: string; redirectUrl: string; checkoutUrl: string }>
+> {
   const session = await requireSession();
   if (!session?.user) return unauthorized();
 
@@ -347,22 +358,27 @@ export async function checkoutFromCartAction(
   try {
     input = parseSubmission(rawInput);
   } catch {
-    return { success: false, message: "Los datos del formulario son inválidos." };
+    return {
+      success: false,
+      message: "Los datos del formulario son inválidos.",
+    };
   }
 
   const parsed = checkoutFromCartSchema.safeParse(input ?? {});
   if (!parsed.success) return validationError(parsed.error);
 
-  const { assertStoreAllowsCheckout, getOperationalSettings } = await import(
-    "@/lib/settings/runtime"
-  );
+  const { assertStoreAllowsCheckout, getOperationalSettings } =
+    await import("@/lib/settings/runtime");
   const storeGate = await assertStoreAllowsCheckout();
   if (!storeGate.ok) {
     return { success: false, message: storeGate.message };
   }
 
   const operational = await getOperationalSettings();
-  if (operational.requireVerifiedEmail || operational.requireEmailVerifiedForCheckout) {
+  if (
+    operational.requireVerifiedEmail ||
+    operational.requireEmailVerifiedForCheckout
+  ) {
     if (!session.user.emailVerified) {
       return {
         success: false,
@@ -392,8 +408,7 @@ export async function checkoutFromCartAction(
     data: {
       ...parsed.data,
       email,
-      customerName:
-        parsed.data.customerName ?? session.user.name ?? undefined,
+      customerName: parsed.data.customerName ?? session.user.name ?? undefined,
     },
     orderTotalClp,
     settings: {
@@ -412,7 +427,8 @@ export async function checkoutFromCartAction(
     };
   }
 
-  const customerName = billing.data.customerName ?? session.user.name ?? undefined;
+  const customerName =
+    billing.data.customerName ?? session.user.name ?? undefined;
 
   try {
     await prisma.user.update({
@@ -441,6 +457,7 @@ export async function checkoutFromCartAction(
         price: true,
         currency: true,
         deliveryMethod: true,
+        smmServiceType: true,
       },
     });
     const productMap = new Map(products.map((p) => [p.id, p]));
@@ -463,8 +480,7 @@ export async function checkoutFromCartAction(
           message: `El producto "${item.productName}" ya no está disponible.`,
         };
       }
-      const unitPrice = Number.parseFloat(product.price.toString());
-      subtotal += unitPrice * item.quantity;
+      const catalogPrice = Number.parseFloat(product.price.toString());
 
       let smm: ReturnType<typeof smmPayloadToDb> | null = null;
       if (product.deliveryMethod === DeliveryMethod.SMM) {
@@ -486,6 +502,28 @@ export async function checkoutFromCartAction(
         }
         smm = smmPayloadToDb(parsedSmm.data);
       }
+
+      let unitPrice: number;
+      let lineTotal: number;
+
+      if (product.deliveryMethod === DeliveryMethod.SMM) {
+        unitPrice = smmEffectiveUnitPriceClp(
+          catalogPrice,
+          product.smmServiceType,
+          item.quantity,
+        );
+        lineTotal = estimateSmmLineTotalClp(
+          catalogPrice,
+          product.smmServiceType,
+          item.quantity,
+        );
+      } else {
+        const vol = calculateVolumeDiscountPrice(catalogPrice, item.quantity, false);
+        unitPrice = vol.unitPrice;
+        lineTotal = vol.lineTotal;
+      }
+
+      subtotal += lineTotal;
 
       lineItems.push({
         productId: product.id,
@@ -547,7 +585,9 @@ export async function checkoutFromCartAction(
     };
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "No se pudo completar el checkout.";
+      error instanceof Error
+        ? error.message
+        : "No se pudo completar el checkout.";
     return { success: false, message };
   }
 }
@@ -574,7 +614,8 @@ export async function addCartItemAction(
   if (product.deliveryMethod === DeliveryMethod.SMM) {
     return {
       success: false,
-      message: "Este servicio requiere datos de destino. Usa el formulario del producto.",
+      message:
+        "Este servicio requiere datos de destino. Usa el formulario del producto.",
     };
   }
 
@@ -801,7 +842,8 @@ export async function updateCartItemAction(
   if (item.product.deliveryMethod === DeliveryMethod.SMM || item.smm) {
     return {
       success: false,
-      message: "Para servicios SMM edita los datos del destino, no la cantidad de línea.",
+      message:
+        "Para servicios SMM edita los datos del destino, no la cantidad de línea.",
     };
   }
 

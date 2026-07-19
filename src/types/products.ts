@@ -138,3 +138,65 @@ export type StoreProductCardDto = {
   categoryName: string | null;
   deliveryMethod: DeliveryMethod;
 };
+
+export type StoreProductImageDto = {
+  id: string;
+  name: string;
+  src: string;
+  alt: string;
+  type?: "IMAGE" | "VIDEO" | "YOUTUBE";
+  thumbnailUrl?: string | null;
+};
+
+export type StoreProductDetailSectionDto = {
+  name: string;
+  items: string[];
+};
+
+/** Storefront product detail page. */
+export type StoreProductDetailDto = {
+  id: string;
+  name: string;
+  slug: string;
+  href: string;
+  description: string | null;
+  price: string;
+  compareAtPrice: string | null;
+  currency: string;
+  /** True when catalog price is a rate per 1000 units (SMM). */
+  priceIsPerThousand: boolean;
+  isOffer: boolean;
+  isPreorder: boolean;
+  deliveryMethod: DeliveryMethod;
+  deliveryLabel: string;
+  /** Customer-facing ETA, e.g. "Inmediata" or "12-24 h". */
+  deliveryEta: string;
+  /** True when Kinguin wallet cannot cover cost → delayed delivery. */
+  deliveryDelayed: boolean;
+  stockAvailable: number;
+  stockLabel: string;
+  inStock: boolean;
+  maxOrderQuantity: number;
+  metacriticScore: number | null;
+  platform: string | null;
+  genres: string[];
+  languages: string[];
+  developers: string[];
+  publishers: string[];
+  tags: string[];
+  regionId: number | null;
+  regionName: string | null;
+  regionalLimitations: string | null;
+  countryLimitation: string[];
+  /** Short label for region availability in the buy panel. */
+  regionAvailabilityLabel: string | null;
+  activationDetails: string | null;
+  ageRating: string | null;
+  releaseDate: string | null;
+  categories: ProductCategoryDto[];
+  images: StoreProductImageDto[];
+  detailSections: StoreProductDetailSectionDto[];
+  smmServiceType: string | null;
+  smmMin: number | null;
+  smmMax: number | null;
+};

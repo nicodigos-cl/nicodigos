@@ -27,9 +27,9 @@ const navigation = {
   store: [
     { name: "Catálogo", href: "/categorias" },
     { name: "Ofertas", href: "/?filtro=ofertas" },
-    { name: "Keys y juegos", href: "/categorias/juegos" },
-    { name: "Software", href: "/categorias/software" },
-    { name: "Servicios SMM", href: "/categorias/smm" },
+    { name: "Keys y juegos", href: "/categories/juegos" },
+    { name: "Software", href: "/categories/software" },
+    { name: "Servicios SMM", href: "/categories/smm" },
     { name: "Carrito", href: "/cart" },
   ] satisfies NavItem[],
   support: [
@@ -95,7 +95,9 @@ export default function StoreFooter({ className }: StoreFooterProps) {
   const year = new Date().getFullYear();
 
   return (
-    <footer className={cn("border-t border-border/60 bg-background", className)}>
+    <footer
+      className={cn("border-t border-border/60 bg-background", className)}
+    >
       <div className="mx-auto max-w-7xl px-6 pt-16 pb-8 sm:pt-24 lg:px-8 lg:pt-32">
         <div className="xl:grid xl:grid-cols-3 xl:gap-8">
           <div className="space-y-8">

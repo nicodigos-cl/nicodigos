@@ -81,7 +81,7 @@ export default function StoreProductCarousel({
       aria-labelledby={headingId}
       className={cn("relative", className)}
     >
-      <div className="relative z-10 mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+      <div className="relative z-10 mx-auto max-w-7xl py-16 sm:py-20">
         <div className="md:flex md:items-end md:justify-between gap-4">
           <div className="max-w-2xl">
             {eyebrow ? (
@@ -126,39 +126,39 @@ export default function StoreProductCarousel({
             }}
             className="w-full"
           >
-            <CarouselContent className="-ml-4">
+            <CarouselContent className="-ml-3">
               {products.map((product) => {
                 const badge = cardBadge(product, badgeMode);
                 return (
                   <CarouselItem
                     key={product.id}
-                    className="pl-4 basis-[75%] sm:basis-1/2 md:basis-1/3 lg:basis-1/4"
+                    className="pl-3 basis-[45%] sm:basis-1/2 md:basis-1/3 lg:basis-1/4"
                   >
                     <article className="group relative h-full">
                       <div
                         className={cn(
-                          "relative h-56 w-full overflow-hidden rounded-2xl bg-muted/80 ring-1 ring-border/80 transition-all duration-300 lg:h-72 xl:h-80",
+                          "relative h-36 w-full overflow-hidden rounded-2xl bg-muted/80 ring-1 ring-border/80 transition-all duration-300 sm:h-56 lg:h-72 xl:h-80",
                           "group-hover:ring-primary/25 group-hover:shadow-lg group-hover:shadow-primary/5",
                           tone === "offers" && "ring-primary/15",
                           tone === "new" && "rounded-3xl",
                         )}
                       >
                         {product.imageUrl ? (
-                          <Image
-                            alt={product.name}
-                            src={product.imageUrl}
-                            fill
-                            unoptimized
-                            sizes="(max-width: 640px) 75vw, (max-width: 1024px) 33vw, 25vw"
-                            className="object-cover transition-transform duration-500 group-hover:scale-105"
-                          />
+                           <Image
+                             alt={product.name}
+                             src={product.imageUrl}
+                             fill
+                             unoptimized
+                             sizes="(max-width: 640px) 45vw, (max-width: 1024px) 33vw, 25vw"
+                             className="object-cover transition-transform duration-500 group-hover:scale-105"
+                           />
                         ) : (
                           <div className="size-full bg-muted" aria-hidden />
                         )}
                         {badge ? (
                           <Badge
                             className={cn(
-                              "absolute top-3 left-3 shadow-sm",
+                              "absolute top-2 left-2 shadow-sm text-[10px] px-1.5 py-0.5",
                               tone === "new" &&
                                 "bg-foreground text-background",
                               tone === "offers" &&
@@ -170,23 +170,23 @@ export default function StoreProductCarousel({
                         ) : null}
                       </div>
 
-                      <h3 className="mt-4 text-sm font-medium text-foreground">
+                      <h3 className="mt-2 text-xs sm:text-sm font-medium text-foreground line-clamp-2 leading-snug">
                         <Link href={product.href} className="hover:text-primary">
                           <span className="absolute inset-0" />
                           {product.name}
                         </Link>
                       </h3>
                       {product.categoryName ? (
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-0.5 text-[10px] sm:text-xs text-muted-foreground">
                           {product.categoryName}
                         </p>
                       ) : null}
-                      <div className="mt-1 flex items-baseline gap-2">
-                        <p className="text-sm font-medium tabular-nums text-foreground">
+                      <div className="mt-1 flex items-baseline gap-1.5 flex-wrap">
+                        <p className="text-xs sm:text-sm font-semibold tabular-nums text-foreground">
                           {formatMoney(product.price, product.currency)}
                         </p>
                         {product.isOffer && product.compareAtPrice ? (
-                          <p className="text-xs tabular-nums text-muted-foreground line-through">
+                          <p className="text-[10px] sm:text-xs tabular-nums text-muted-foreground line-through">
                             {formatMoney(
                               product.compareAtPrice,
                               product.currency,

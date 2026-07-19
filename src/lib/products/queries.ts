@@ -3,8 +3,14 @@ import { ProductKeyStatus, ProductStatus } from "@/generated/prisma/client";
 
 import prisma from "@/lib/prisma";
 import { decimalToString, productCodeFromSlug } from "@/lib/products/format";
+import { smmUsesPerThousandPricing } from "@/lib/products/smm-pricing";
 import { getProductStock } from "@/lib/products/stock";
 import { getVisualProductStatus } from "@/lib/products/status";
+import {
+  canAffordKinguinPurchase,
+  getCachedKinguinBalance,
+  getCachedKinguinRegionName,
+} from "@/lib/kinguin/balance";
 import type {
   CategoryOptionDto,
   ProductDetailDto,
@@ -12,6 +18,9 @@ import type {
   ProductListItemDto,
   ProductsPageResult,
   StoreProductCardDto,
+  StoreProductDetailDto,
+  StoreProductDetailSectionDto,
+  StoreProductImageDto,
 } from "@/types/products";
 import type {
   ProductKeysQuery,
@@ -507,7 +516,7 @@ function toStoreProductCard(product: {
     id: product.id,
     name: product.name,
     slug: product.slug,
-    href: `/productos/${product.slug}`,
+    href: `/products/${product.slug}`,
     imageUrl,
     price: decimalToString(product.price) ?? "0",
     compareAtPrice: decimalToString(product.compareAtPrice),
@@ -646,4 +655,439 @@ export async function getOfferStoreProducts(
   });
 
   return [...offers, ...fillers].map(toStoreProductCard);
+}
+
+function storeDeliveryLabel(
+  method: "SMM" | "KINGUIN" | "MANUAL",
+  options?: { delayed?: boolean },
+): string {
+  switch (method) {
+    case "SMM":
+      return "Servicio SMM";
+    case "KINGUIN":
+      return options?.delayed ? "Entrega 12-24 h" : "Entrega automática";
+    case "MANUAL":
+      return "Key digital";
+  }
+}
+
+function storeDeliveryEta(
+  method: "SMM" | "KINGUIN" | "MANUAL",
+  delayed: boolean,
+): string {
+  switch (method) {
+    case "SMM":
+      return "Procesamiento automático";
+    case "KINGUIN":
+      return delayed ? "12-24 horas" : "Inmediata";
+    case "MANUAL":
+      return "Inmediata";
+  }
+}
+
+function buildRegionAvailabilityLabel(input: {
+  regionName: string | null;
+  regionalLimitations: string | null;
+  countryLimitation: string[];
+}): string | null {
+  if (input.regionalLimitations?.trim()) {
+    return input.regionalLimitations.trim();
+  }
+  if (input.regionName) {
+    return input.regionName;
+  }
+  if (input.countryLimitation.length > 0) {
+    return `Disponible en: ${input.countryLimitation.join(", ")}`;
+  }
+  return null;
+}
+
+function buildStoreDetailSections(product: {
+  deliveryMethod: "SMM" | "KINGUIN" | "MANUAL";
+  deliveryEta: string;
+  platform: string | null;
+  genres: string[];
+  languages: string[];
+  developers: string[];
+  publishers: string[];
+  tags: string[];
+  regionName: string | null;
+  regionalLimitations: string | null;
+  countryLimitation: string[];
+  activationDetails: string | null;
+  ageRating: string | null;
+  releaseDate: Date | null;
+  isPreorder: boolean;
+  stockLabel: string;
+  smmMin: number | null;
+  smmMax: number | null;
+}): StoreProductDetailSectionDto[] {
+  const sections: StoreProductDetailSectionDto[] = [];
+
+  const deliveryItems = [
+    `Método: ${storeDeliveryLabel(product.deliveryMethod)}`,
+    `Tiempo de entrega: ${product.deliveryEta}`,
+    `Disponibilidad: ${product.stockLabel}`,
+  ];
+  if (product.smmMin != null || product.smmMax != null) {
+    deliveryItems.push(
+      product.smmMin != null && product.smmMax != null
+        ? `Cantidad permitida: ${product.smmMin.toLocaleString("es-CL")} – ${product.smmMax.toLocaleString("es-CL")}`
+        : product.smmMin != null
+          ? `Cantidad mínima: ${product.smmMin.toLocaleString("es-CL")}`
+          : `Cantidad máxima: ${product.smmMax!.toLocaleString("es-CL")}`,
+    );
+  }
+  if (product.isPreorder) {
+    deliveryItems.push("Producto en preventa");
+  }
+  if (product.releaseDate) {
+    deliveryItems.push(
+      `Fecha de lanzamiento: ${product.releaseDate.toLocaleDateString("es-CL")}`,
+    );
+  }
+  sections.push({ name: "Entrega", items: deliveryItems });
+
+  const detailItems: string[] = [];
+  if (product.platform) detailItems.push(`Plataforma: ${product.platform}`);
+  if (product.genres.length > 0) {
+    detailItems.push(`Géneros: ${product.genres.join(", ")}`);
+  }
+  if (product.languages.length > 0) {
+    detailItems.push(`Idiomas: ${product.languages.join(", ")}`);
+  }
+  if (product.developers.length > 0) {
+    detailItems.push(`Desarrolladores: ${product.developers.join(", ")}`);
+  }
+  if (product.publishers.length > 0) {
+    detailItems.push(`Publishers: ${product.publishers.join(", ")}`);
+  }
+  if (product.tags.length > 0) {
+    detailItems.push(`Tags: ${product.tags.join(", ")}`);
+  }
+  if (product.ageRating) {
+    detailItems.push(`Clasificación: ${product.ageRating}`);
+  }
+  if (detailItems.length > 0) {
+    sections.push({ name: "Detalles", items: detailItems });
+  }
+
+  if (product.activationDetails) {
+    sections.push({
+      name: "Activación",
+      items: product.activationDetails
+        .split(/\n+/)
+        .map((line) => line.trim())
+        .filter(Boolean),
+    });
+  }
+
+  const regionItems: string[] = [];
+  if (product.regionName) {
+    regionItems.push(`Región: ${product.regionName}`);
+  }
+  if (product.regionalLimitations) {
+    regionItems.push(product.regionalLimitations);
+  }
+  if (product.countryLimitation.length > 0) {
+    regionItems.push(
+      `Países: ${product.countryLimitation.join(", ")}`,
+    );
+  }
+  if (regionItems.length > 0) {
+    sections.push({ name: "Región", items: regionItems });
+  }
+
+  return sections;
+}
+
+function toStoreProductImages(product: {
+  name: string;
+  coverImageUrl: string | null;
+  assets: Array<{
+    id: string;
+    type: "IMAGE" | "VIDEO" | "YOUTUBE";
+    url: string;
+    thumbnailUrl: string | null;
+    altText: string | null;
+    sortOrder: number;
+    isCover: boolean;
+  }>;
+}): StoreProductImageDto[] {
+  const images = product.assets
+    .map((asset, index) => {
+      let label = "Imagen";
+      if (asset.type === "VIDEO") label = "Video";
+      if (asset.type === "YOUTUBE") label = "YouTube";
+      return {
+        id: asset.id,
+        name: asset.altText ?? `${label} ${index + 1}`,
+        src: asset.url,
+        alt: asset.altText ?? product.name,
+        type: asset.type,
+        thumbnailUrl: asset.thumbnailUrl,
+      };
+    });
+
+  if (images.length > 0) {
+    return images;
+  }
+
+  if (product.coverImageUrl) {
+    return [
+      {
+        id: "cover",
+        name: "Portada",
+        src: product.coverImageUrl,
+        alt: product.name,
+        type: "IMAGE",
+      },
+    ];
+  }
+
+  return [];
+}
+
+export async function getStoreProductBySlug(
+  slug: string,
+): Promise<StoreProductDetailDto | null> {
+  const product = await prisma.product.findFirst({
+    where: {
+      slug,
+      status: ProductStatus.ACTIVE,
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      coverImageUrl: true,
+      deliveryMethod: true,
+      price: true,
+      compareAtPrice: true,
+      currency: true,
+      qty: true,
+      textQty: true,
+      isOffer: true,
+      isPreorder: true,
+      metacriticScore: true,
+      platform: true,
+      genres: true,
+      languages: true,
+      developers: true,
+      publishers: true,
+      tags: true,
+      regionId: true,
+      regionalLimitations: true,
+      countryLimitation: true,
+      activationDetails: true,
+      ageRating: true,
+      releaseDate: true,
+      sourceCostPrice: true,
+      smmServiceType: true,
+      smmMin: true,
+      smmMax: true,
+      categories: {
+        select: {
+          category: {
+            select: { id: true, name: true, slug: true },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      },
+      assets: {
+        select: {
+          id: true,
+          type: true,
+          url: true,
+          thumbnailUrl: true,
+          altText: true,
+          sortOrder: true,
+          isCover: true,
+        },
+        orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }],
+      },
+      _count: {
+        select: { keys: true },
+      },
+      offers: {
+        where: { isDefault: true },
+        select: { availableQty: true, qty: true },
+        take: 1,
+      },
+    },
+  });
+
+  if (!product) {
+    return null;
+  }
+
+  const availableKeysCount = await prisma.productKey.count({
+    where: {
+      productId: product.id,
+      status: ProductKeyStatus.AVAILABLE,
+    },
+  });
+
+  const defaultOffer = product.offers[0];
+  const stock = getProductStock({
+    deliveryMethod: product.deliveryMethod,
+    qty: product.qty,
+    textQty: product.textQty,
+    availableKeysCount,
+    totalKeysCount: product._count.keys,
+    defaultOfferAvailableQty:
+      defaultOffer?.availableQty ?? defaultOffer?.qty ?? null,
+  });
+
+  const isKinguin = product.deliveryMethod === "KINGUIN";
+  const sourceCostEur = decimalToString(product.sourceCostPrice);
+  const sourceCostNumber =
+    sourceCostEur != null ? Number.parseFloat(sourceCostEur) : null;
+
+  const [kinguinBalance, regionName] = await Promise.all([
+    isKinguin ? getCachedKinguinBalance() : Promise.resolve(null),
+    getCachedKinguinRegionName(product.regionId),
+  ]);
+
+  const deliveryDelayed =
+    isKinguin &&
+    !canAffordKinguinPurchase(kinguinBalance, sourceCostNumber);
+  const deliveryEta = storeDeliveryEta(
+    product.deliveryMethod,
+    deliveryDelayed,
+  );
+  const priceIsPerThousand =
+    product.deliveryMethod === "SMM" &&
+    smmUsesPerThousandPricing(product.smmServiceType);
+
+  const regionAvailabilityLabel = buildRegionAvailabilityLabel({
+    regionName,
+    regionalLimitations: product.regionalLimitations,
+    countryLimitation: product.countryLimitation,
+  });
+
+  const maxOrderQuantity =
+    product.deliveryMethod === "SMM"
+      ? (product.smmMax ?? 1_000_000)
+      : Math.max(1, stock.available);
+
+  return {
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    href: `/products/${product.slug}`,
+    description: product.description,
+    price: decimalToString(product.price) ?? "0",
+    compareAtPrice: decimalToString(product.compareAtPrice),
+    currency: product.currency,
+    priceIsPerThousand,
+    isOffer: product.isOffer,
+    isPreorder: product.isPreorder,
+    deliveryMethod: product.deliveryMethod,
+    deliveryLabel: storeDeliveryLabel(product.deliveryMethod, {
+      delayed: deliveryDelayed,
+    }),
+    deliveryEta,
+    deliveryDelayed,
+    stockAvailable: stock.available,
+    stockLabel: stock.label,
+    inStock: stock.available > 0,
+    maxOrderQuantity,
+    metacriticScore: product.metacriticScore,
+    platform: product.platform,
+    genres: product.genres,
+    languages: product.languages,
+    developers: product.developers,
+    publishers: product.publishers,
+    tags: product.tags,
+    regionId: product.regionId,
+    regionName,
+    regionalLimitations: product.regionalLimitations,
+    countryLimitation: product.countryLimitation,
+    regionAvailabilityLabel,
+    activationDetails: product.activationDetails,
+    ageRating: product.ageRating,
+    releaseDate: product.releaseDate?.toISOString() ?? null,
+    categories: product.categories.map((item) => ({
+      id: item.category.id,
+      name: item.category.name,
+      slug: item.category.slug,
+    })),
+    images: toStoreProductImages(product),
+    detailSections: buildStoreDetailSections({
+      deliveryMethod: product.deliveryMethod,
+      deliveryEta,
+      platform: product.platform,
+      genres: product.genres,
+      languages: product.languages,
+      developers: product.developers,
+      publishers: product.publishers,
+      tags: product.tags,
+      regionName,
+      regionalLimitations: product.regionalLimitations,
+      countryLimitation: product.countryLimitation,
+      activationDetails: product.activationDetails,
+      ageRating: product.ageRating,
+      releaseDate: product.releaseDate,
+      isPreorder: product.isPreorder,
+      stockLabel: stock.label,
+      smmMin: product.smmMin,
+      smmMax: product.smmMax,
+    }),
+    smmServiceType: product.smmServiceType,
+    smmMin: product.smmMin,
+    smmMax: product.smmMax,
+  };
+}
+
+export async function getRelatedStoreProducts(
+  productId: string,
+  categoryIds: string[],
+  limit = 4,
+): Promise<StoreProductCardDto[]> {
+  if (categoryIds.length === 0) {
+    const products = await prisma.product.findMany({
+      where: {
+        status: ProductStatus.ACTIVE,
+        id: { not: productId },
+      },
+      orderBy: [{ isFeatured: "desc" }, { updatedAt: "desc" }],
+      take: limit,
+      select: storeProductCardSelect,
+    });
+    return products.map(toStoreProductCard);
+  }
+
+  const related = await prisma.product.findMany({
+    where: {
+      status: ProductStatus.ACTIVE,
+      id: { not: productId },
+      categories: {
+        some: { categoryId: { in: categoryIds } },
+      },
+    },
+    orderBy: [{ isOffer: "desc" }, { isFeatured: "desc" }, { updatedAt: "desc" }],
+    take: limit,
+    select: storeProductCardSelect,
+  });
+
+  if (related.length >= limit) {
+    return related.map(toStoreProductCard);
+  }
+
+  const relatedIds = related.map((product) => product.id);
+  const fillers = await prisma.product.findMany({
+    where: {
+      status: ProductStatus.ACTIVE,
+      id: {
+        notIn: [productId, ...relatedIds],
+      },
+    },
+    orderBy: [{ isFeatured: "desc" }, { updatedAt: "desc" }],
+    take: limit - related.length,
+    select: storeProductCardSelect,
+  });
+
+  return [...related, ...fillers].map(toStoreProductCard);
 }

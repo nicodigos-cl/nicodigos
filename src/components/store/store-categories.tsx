@@ -34,7 +34,7 @@ const defaultTiles: HeroTile[] = [
     name: "Keys y juegos",
     description:
       "Licencias digitales y catálogo gamer con entrega inmediata en CLP.",
-    href: "/categorias/juegos",
+    href: "/categories/juegos",
     cta: "Ver catálogo",
     className: "col-span-3 lg:col-span-2 lg:row-span-2",
     Icon: LaptopIcon,
@@ -45,7 +45,7 @@ const defaultTiles: HeroTile[] = [
   {
     name: "Software",
     description: "Sistemas y herramientas listas para activar.",
-    href: "/categorias/software",
+    href: "/categories/software",
     cta: "Comprar software",
     className: "col-span-3 lg:col-span-1",
     Icon: DesktopIcon,
@@ -55,7 +55,7 @@ const defaultTiles: HeroTile[] = [
   {
     name: "Servicios SMM",
     description: "Crecimiento en redes con destino configurable al comprar.",
-    href: "/categorias/smm",
+    href: "/categories/smm",
     cta: "Ver servicios",
     className: "col-span-3 lg:col-span-1",
     Icon: InstagramLogoIcon,
@@ -121,7 +121,10 @@ function resolveTiles(categories: StoreHeroCategory[]): HeroTile[] {
   ];
 }
 
-export default function StoreCategories({ categories = [], className }: StoreHeroProps) {
+export default function StoreCategories({
+  categories = [],
+  className,
+}: StoreHeroProps) {
   const tiles = resolveTiles(categories);
 
   return (
@@ -130,7 +133,6 @@ export default function StoreCategories({ categories = [], className }: StoreHer
       className={cn("relative py-16 sm:py-24", className)}
     >
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-
         {/* Encabezado Premium de Sección */}
         <div className="mx-auto max-w-2xl text-center mb-12 sm:mb-16">
           <h2 className="text-xs font-bold uppercase tracking-widest text-primary">
@@ -140,7 +142,8 @@ export default function StoreCategories({ categories = [], className }: StoreHer
             Todo lo que necesitas, al instante
           </p>
           <p className="mt-4 text-sm sm:text-base text-muted-foreground leading-relaxed">
-            Explora nuestra selección de keys de juegos, licencias de software oficiales y servicios premium para potenciar tu presencia digital.
+            Explora nuestra selección de keys de juegos, licencias de software
+            oficiales y servicios premium para potenciar tu presencia digital.
           </p>
         </div>
 
@@ -188,4 +191,3 @@ export default function StoreCategories({ categories = [], className }: StoreHer
     </section>
   );
 }
-
