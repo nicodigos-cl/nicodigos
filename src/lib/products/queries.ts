@@ -576,3 +576,74 @@ export async function getPopularStoreProducts(
 
   return [...featured, ...fillers].map(toStoreProductCard);
 }
+
+/**
+ * Trending / offer-led strip for the home carousel (below CTA).
+ */
+export async function getTrendingStoreProducts(
+  limit = 12,
+): Promise<StoreProductCardDto[]> {
+  const products = await prisma.product.findMany({
+    where: {
+      status: ProductStatus.ACTIVE,
+    },
+    orderBy: [
+      { isOffer: "desc" },
+      { isFeatured: "desc" },
+      { updatedAt: "desc" },
+    ],
+    take: limit,
+    select: storeProductCardSelect,
+  });
+
+  return products.map(toStoreProductCard);
+}
+
+/** Newest active products by creation date. */
+export async function getNewStoreProducts(
+  limit = 12,
+): Promise<StoreProductCardDto[]> {
+  const products = await prisma.product.findMany({
+    where: {
+      status: ProductStatus.ACTIVE,
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: storeProductCardSelect,
+  });
+
+  return products.map(toStoreProductCard);
+}
+
+/** Active products marked as offers. */
+export async function getOfferStoreProducts(
+  limit = 12,
+): Promise<StoreProductCardDto[]> {
+  const offers = await prisma.product.findMany({
+    where: {
+      status: ProductStatus.ACTIVE,
+      isOffer: true,
+    },
+    orderBy: { updatedAt: "desc" },
+    take: limit,
+    select: storeProductCardSelect,
+  });
+
+  if (offers.length >= limit) {
+    return offers.map(toStoreProductCard);
+  }
+
+  const offerIds = offers.map((product) => product.id);
+  const fillers = await prisma.product.findMany({
+    where: {
+      status: ProductStatus.ACTIVE,
+      id: offerIds.length > 0 ? { notIn: offerIds } : undefined,
+      compareAtPrice: { not: null },
+    },
+    orderBy: { updatedAt: "desc" },
+    take: limit - offers.length,
+    select: storeProductCardSelect,
+  });
+
+  return [...offers, ...fillers].map(toStoreProductCard);
+}
