@@ -27,20 +27,24 @@ const navigation = {
   store: [
     { name: "Catálogo", href: "/categorias" },
     { name: "Ofertas", href: "/?filtro=ofertas" },
-    { name: "Videojuegos", href: "/categorias/videojuegos" },
+    { name: "Keys y juegos", href: "/categorias/juegos" },
     { name: "Software", href: "/categorias/software" },
-    { name: "Redes sociales", href: "/categorias/redes-sociales" },
+    { name: "Servicios SMM", href: "/categorias/smm" },
+    { name: "Carrito", href: "/cart" },
   ] satisfies NavItem[],
   support: [
     { name: "Centro de ayuda", href: "/dashboard/support" },
     { name: "Mis pedidos", href: "/dashboard/pedidos" },
-    { name: "Entregas", href: "/dashboard/deliveries" },
+    { name: "Mis entregas", href: "/dashboard/deliveries" },
+    { name: "Transacciones", href: "/dashboard/transactions" },
   ] satisfies NavItem[],
   company: [
     { name: "Inicio", href: "/" },
     { name: "Crear cuenta", href: "/auth/register" },
     { name: "Iniciar sesión", href: "/auth/login" },
-    { name: "Panel", href: "/dashboard" },
+    { name: "Mi cuenta", href: "/dashboard" },
+    { name: "Lista de deseos", href: "/dashboard/wishlist" },
+    { name: "Perfil", href: "/dashboard/profile" },
   ] satisfies NavItem[],
   legal: [
     { name: "Términos de servicio", href: "/terminos" },

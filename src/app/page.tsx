@@ -2,7 +2,6 @@ import StoreFooter from "@/components/layout/store-footer";
 import StoreNav from "@/components/layout/store-nav";
 import StoreCategories from "@/components/store/store-categories";
 import StoreCTA from "@/components/store/store-cta";
-import { StoreFloatingEmojis } from "@/components/store/store-floating-emojis";
 import StoreHero from "@/components/store/store-hero";
 import StoreNewProducts from "@/components/store/store-new-products";
 import StoreOfferProducts from "@/components/store/store-offer-products";
@@ -37,19 +36,16 @@ export default async function Home() {
       <StoreNav />
       <main>
         <StoreHero />
-        <div className="relative overflow-hidden">
-          <StoreFloatingEmojis emojiCount={5} iconCount={7} className="z-20" />
-          <div className="relative z-10">
-            <StoreCategories
-              categories={categories.map((category) => ({
-                name: category.name,
-                href: category.href,
-                slug: category.slug,
-              }))}
-            />
-            <StorePopularProducts products={popularProducts} />
-          </div>
-        </div>
+        <StoreProductBands>
+          <StoreCategories
+            categories={categories.map((category) => ({
+              name: category.name,
+              href: category.href,
+              slug: category.slug,
+            }))}
+          />
+          <StorePopularProducts products={popularProducts} />
+        </StoreProductBands>
         <StoreCTA />
         <StoreProductBands>
           <StoreTrendingProducts products={trendingProducts} />

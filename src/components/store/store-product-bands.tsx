@@ -22,8 +22,8 @@ export function StoreProductBands({
   className,
 }: StoreProductBandsProps) {
   return (
-    <div className={cn("relative overflow-hidden bg-background", className)}>
-      <div aria-hidden className="pointer-events-none absolute inset-0">
+    <div className={cn("relative overflow-x-clip bg-background", className)}>
+      <div aria-hidden className="pointer-events-none absolute inset-0 z-10">
         {SHARED_BLOBS.map((blobClass, index) => (
           <div key={index} className={blobClass} />
         ))}

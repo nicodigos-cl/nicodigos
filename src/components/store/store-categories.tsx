@@ -127,12 +127,8 @@ export default function StoreCategories({ categories = [], className }: StoreHer
   return (
     <section
       aria-label="Destacados de la tienda"
-      className={cn("relative overflow-hidden bg-background py-16 sm:py-24", className)}
+      className={cn("relative py-16 sm:py-24", className)}
     >
-      {/* Glows Decorativos de Fondo */}
-      <div className="absolute top-0 left-0 -z-10 h-[350px] w-[350px] rounded-full bg-primary/3 blur-[110px] pointer-events-none" />
-      <div className="absolute bottom-0 right-0 -z-10 h-[350px] w-[350px] rounded-full bg-sidebar-accent/5 blur-[130px] pointer-events-none" />
-
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
         {/* Encabezado Premium de Sección */}

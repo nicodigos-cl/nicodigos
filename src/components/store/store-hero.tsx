@@ -6,9 +6,19 @@ import {
   HiOutlineSupport,
   HiArrowRight,
 } from "react-icons/hi";
+import {
+  FaCcAmex,
+  FaCcApplePay,
+  FaCcDinersClub,
+  FaCcDiscover,
+  FaCcJcb,
+  FaCcMastercard,
+  FaCcVisa,
+} from "react-icons/fa";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { IconType } from "react-icons";
 
 const offers = [
   {
@@ -31,6 +41,16 @@ const offers = [
   },
 ] as const;
 
+const paymentMethods: Array<{ name: string; Icon: IconType }> = [
+  { name: "Visa", Icon: FaCcVisa },
+  { name: "Mastercard", Icon: FaCcMastercard },
+  { name: "American Express", Icon: FaCcAmex },
+  { name: "Diners Club", Icon: FaCcDinersClub },
+  { name: "Discover", Icon: FaCcDiscover },
+  { name: "JCB", Icon: FaCcJcb },
+  { name: "Apple Pay", Icon: FaCcApplePay },
+];
+
 const TEXTURE_IMAGE = "/images/hero/texture.webp";
 const CHILE_FLAG_IMAGE = "/images/hero/chile.webp";
 const MASCOT_IMAGE = "/images/mascot/hero-nicodigos-robot.webp";
@@ -45,7 +65,11 @@ export default function StoreHero({ className }: StoreHeroProps) {
       aria-label="Inicio"
       className={cn("flex flex-col w-full bg-background", className)}
     >
-      <div className="relative overflow-hidden border-b border-border/40 bg-sidebar/35 py-16 sm:py-24 lg:py-28 xl:py-32 w-full">
+      <div className="relative overflow-hidden border-b border-primary/15 bg-primary/10 py-16 sm:py-24 lg:py-28 xl:py-32 w-full">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-1 bg-linear-to-br from-primary/20 via-primary/5 to-transparent"
+        />
         <Image
           src={TEXTURE_IMAGE}
           alt=""
@@ -53,7 +77,7 @@ export default function StoreHero({ className }: StoreHeroProps) {
           priority
           unoptimized
           sizes="100vw"
-          className="object-cover absolute inset-0 z-1 opacity-20 pointer-events-none select-none"
+          className="object-cover absolute inset-0 z-2 opacity-15 pointer-events-none select-none dark:mix-blend-soft-light"
         />
 
         <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 w-full">
@@ -119,9 +143,31 @@ export default function StoreHero({ className }: StoreHeroProps) {
                 </span>
                 <span className="hidden sm:inline h-3 w-px bg-border/60" />
                 <span className="flex items-center gap-1.5">
-                  <span className="text-primary font-bold">✓</span> Transacciones
-                  en CLP
+                  <span className="text-primary font-bold">✓</span>{" "}
+                  Transacciones en CLP
                 </span>
+              </div>
+
+              <div className="mt-8 w-full max-w-xl">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  Pago seguro vía Flow · Webpay · Transferencia y más
+                </p>
+                <ul
+                  aria-label="Métodos de pago aceptados"
+                  className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:gap-2.5 lg:justify-start"
+                >
+                  {paymentMethods.map(({ name, Icon }) => (
+                    <li key={name}>
+                      <span
+                        title={name}
+                        className="inline-flex h-9 items-center justify-center rounded-lg border border-border/60 bg-background/80 px-2.5 text-foreground/80 shadow-sm transition-colors hover:border-border hover:text-foreground"
+                      >
+                        <Icon className="size-7" aria-hidden />
+                        <span className="sr-only">{name}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
 
