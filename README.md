@@ -30,15 +30,15 @@ Nicodigos es una aplicación **Next.js 16** (App Router) + **Prisma 7** / Postgr
 
 ## Stack
 
-| Área | Tecnología |
-| --- | --- |
-| Runtime | Bun, Next.js 16, React 19 |
-| DB | PostgreSQL, Prisma 7 (`@prisma/adapter-pg`) |
-| Auth | Better Auth + Prisma adapter |
-| Pagos | Flow.cl (`@nicotordev/flowcl-pagos`) |
-| Media | Cloudflare R2 (S3 API) |
-| UI | Tailwind 4, shadcn / Base UI, TanStack Query & Table |
-| Email | Resend + React Email |
+| Área           | Tecnología                                                          |
+| -------------- | ------------------------------------------------------------------- |
+| Runtime        | Bun, Next.js 16, React 19                                           |
+| DB             | PostgreSQL, Prisma 7 (`@prisma/adapter-pg`)                         |
+| Auth           | Better Auth + Prisma adapter                                        |
+| Pagos          | Flow.cl (`@nicotordev/flowcl-pagos`)                                |
+| Media          | Cloudflare R2 (S3 API)                                              |
+| UI             | Tailwind 4, shadcn / Base UI, TanStack Query & Table                |
+| Email          | Resend + React Email                                                |
 | Comunicaciones | Resend Inbound/Webhooks + OneSignal Web Push + soporte en vivo (WS) |
 
 ## Requisitos
@@ -46,7 +46,7 @@ Nicodigos es una aplicación **Next.js 16** (App Router) + **Prisma 7** / Postgr
 - Bun
 - PostgreSQL
 - Redis (cache USD/EUR → CLP)
-- Credenciales opcionales según feature: Flow, R2, Kinguin, Resend, OpenAI, Highlight
+- Credenciales opcionales según feature: Flow, R2, Kinguin, Resend, OpenAI, Sentry
 
 ## Setup
 
@@ -74,15 +74,15 @@ Para chat en vivo local: define `SUPPORT_WS_SECRET` y opcionalmente `NEXT_PUBLIC
 
 ## Scripts útiles
 
-| Script | Descripción |
-| --- | --- |
-| `bun run dev` | Web + crons + delivery worker + support WS |
-| `bun run cron:sync-smm:once` | Una pasada de sync SMM |
-| `bun run cron:sync-kinguin:once` | Una pasada de sync Kinguin |
-| `bun run cron:cleanup-price-events:once` | Limpia eventos de precio viejos |
-| `bun run worker:delivery` | Worker BullMQ de fulfillment y email |
-| `bun run worker:support-ws` | Gateway WebSocket de soporte en vivo |
-| `bun run build` / `bun run start` | Producción |
+| Script                                   | Descripción                                |
+| ---------------------------------------- | ------------------------------------------ |
+| `bun run dev`                            | Web + crons + delivery worker + support WS |
+| `bun run cron:sync-smm:once`             | Una pasada de sync SMM                     |
+| `bun run cron:sync-kinguin:once`         | Una pasada de sync Kinguin                 |
+| `bun run cron:cleanup-price-events:once` | Limpia eventos de precio viejos            |
+| `bun run worker:delivery`                | Worker BullMQ de fulfillment y email       |
+| `bun run worker:support-ws`              | Gateway WebSocket de soporte en vivo       |
+| `bun run build` / `bun run start`        | Producción                                 |
 
 En producción, ejecuta `bun run worker:delivery` como proceso persistente y programa
 `GET` o `POST /api/cron/publish-outbox` con `CRON_SECRET` (idealmente cada minuto).

@@ -19,7 +19,7 @@ export default function StoreNewProducts({
       eyebrow="Novedades"
       title="Recién llegados"
       description="Lo último en keys, software y servicios digitales."
-      href="/categories"
+      href="/catalog?sort=createdAt"
       ctaLabel="Ver novedades"
       products={products}
       badgeMode="new"

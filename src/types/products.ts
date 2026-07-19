@@ -139,6 +139,19 @@ export type StoreProductCardDto = {
   deliveryMethod: DeliveryMethod;
 };
 
+export type StoreCatalogPageResult = {
+  items: StoreProductCardDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export type StoreCatalogPriceBounds = {
+  min: number;
+  max: number;
+};
+
 export type StoreProductImageDto = {
   id: string;
   name: string;

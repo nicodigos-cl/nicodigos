@@ -1,0 +1,142 @@
+import Link from "next/link";
+
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { buildCatalogHref } from "@/lib/catalog/url";
+import type { StoreCatalogQuery } from "@/lib/validations/catalog";
+
+type CatalogPaginationProps = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  query: StoreCatalogQuery;
+};
+
+function getPageNumbers(
+  page: number,
+  totalPages: number,
+): Array<number | "ellipsis"> {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const pages: Array<number | "ellipsis"> = [1];
+  if (page > 3) pages.push("ellipsis");
+  const start = Math.max(2, page - 1);
+  const end = Math.min(totalPages - 1, page + 1);
+  for (let current = start; current <= end; current += 1) pages.push(current);
+  if (page < totalPages - 2) pages.push("ellipsis");
+  pages.push(totalPages);
+  return pages;
+}
+
+export function CatalogPagination({
+  page,
+  pageSize,
+  total,
+  totalPages,
+  query,
+}: CatalogPaginationProps) {
+  if (total === 0) return null;
+
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+  const pageNumbers = getPageNumbers(page, totalPages);
+
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-muted-foreground">
+        Mostrando{" "}
+        <span className="font-medium text-foreground">
+          {from}–{to}
+        </span>{" "}
+        de <span className="font-medium text-foreground">{total}</span>{" "}
+        productos
+      </p>
+
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="whitespace-nowrap">Por página</span>
+          <div className="flex gap-1">
+            {([12, 24, 48] as const).map((size) => (
+              <Link
+                key={size}
+                href={buildCatalogHref(query, { page: 1, pageSize: size })}
+                className={
+                  pageSize === size
+                    ? "rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground"
+                    : "rounded-full px-2.5 py-1 text-xs font-medium hover:bg-muted"
+                }
+              >
+                {size}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {totalPages > 1 ? (
+          <Pagination className="mx-0 w-auto justify-start sm:justify-end">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href={
+                    page > 1
+                      ? buildCatalogHref(query, { page: page - 1 })
+                      : buildCatalogHref(query, { page: 1 })
+                  }
+                  text="Anterior"
+                  aria-disabled={page <= 1}
+                  className={
+                    page <= 1 ? "pointer-events-none opacity-50" : undefined
+                  }
+                />
+              </PaginationItem>
+
+              {pageNumbers.map((item, index) =>
+                item === "ellipsis" ? (
+                  <PaginationItem key={`ellipsis-${index}`}>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                ) : (
+                  <PaginationItem key={item}>
+                    <PaginationLink
+                      href={buildCatalogHref(query, { page: item })}
+                      isActive={item === page}
+                    >
+                      {item}
+                    </PaginationLink>
+                  </PaginationItem>
+                ),
+              )}
+
+              <PaginationItem>
+                <PaginationNext
+                  href={
+                    page < totalPages
+                      ? buildCatalogHref(query, { page: page + 1 })
+                      : buildCatalogHref(query, { page: totalPages })
+                  }
+                  text="Siguiente"
+                  aria-disabled={page >= totalPages}
+                  className={
+                    page >= totalPages
+                      ? "pointer-events-none opacity-50"
+                      : undefined
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        ) : null}
+      </div>
+    </div>
+  );
+}

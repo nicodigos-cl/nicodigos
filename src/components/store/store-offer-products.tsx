@@ -19,7 +19,7 @@ export default function StoreOfferProducts({
       eyebrow="Promociones"
       title="Ofertas destacadas"
       description="Precios especiales por tiempo limitado. Aprovecha antes que se agoten."
-      href="/?filtro=ofertas"
+      href="/catalog?filter=offers"
       ctaLabel="Ver todas las ofertas"
       products={products}
       badgeMode="offer"

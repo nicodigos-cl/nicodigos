@@ -17,11 +17,17 @@ import type {
   ProductKeysPageResult,
   ProductListItemDto,
   ProductsPageResult,
+  StoreCatalogPageResult,
+  StoreCatalogPriceBounds,
   StoreProductCardDto,
   StoreProductDetailDto,
   StoreProductDetailSectionDto,
   StoreProductImageDto,
 } from "@/types/products";
+import type {
+  StoreCatalogQuery,
+  StoreCatalogSortField,
+} from "@/lib/validations/catalog";
 import type {
   ProductKeysQuery,
   ProductsListQuery,
@@ -1038,6 +1044,187 @@ export async function getStoreProductBySlug(
     smmServiceType: product.smmServiceType,
     smmMin: product.smmMin,
     smmMax: product.smmMax,
+  };
+}
+
+function buildStoreCatalogOrderBy(
+  sort: StoreCatalogSortField,
+  order: "asc" | "desc",
+): Prisma.ProductOrderByWithRelationInput | Prisma.ProductOrderByWithRelationInput[] {
+  switch (sort) {
+    case "name":
+      return { name: order };
+    case "price":
+      return { price: order };
+    case "createdAt":
+      return { createdAt: order };
+    case "updatedAt":
+      return { updatedAt: order };
+    case "relevance":
+      return [
+        { isFeatured: "desc" },
+        { isOffer: "desc" },
+        { updatedAt: "desc" },
+      ];
+  }
+}
+
+function buildInStockWhere(): Prisma.ProductWhereInput {
+  return {
+    OR: [
+      {
+        deliveryMethod: "MANUAL",
+        keys: { some: { status: ProductKeyStatus.AVAILABLE } },
+      },
+      {
+        deliveryMethod: "SMM",
+        qty: { gt: 0 },
+      },
+      {
+        deliveryMethod: "KINGUIN",
+        OR: [
+          { qty: { gt: 0 } },
+          {
+            offers: {
+              some: {
+                isDefault: true,
+                availableQty: { gt: 0 },
+              },
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+async function resolveCatalogCategoryIds(
+  categoryParam: string,
+): Promise<string[] | null> {
+  const category = await prisma.category.findFirst({
+    where: {
+      OR: [{ slug: categoryParam }, { id: categoryParam }],
+    },
+    select: {
+      id: true,
+      children: { select: { id: true } },
+    },
+  });
+
+  if (!category) {
+    return null;
+  }
+
+  return [category.id, ...category.children.map((child) => child.id)];
+}
+
+async function buildStoreCatalogWhere(
+  input: StoreCatalogQuery,
+): Promise<Prisma.ProductWhereInput> {
+  const and: Prisma.ProductWhereInput[] = [];
+
+  if (input.q) {
+    and.push({
+      OR: [
+        { name: { contains: input.q, mode: "insensitive" } },
+        { slug: { contains: input.q, mode: "insensitive" } },
+        { description: { contains: input.q, mode: "insensitive" } },
+      ],
+    });
+  }
+
+  if (input.deliveryMethod) {
+    and.push({ deliveryMethod: input.deliveryMethod });
+  }
+
+  if (input.offers) {
+    and.push({ isOffer: true });
+  }
+
+  if (input.minPrice != null || input.maxPrice != null) {
+    and.push({
+      price: {
+        ...(input.minPrice != null ? { gte: input.minPrice } : {}),
+        ...(input.maxPrice != null ? { lte: input.maxPrice } : {}),
+      },
+    });
+  }
+
+  if (input.availability === "in_stock") {
+    and.push(buildInStockWhere());
+  } else if (input.availability === "out_of_stock") {
+    and.push({ NOT: buildInStockWhere() });
+  }
+
+  if (input.category) {
+    const categoryIds = await resolveCatalogCategoryIds(input.category);
+    if (categoryIds == null) {
+      and.push({ id: { in: [] } });
+    } else {
+      and.push({
+        categories: {
+          some: { categoryId: { in: categoryIds } },
+        },
+      });
+    }
+  }
+
+  return {
+    status: ProductStatus.ACTIVE,
+    ...(and.length > 0 ? { AND: and } : {}),
+  };
+}
+
+/** Active catalog price floor/ceiling for the storefront filter slider. */
+export async function getStoreCatalogPriceBounds(): Promise<StoreCatalogPriceBounds> {
+  const aggregate = await prisma.product.aggregate({
+    where: { status: ProductStatus.ACTIVE },
+    _min: { price: true },
+    _max: { price: true },
+  });
+
+  const min = Math.max(
+    0,
+    Math.floor(Number(aggregate._min.price?.toString() ?? "0")),
+  );
+  const max = Math.max(
+    min,
+    Math.ceil(Number(aggregate._max.price?.toString() ?? "0")),
+  );
+
+  return {
+    min,
+    max: max === min ? min + 1 : max,
+  };
+}
+
+/** Paginated storefront catalog with URL-driven filters. */
+export async function getStoreCatalogPage(
+  input: StoreCatalogQuery,
+): Promise<StoreCatalogPageResult> {
+  const where = await buildStoreCatalogWhere(input);
+  const orderBy = buildStoreCatalogOrderBy(input.sort, input.order);
+  const skip = (input.page - 1) * input.pageSize;
+
+  const [total, products] = await prisma.$transaction([
+    prisma.product.count({ where }),
+    prisma.product.findMany({
+      where,
+      orderBy,
+      skip,
+      take: input.pageSize,
+      select: storeProductCardSelect,
+    }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(total / input.pageSize));
+
+  return {
+    items: products.map(toStoreProductCard),
+    total,
+    page: input.page,
+    pageSize: input.pageSize,
+    totalPages,
   };
 }
 

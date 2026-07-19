@@ -24,13 +24,13 @@ const offers = [
   {
     name: "Entrega digital",
     description: "Keys y servicios al instante",
-    href: "/categories",
+    href: "/catalog",
     icon: HiOutlineLightningBolt,
   },
   {
     name: "Precios en CLP",
     description: "Sin sorpresas de tipo de cambio",
-    href: "/?filtro=ofertas",
+    href: "/catalog?filter=offers",
     icon: HiOutlineCurrencyDollar,
   },
   {
@@ -114,7 +114,7 @@ export default function StoreHero({ className }: StoreHeroProps) {
                 <Button
                   size="lg"
                   className="group rounded-xl px-8 font-semibold shadow-md shadow-primary/10 hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 w-full sm:w-auto flex items-center justify-center gap-1 cursor-pointer"
-                  render={<Link href="/categories" />}
+                  render={<Link href="/catalog" />}
                   nativeButton={false}
                 >
                   Explorar catálogo
@@ -124,7 +124,7 @@ export default function StoreHero({ className }: StoreHeroProps) {
                   size="lg"
                   variant="outline"
                   className="rounded-xl px-8 font-semibold hover:bg-muted hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 w-full sm:w-auto cursor-pointer"
-                  render={<Link href="/?filtro=ofertas" />}
+                  render={<Link href="/catalog?filter=offers" />}
                   nativeButton={false}
                 >
                   Ver ofertas

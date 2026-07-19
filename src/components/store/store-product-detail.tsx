@@ -64,8 +64,8 @@ export function StoreProductDetail({
     hasOffer && compareAtPriceNum ? compareAtPriceNum - priceNum : null;
 
   const categoryHref = product.categories[0]
-    ? `/categories/${product.categories[0].slug}`
-    : "/productos";
+    ? `/catalog?category=${encodeURIComponent(product.categories[0].slug)}`
+    : "/catalog";
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8 max-lg:pt-16">
@@ -104,7 +104,7 @@ export function StoreProductDetail({
           </li>
           <li>
             <Link
-              href="/productos"
+              href="/catalog"
               className="hover:text-foreground transition-colors font-medium"
             >
               Catálogo
@@ -117,7 +117,7 @@ export function StoreProductDetail({
               </li>
               <li>
                 <Link
-                  href={`/categories/${product.categories[0].slug}`}
+                  href={`/catalog?category=${encodeURIComponent(product.categories[0].slug)}`}
                   className="hover:text-foreground transition-colors font-medium"
                 >
                   {product.categories[0].name}

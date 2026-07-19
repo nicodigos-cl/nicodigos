@@ -4,14 +4,14 @@ Convenciones que el repo ya usa. Preferir extender estos patrones antes de inven
 
 ## 1. Capas por responsabilidad
 
-| Capa | Ubicación | Rol |
-| --- | --- | --- |
-| **Validación** | `src/lib/validations/*` | Schemas Zod; única fuente de forma de input |
-| **Mutación** | `src/lib/actions/*` | `"use server"`; auth → parse → validate → Prisma → `revalidatePath` |
-| **Lectura** | `src/lib/*/queries.ts` | Queries Prisma reutilizables desde RSC / actions |
-| **Dominio puro** | `src/lib/fx/*`, format helpers | Sin I/O; usable en client y server |
-| **Integración** | `src/lib/flow`, `r2`, `kinguin`, `smm-*` | Clients y sync externos |
-| **UI** | `src/components/{admin,store,ui}` | Presentación; llama actions / hooks |
+| Capa             | Ubicación                                | Rol                                                                 |
+| ---------------- | ---------------------------------------- | ------------------------------------------------------------------- |
+| **Validación**   | `src/lib/validations/*`                  | Schemas Zod; única fuente de forma de input                         |
+| **Mutación**     | `src/lib/actions/*`                      | `"use server"`; auth → parse → validate → Prisma → `revalidatePath` |
+| **Lectura**      | `src/lib/*/queries.ts`                   | Queries Prisma reutilizables desde RSC / actions                    |
+| **Dominio puro** | `src/lib/fx/*`, format helpers           | Sin I/O; usable en client y server                                  |
+| **Integración**  | `src/lib/flow`, `r2`, `kinguin`, `smm-*` | Clients y sync externos                                             |
+| **UI**           | `src/components/{admin,store,ui}`        | Presentación; llama actions / hooks                                 |
 
 No meter lógica de negocio pesada en componentes. Las páginas admin suelen ser Server Components que leen con queries y delegan mutaciones a actions.
 
@@ -106,7 +106,7 @@ Jobs actuales: sync SMM, sync Kinguin, cleanup de `ProductPriceChangeEvent`.
 ## 10. Logging y observabilidad
 
 - `createLogger({ module: "…" })` (Pino) en crons, syncs, events, pagos.
-- Highlight.io vía instrumentation / project id.
+- Sentry vía instrumentation / `SENTRY_DSN`.
 - No loguear secrets ni bodies de pago completos.
 
 ## Checklist al agregar un feature

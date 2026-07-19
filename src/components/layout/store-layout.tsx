@@ -54,7 +54,7 @@ export default function StoreLayout({ children }: StoreLayoutProps) {
           </span>
         </Link>
         <Link
-          href="/categories"
+          href="/catalog"
           className="flex flex-col items-center gap-0.5 group active:scale-95 transition-all"
         >
           <div className="px-5 py-1 rounded-full text-muted-foreground group-hover:bg-muted group-hover:text-foreground flex items-center justify-center">

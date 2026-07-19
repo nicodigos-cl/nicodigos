@@ -14,7 +14,7 @@ import type {
 } from "@/types/categories";
 
 function categoryHref(slug: string): string {
-  return `/categories/${slug}`;
+  return `/catalog?category=${encodeURIComponent(slug)}`;
 }
 
 function buildOrderBy(
@@ -147,6 +147,24 @@ export async function getCategoryById(
   }
 
   return toListItem(category);
+}
+
+/** Resolve a storefront category by slug (or id) for catalog breadcrumbs. */
+export async function getCategoryBySlug(
+  slug: string,
+): Promise<Pick<CategoryDetailDto, "id" | "name" | "slug"> | null> {
+  const category = await prisma.category.findFirst({
+    where: {
+      OR: [{ slug }, { id: slug }],
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+    },
+  });
+
+  return category;
 }
 
 /** Collect `rootId` and all descendant ids (BFS). */

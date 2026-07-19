@@ -35,7 +35,7 @@ const defaultTiles: HeroTile[] = [
     name: "Keys y juegos",
     description:
       "Licencias digitales y catálogo gamer con entrega inmediata en CLP.",
-    href: "/categories/juegos",
+    href: "/catalog?category=juegos",
     cta: "Ver catálogo",
     className: "col-span-3 lg:col-span-2 lg:row-span-2",
     Icon: LaptopIcon,
@@ -46,7 +46,7 @@ const defaultTiles: HeroTile[] = [
   {
     name: "Software",
     description: "Sistemas y herramientas listas para activar.",
-    href: "/categories/software",
+    href: "/catalog?category=software",
     cta: "Comprar software",
     className: "col-span-3 lg:col-span-1",
     Icon: DesktopIcon,
@@ -56,7 +56,7 @@ const defaultTiles: HeroTile[] = [
   {
     name: "Servicios SMM",
     description: "Crecimiento en redes con destino configurable al comprar.",
-    href: "/categories/smm",
+    href: "/catalog?category=smm",
     cta: "Ver servicios",
     className: "col-span-3 lg:col-span-1",
     Icon: InstagramLogoIcon,
@@ -66,7 +66,7 @@ const defaultTiles: HeroTile[] = [
   {
     name: "Ofertas",
     description: "Precios especiales por tiempo limitado. No te las pierdas.",
-    href: "/?filtro=ofertas",
+    href: "/catalog?filter=offers",
     cta: "Ver ofertas",
     className: "col-span-3",
     Icon: LightningBoltIcon,

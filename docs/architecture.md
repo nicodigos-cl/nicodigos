@@ -4,18 +4,18 @@ Nicodigos es un ecommerce digital en CLP orientado a Chile: catálogo propio, fu
 
 ## Stack
 
-| Capa | Tecnología |
-| --- | --- |
-| App | Next.js 16 (App Router), React 19, Bun |
-| UI | Tailwind CSS 4, shadcn / Base UI, TanStack Table & Query |
-| Datos | PostgreSQL + Prisma 7 (`@prisma/adapter-pg`) |
-| Auth | Better Auth (email/password + OTP, OAuth opcional) |
-| Pagos | Flow.cl (`@nicotordev/flowcl-pagos`) |
-| Media | Cloudflare R2 (presigned upload) |
-| Cache / jobs | Redis (USD/EUR → CLP) + BullMQ + live support pub/sub |
-| Email | Resend + React Email |
-| Live support | WebSocket gateway dedicado (`scripts/support-ws.ts`) |
-| Observabilidad | Pino + Highlight.io |
+| Capa           | Tecnología                                               |
+| -------------- | -------------------------------------------------------- |
+| App            | Next.js 16 (App Router), React 19, Bun                   |
+| UI             | Tailwind CSS 4, shadcn / Base UI, TanStack Table & Query |
+| Datos          | PostgreSQL + Prisma 7 (`@prisma/adapter-pg`)             |
+| Auth           | Better Auth (email/password + OTP, OAuth opcional)       |
+| Pagos          | Flow.cl (`@nicotordev/flowcl-pagos`)                     |
+| Media          | Cloudflare R2 (presigned upload)                         |
+| Cache / jobs   | Redis (USD/EUR → CLP) + BullMQ + live support pub/sub    |
+| Email          | Resend + React Email                                     |
+| Live support   | WebSocket gateway dedicado (`scripts/support-ws.ts`)     |
+| Observabilidad | Pino + Sentry                                            |
 
 ## Dominio
 
@@ -43,12 +43,12 @@ Usuario → Catálogo / Carrito → Checkout (Flow) → Order + Payment
 
 ### Proveedores externos
 
-| Integración | Rol |
-| --- | --- |
-| **SmmProvider** / **SmmService** | Cache del catálogo remoto del panel; sync por cron |
-| **Kinguin** | Import/search de productos ESA; sync de ofertas y precios |
-| **Flow** | Link de pago, webhook/confirmación, retorno checkout |
-| **OpenAI** | Prefill/traducción al convertir servicios SMM en productos |
+| Integración                      | Rol                                                        |
+| -------------------------------- | ---------------------------------------------------------- |
+| **SmmProvider** / **SmmService** | Cache del catálogo remoto del panel; sync por cron         |
+| **Kinguin**                      | Import/search de productos ESA; sync de ofertas y precios  |
+| **Flow**                         | Link de pago, webhook/confirmación, retorno checkout       |
+| **OpenAI**                       | Prefill/traducción al convertir servicios SMM en productos |
 
 ## Estructura del repo
 
