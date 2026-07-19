@@ -64,7 +64,27 @@ describe("delivery promise", () => {
     expect(result.reason).toBe("kinguin_balance_unreliable");
   });
 
-  test("compares SMM estimated cost against panel balance", () => {
+  test("manual delivery is always 12–24 hours", () => {
+    const withKeys = calculateDeliveryPromise({
+      product: {
+        deliveryMethod: "MANUAL",
+        quantity: 1,
+        stockAvailable: 5,
+      },
+    });
+    expect(withKeys.promise).toBe("DELAYED_12_24H");
+
+    const withoutKeys = calculateDeliveryPromise({
+      product: {
+        deliveryMethod: "MANUAL",
+        quantity: 2,
+        stockAvailable: 0,
+      },
+    });
+    expect(withoutKeys.promise).toBe("DELAYED_12_24H");
+  });
+
+  test("SMM with balance is fast (minutes/hours)", () => {
     const ok = calculateDeliveryPromise({
       product: {
         deliveryMethod: "SMM",
@@ -83,7 +103,9 @@ describe("delivery promise", () => {
     });
     expect(ok.promise).toBe("INSTANT");
     expect(ok.estimatedCostAmount).toBe(2);
+  });
 
+  test("SMM with insufficient balance becomes 12–24 hours", () => {
     const short = calculateDeliveryPromise({
       product: {
         deliveryMethod: "SMM",
@@ -101,17 +123,6 @@ describe("delivery promise", () => {
       }),
     });
     expect(short.promise).toBe("DELAYED_12_24H");
-  });
-
-  test("manual without keys becomes delayed when fallback is allowed", () => {
-    const result = calculateDeliveryPromise({
-      product: {
-        deliveryMethod: "MANUAL",
-        quantity: 2,
-        stockAvailable: 0,
-      },
-    });
-    expect(result.promise).toBe("DELAYED_12_24H");
   });
 });
 

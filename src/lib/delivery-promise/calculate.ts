@@ -62,7 +62,11 @@ function balanceCovers(
 
 /**
  * Pure calculation of delivery promise given stock + optional provider balances.
- * PostgreSQL remains source of truth for orders; this only decides the ETA label.
+ *
+ * Rules:
+ * - SMM → fast (minutes/hours) when balance covers; otherwise 12–24h
+ * - MANUAL → always 12–24h (admin fulfillment)
+ * - KINGUIN → instant with balance; 12–24h without reliable/sufficient balance
  */
 export function calculateDeliveryPromise(input: {
   product: DeliveryPromiseProductInput;
@@ -76,27 +80,19 @@ export function calculateDeliveryPromise(input: {
   const stock = Math.max(0, product.stockAvailable);
 
   if (product.deliveryMethod === "MANUAL") {
-    if (stock >= product.quantity) {
+    if (stock < product.quantity && !allowDelayed) {
       return {
-        promise: "INSTANT",
+        promise: "UNAVAILABLE",
         estimatedCostAmount: 0,
         estimatedCostCurrency: null,
-        reason: "keys_available",
-      };
-    }
-    if (allowDelayed) {
-      return {
-        promise: "DELAYED_12_24H",
-        estimatedCostAmount: 0,
-        estimatedCostCurrency: null,
-        reason: "manual_inventory_short",
+        reason: "manual_no_stock",
       };
     }
     return {
-      promise: "UNAVAILABLE",
+      promise: "DELAYED_12_24H",
       estimatedCostAmount: 0,
       estimatedCostCurrency: null,
-      reason: "manual_no_stock",
+      reason: stock >= product.quantity ? "manual_admin_delivery" : "manual_inventory_short",
     };
   }
 
@@ -112,7 +108,6 @@ export function calculateDeliveryPromise(input: {
     }
 
     const coverage = balanceCovers(input.kinguinBalance, cost);
-    // Only trust balance when the official ESA endpoint returned a numeric value.
     if (coverage === "yes") {
       return {
         promise: "INSTANT",
@@ -121,24 +116,18 @@ export function calculateDeliveryPromise(input: {
         reason: "kinguin_balance_ok",
       };
     }
-    if (coverage === "no") {
-      return {
-        promise: "DELAYED_12_24H",
-        estimatedCostAmount: cost,
-        estimatedCostCurrency: "EUR",
-        reason: "kinguin_insufficient_balance",
-      };
-    }
-    // UNKNOWN/ERROR: do not invent funds — delay rather than block purchase.
     return {
       promise: "DELAYED_12_24H",
       estimatedCostAmount: cost,
       estimatedCostCurrency: "EUR",
-      reason: "kinguin_balance_unreliable",
+      reason:
+        coverage === "no"
+          ? "kinguin_insufficient_balance"
+          : "kinguin_balance_unreliable",
     };
   }
 
-  // SMM
+  // SMM — typical start is minutes/hours when the panel can fund the order.
   const cost = estimateSmmCostUsd(product);
   if (stock <= 0 && !allowDelayed) {
     return {
@@ -150,50 +139,66 @@ export function calculateDeliveryPromise(input: {
   }
 
   const coverage = balanceCovers(input.smmBalance, cost);
-  if (coverage === "yes") {
+  if (coverage === "yes" || coverage === "unknown") {
+    // Unknown balance: still promise the normal SMM window (minutes/hours),
+    // not a fictitious 12–24h delay based on missing wallet data.
     return {
       promise: "INSTANT",
       estimatedCostAmount: cost,
       estimatedCostCurrency: "USD",
-      reason: "smm_balance_ok",
+      reason:
+        coverage === "yes" ? "smm_balance_ok" : "smm_fast_default",
     };
   }
-  if (coverage === "no") {
-    return {
-      promise: "DELAYED_12_24H",
-      estimatedCostAmount: cost,
-      estimatedCostCurrency: "USD",
-      reason: "smm_insufficient_balance",
-    };
-  }
+
   return {
     promise: "DELAYED_12_24H",
     estimatedCostAmount: cost,
     estimatedCostCurrency: "USD",
-    reason: "smm_balance_unreliable_or_manual",
+    reason: "smm_insufficient_balance",
   };
 }
 
-export function deliveryPromiseLabel(promise: DeliveryPromise): string {
-  switch (promise) {
-    case "INSTANT":
-      return "Inmediata";
-    case "DELAYED_12_24H":
-      return "12–24 horas";
-    case "UNAVAILABLE":
-      return "No disponible";
+/** Customer-facing ETA label by method + promise. */
+export function deliveryPromiseLabel(
+  promise: DeliveryPromise,
+  method?: DeliveryMethod | null,
+): string {
+  if (promise === "UNAVAILABLE") return "No disponible";
+
+  if (method === "SMM") {
+    return promise === "DELAYED_12_24H"
+      ? "12–24 horas"
+      : "Minutos a unas horas";
   }
+
+  if (method === "MANUAL") {
+    return "12–24 horas";
+  }
+
+  // KINGUIN / unknown method
+  return promise === "INSTANT" ? "Inmediata" : "12–24 horas";
 }
 
-export function deliveryPromiseCustomerCopy(promise: DeliveryPromise): string {
-  switch (promise) {
-    case "INSTANT":
-      return "Entrega inmediata";
-    case "DELAYED_12_24H":
-      return "Entrega en 12–24 horas";
-    case "UNAVAILABLE":
-      return "Entrega no disponible";
+export function deliveryPromiseCustomerCopy(
+  promise: DeliveryPromise,
+  method?: DeliveryMethod | null,
+): string {
+  if (promise === "UNAVAILABLE") return "Entrega no disponible";
+
+  if (method === "SMM") {
+    return promise === "DELAYED_12_24H"
+      ? "Entrega en 12–24 horas"
+      : "Entrega en minutos a unas horas";
   }
+
+  if (method === "MANUAL") {
+    return "Entrega en 12–24 horas";
+  }
+
+  return promise === "INSTANT"
+    ? "Entrega inmediata"
+    : "Entrega en 12–24 horas";
 }
 
 export function isDelayedDeliveryPromise(

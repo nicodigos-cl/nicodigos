@@ -13,6 +13,7 @@ import { DeliveryFailedEmail } from "@/emails/delivery-failed-email";
 import { DeliveryProcessingEmail } from "@/emails/delivery-processing-email";
 import { sendReactEmail } from "@/lib/email/resend";
 import { createLogger } from "@/lib/logger";
+import { buildOrderAccessUrl } from "@/lib/orders/access";
 import prisma from "@/lib/prisma";
 
 const log = createLogger({ module: "admin-deliveries" });
@@ -56,6 +57,7 @@ export async function sendDeliveryNotification(input: {
               id: true,
               email: true,
               customerName: true,
+              accessToken: true,
               user: { select: { name: true } },
             },
           },
@@ -109,7 +111,11 @@ export async function sendDeliveryNotification(input: {
     select: { id: true },
   });
 
-  const orderUrl = `${appBaseUrl()}/dashboard/pedidos/${delivery.orderItem.order.id}`;
+  const orderUrl = buildOrderAccessUrl(
+    appBaseUrl(),
+    delivery.orderItem.order.id,
+    delivery.orderItem.order.accessToken,
+  );
   const customerName =
     delivery.orderItem.order.customerName ||
     delivery.orderItem.order.user.name ||

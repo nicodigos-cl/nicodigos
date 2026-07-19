@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { ColumnDef } from "@tanstack/react-table";
 import { HiOutlineCheck, HiOutlineSearch } from "react-icons/hi";
 
 import { SsrSearchInput } from "@/components/admin/ssr-search-input";
+import { DataTable } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +16,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { cn } from "@/lib/utils";
 import type { KinguinSearchHitDto } from "@/types/kinguin-admin";
 
 type KinguinProductPickerProps = {
@@ -79,6 +80,63 @@ export function KinguinProductPicker({
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
   const hasQuery = Boolean(q?.trim());
+  const columns: ColumnDef<KinguinSearchHitDto>[] = [
+    {
+      accessorKey: "name",
+      header: "Juego",
+      cell: ({ row }) => (
+        <div className="flex min-w-0 max-w-52 items-center gap-2">
+          <CoverThumb
+            src={row.original.coverThumbnailUrl || row.original.coverUrl}
+          />
+          <div className="min-w-0">
+            <p className="truncate font-medium">{row.original.name}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              #{row.original.kinguinId}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "platform",
+      header: "Plataforma",
+      cell: ({ row }) => (
+        <span className="block max-w-24 truncate text-muted-foreground">
+          {row.original.platform ?? "—"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "priceEur",
+      header: "EUR",
+      cell: ({ row }) => (
+        <span className="tabular-nums">
+          {row.original.priceEur != null
+            ? `€${row.original.priceEur.toFixed(2)}`
+            : "—"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "offersCount",
+      header: "Ofertas",
+      cell: ({ row }) => (
+        <span className="tabular-nums">{row.original.offersCount}</span>
+      ),
+    },
+    {
+      id: "selected",
+      cell: ({ row }) =>
+        row.original.alreadyImported && row.original.localProductId ? (
+          <Badge variant="secondary" className="text-[10px]">
+            Ya importado
+          </Badge>
+        ) : row.original.kinguinId === selectedKinguinId ? (
+          <HiOutlineCheck className="mx-auto size-4 text-primary" />
+        ) : null,
+    },
+  ];
 
   return (
     <div className="space-y-3 rounded-2xl border border-border bg-muted/20 p-3">
@@ -86,8 +144,8 @@ export function KinguinProductPicker({
         <div>
           <p className="text-sm font-medium">Producto Kinguin</p>
           <p className="text-xs text-muted-foreground">
-            Busca y enlaza el juego remoto. Se rellenan nombre, precio sugerido y
-            stock.
+            Busca y enlaza el juego remoto. Se rellenan nombre, precio sugerido
+            y stock.
           </p>
         </div>
         {selectedKinguinId != null ? (
@@ -131,77 +189,26 @@ export function KinguinProductPicker({
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="max-h-64 overflow-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-muted/80 text-xs text-muted-foreground backdrop-blur">
-                <tr>
-                  <th className="px-3 py-2 font-medium">Juego</th>
-                  <th className="px-3 py-2 font-medium">Platform</th>
-                  <th className="px-3 py-2 font-medium">EUR</th>
-                  <th className="px-3 py-2 font-medium">Ofertas</th>
-                  <th className="w-24 px-2 py-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((hit) => {
-                  const selected = hit.kinguinId === selectedKinguinId;
-                  const disabled = hit.alreadyImported;
-                  return (
-                    <tr
-                      key={hit.kinguinId}
-                      className={cn(
-                        "border-t border-border transition-colors",
-                        disabled
-                          ? "opacity-60"
-                          : "cursor-pointer hover:bg-muted/50",
-                        selected && "bg-primary/5",
-                      )}
-                      onClick={() => {
-                        if (disabled) return;
-                        onSelect(hit);
-                      }}
-                    >
-                      <td className="max-w-52 px-3 py-2">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <CoverThumb
-                            src={hit.coverThumbnailUrl || hit.coverUrl}
-                          />
-                          <div className="min-w-0">
-                            <p className="truncate font-medium">{hit.name}</p>
-                            <p className="truncate text-xs text-muted-foreground">
-                              #{hit.kinguinId}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="max-w-24 truncate px-3 py-2 text-muted-foreground">
-                        {hit.platform ?? "—"}
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {hit.priceEur != null
-                          ? `€${hit.priceEur.toFixed(2)}`
-                          : "—"}
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {hit.offersCount}
-                      </td>
-                      <td className="px-2 py-2 text-center">
-                        {disabled && hit.localProductId ? (
-                          <Badge variant="secondary" className="text-[10px]">
-                            Ya importado
-                          </Badge>
-                        ) : selected ? (
-                          <HiOutlineCheck className="mx-auto size-4 text-primary" />
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable
+          columns={columns}
+          data={items}
+          manual
+          hideToolbar
+          hidePagination
+          containerClassName="rounded-xl"
+          tableContainerClassName="max-h-64 overflow-auto"
+          headerClassName="sticky top-0 z-10 bg-muted/80 backdrop-blur"
+          getRowId={(hit) => String(hit.kinguinId)}
+          getRowClassName={(row) => {
+            if (row.original.alreadyImported) return "opacity-60";
+            return row.original.kinguinId === selectedKinguinId
+              ? "cursor-pointer bg-primary/5"
+              : "cursor-pointer";
+          }}
+          onRowClick={(row) => {
+            if (!row.original.alreadyImported) onSelect(row.original);
+          }}
+        />
       )}
 
       {hasQuery ? (

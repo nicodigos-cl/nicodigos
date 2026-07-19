@@ -5,6 +5,7 @@ import { useState, useTransition, useEffect } from "react";
 import { toast } from "sonner";
 import { HiOutlineCreditCard } from "react-icons/hi";
 
+import { ChileLocationFields } from "@/components/store/chile-location-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +35,7 @@ export function BillingInfoForm({
   const [addressLine1, setAddressLine1] = useState(profile.addressLine1 ?? "");
   const [addressLine2, setAddressLine2] = useState(profile.addressLine2 ?? "");
   const [commune, setCommune] = useState(profile.commune ?? "");
-  const [city, setCity] = useState(profile.city ?? "");
+  const [city] = useState(profile.city ?? "");
   const [region, setRegion] = useState(profile.region ?? "");
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -254,71 +255,14 @@ export function BillingInfoForm({
             )}
           </div>
 
-          {/* Comuna */}
-          <div className="space-y-1 sm:col-span-2 md:col-span-1">
-            <Label htmlFor="commune">
-              Comuna{" "}
-              <span className="text-muted-foreground font-normal">
-                (Recomendado)
-              </span>
-            </Label>
-            <Input
-              id="commune"
-              value={commune}
-              onChange={(event) => setCommune(event.target.value)}
-              disabled={pending}
-              placeholder="Santiago Centro"
-              aria-invalid={Boolean(fieldError("commune"))}
-            />
-            {fieldError("commune") && (
-              <p className="text-xs text-destructive mt-1" role="alert">
-                {fieldError("commune")}
-              </p>
-            )}
-          </div>
-
-          {/* Ciudad */}
-          <div className="space-y-1 sm:col-span-2 md:col-span-1">
-            <Label htmlFor="city">
-              Ciudad <span className="text-muted-foreground font-normal">(Opcional)</span>
-            </Label>
-            <Input
-              id="city"
-              value={city}
-              onChange={(event) => setCity(event.target.value)}
-              disabled={pending}
-              placeholder="Santiago"
-              aria-invalid={Boolean(fieldError("city"))}
-            />
-            {fieldError("city") && (
-              <p className="text-xs text-destructive mt-1" role="alert">
-                {fieldError("city")}
-              </p>
-            )}
-          </div>
-
-          {/* Región */}
-          <div className="space-y-1 sm:col-span-2">
-            <Label htmlFor="region">
-              Región{" "}
-              <span className="text-muted-foreground font-normal">
-                (Recomendado)
-              </span>
-            </Label>
-            <Input
-              id="region"
-              value={region}
-              onChange={(event) => setRegion(event.target.value)}
-              disabled={pending}
-              placeholder="Metropolitana de Santiago"
-              aria-invalid={Boolean(fieldError("region"))}
-            />
-            {fieldError("region") && (
-              <p className="text-xs text-destructive mt-1" role="alert">
-                {fieldError("region")}
-              </p>
-            )}
-          </div>
+          <ChileLocationFields
+            region={region}
+            commune={commune}
+            onRegionChange={setRegion}
+            onCommuneChange={setCommune}
+            communeError={fieldError("commune")}
+            disabled={pending}
+          />
         </div>
 
         <div className="flex justify-end pt-2">

@@ -21,6 +21,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { buildDeliveriesHref } from "@/lib/deliveries/href";
 import { cn } from "@/lib/utils";
 import {
   deliveryMethodLabel,
@@ -30,6 +31,8 @@ import {
   type DeliveryMethod,
   type DeliveryStatus,
 } from "@/lib/validations/deliveries";
+
+export { buildDeliveriesHref } from "@/lib/deliveries/href";
 
 type DeliveriesToolbarProps = {
   query: DeliveriesListQuery;
@@ -58,41 +61,6 @@ const sortOptions: Array<{
 
 const statuses = Object.keys(deliveryStatusLabel) as DeliveryStatus[];
 const methods = Object.keys(deliveryMethodLabel) as DeliveryMethod[];
-
-export function buildDeliveriesHref(
-  query: DeliveriesListQuery,
-  overrides: FilterOverrides & { page?: number } = {},
-): string {
-  const next = {
-    q: "q" in overrides ? overrides.q : query.q,
-    pageSize: query.pageSize,
-    status: "status" in overrides ? overrides.status : query.status,
-    method: "method" in overrides ? overrides.method : query.method,
-    hasError: "hasError" in overrides ? overrides.hasError : query.hasError,
-    needsManual:
-      "needsManual" in overrides ? overrides.needsManual : query.needsManual,
-    hasExternal:
-      "hasExternal" in overrides ? overrides.hasExternal : query.hasExternal,
-    sort: "sort" in overrides ? (overrides.sort ?? "createdAt") : query.sort,
-    order: "order" in overrides ? (overrides.order ?? "desc") : query.order,
-    page: "page" in overrides ? overrides.page : undefined,
-  };
-
-  const params = new URLSearchParams();
-  if (next.page && next.page > 1) params.set("page", String(next.page));
-  if (next.q) params.set("q", next.q);
-  if (next.pageSize !== 20) params.set("pageSize", String(next.pageSize));
-  if (next.status) params.set("status", next.status);
-  if (next.method) params.set("method", next.method);
-  if (next.hasError) params.set("hasError", "true");
-  if (next.needsManual) params.set("needsManual", "true");
-  if (next.hasExternal) params.set("hasExternal", "true");
-  if (next.sort !== "createdAt") params.set("sort", next.sort);
-  if (next.order !== "desc") params.set("order", next.order);
-
-  const qs = params.toString();
-  return qs ? `/admin/deliveries?${qs}` : "/admin/deliveries";
-}
 
 function FilterOptionButton({
   active,

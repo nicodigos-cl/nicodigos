@@ -9,7 +9,11 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-import { validateImageFile, validateMediaMetadata } from "@/lib/uploads/image";
+import {
+  IMAGE_MIME_TYPES,
+  validateImageFile,
+  validateMediaMetadata,
+} from "@/lib/uploads/image";
 
 type R2Config = {
   accountId: string;
@@ -126,15 +130,80 @@ export async function uploadImageToR2(
     throw new Error(`INVALID_IMAGE:${validationMessage}`);
   }
 
+  return putImageBytesToR2({
+    folder,
+    body: new Uint8Array(await file.arrayBuffer()),
+    contentType: file.type,
+  });
+}
+
+/**
+ * Download a remote image and store it in R2 (server-side mirror).
+ * Used when importing Kinguin products so the store does not hotlink CDNs.
+ */
+export async function uploadRemoteImageToR2(input: {
+  sourceUrl: string;
+  folder: "products" | "categories";
+}): Promise<UploadedImage & { mimeType: string; sizeBytes: number; fileName: string }> {
+  const sourceUrl = input.sourceUrl.trim();
+  if (!/^https:\/\//i.test(sourceUrl)) {
+    throw new Error("INVALID_REMOTE_IMAGE_URL");
+  }
+
+  const response = await fetch(sourceUrl, {
+    method: "GET",
+    redirect: "follow",
+    signal: AbortSignal.timeout(30_000),
+    headers: { Accept: "image/*,*/*;q=0.8" },
+  });
+
+  if (!response.ok) {
+    throw new Error(`REMOTE_IMAGE_FETCH_FAILED:${response.status}`);
+  }
+
+  const headerType = response.headers.get("content-type")?.split(";")[0]?.trim() ?? "";
+  const contentType = normalizeImageContentType(headerType, sourceUrl);
+  if (!contentType) {
+    throw new Error(`INVALID_REMOTE_IMAGE_TYPE:${headerType || "unknown"}`);
+  }
+
+  const buffer = new Uint8Array(await response.arrayBuffer());
+  const validationMessage = validateMediaMetadata({
+    type: contentType,
+    size: buffer.byteLength,
+  });
+  if (validationMessage) {
+    throw new Error(`INVALID_REMOTE_IMAGE:${validationMessage}`);
+  }
+
+  const uploaded = await putImageBytesToR2({
+    folder: input.folder,
+    body: buffer,
+    contentType,
+  });
+
+  return {
+    ...uploaded,
+    mimeType: contentType,
+    sizeBytes: buffer.byteLength,
+    fileName: fileNameFromUrl(sourceUrl, contentType),
+  };
+}
+
+async function putImageBytesToR2(input: {
+  folder: "products" | "categories";
+  body: Uint8Array;
+  contentType: string;
+}): Promise<UploadedImage> {
   const config = getConfig();
-  const key = `${folder}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extensionFor(file.type)}`;
+  const key = `${input.folder}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extensionFor(input.contentType)}`;
 
   await getClient(config).send(
     new PutObjectCommand({
       Bucket: config.bucket,
       Key: key,
-      Body: new Uint8Array(await file.arrayBuffer()),
-      ContentType: file.type,
+      Body: input.body,
+      ContentType: input.contentType,
       CacheControl: "public, max-age=31536000, immutable",
     }),
   );
@@ -143,6 +212,38 @@ export async function uploadImageToR2(
     key,
     url: `${config.publicUrl.replace(/\/$/, "")}/${key}`,
   };
+}
+
+function normalizeImageContentType(
+  headerType: string,
+  sourceUrl: string,
+): string | null {
+  const normalized = headerType.toLowerCase();
+  if (normalized === "image/jpg") return "image/jpeg";
+  if (IMAGE_MIME_TYPES.includes(normalized as (typeof IMAGE_MIME_TYPES)[number])) {
+    return normalized;
+  }
+
+  const path = sourceUrl.split("?")[0]?.toLowerCase() ?? "";
+  if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
+  if (path.endsWith(".png")) return "image/png";
+  if (path.endsWith(".webp")) return "image/webp";
+  if (path.endsWith(".avif")) return "image/avif";
+  return null;
+}
+
+function fileNameFromUrl(sourceUrl: string, contentType: string): string {
+  try {
+    const base = decodeURIComponent(
+      new URL(sourceUrl).pathname.split("/").filter(Boolean).at(-1) ?? "",
+    );
+    if (base && /\.[a-z0-9]+$/i.test(base)) {
+      return base.slice(0, 180);
+    }
+  } catch {
+    // ignore bad URLs
+  }
+  return `image.${extensionFor(contentType)}`;
 }
 
 export async function deleteImageFromR2(key: string): Promise<void> {

@@ -61,11 +61,14 @@ function buildFaqItems(product: StoreProductDetailDto): FaqItem[] {
     },
     {
       q: "¿Cuánto tarda la entrega?",
-      a: isSmm
-        ? `El servicio inicia automáticamente al confirmar el pago. El tiempo estimado de entrega es ${product.deliveryEta.toLowerCase()}.`
-        : product.deliveryDelayed
-          ? "La entrega suele demorar entre 12 y 24 horas hábiles. Te avisamos por email cuando tu clave esté lista."
-          : "En la mayoría de los casos es inmediata: ves la clave en pantalla y también la recibes por email segundos después del pago.",
+      a:
+        product.deliveryMethod === "SMM"
+          ? `El servicio inicia automáticamente al confirmar el pago. Tiempo estimado: ${product.deliveryEta.toLowerCase()}.`
+          : product.deliveryMethod === "MANUAL"
+            ? "Las keys manuales se entregan en 12–24 horas. Te avisamos por email cuando esté lista."
+            : product.deliveryDelayed
+              ? "La entrega suele demorar entre 12 y 24 horas. Te avisamos por email cuando tu clave esté lista."
+              : "En la mayoría de los casos es inmediata: ves la clave en pantalla y también la recibes por email después del pago.",
     },
     {
       q: "¿Dónde veo mi pedido?",
@@ -278,8 +281,10 @@ export function StoreProductDetailSections({
               <li>
                 <span className="font-medium text-foreground">Procesamos:</span>{" "}
                 {isSmm
-                  ? "el servicio se envía al proveedor y comienza de forma automática."
-                  : "validamos el pago y despachamos la clave de inmediato en la mayoría de los casos."}
+                  ? "el servicio se envía al proveedor y suele comenzar en minutos a unas horas."
+                  : product.deliveryMethod === "MANUAL" || product.deliveryDelayed
+                    ? "validamos el pago y preparamos la entrega en un plazo de 12–24 horas."
+                    : "validamos el pago y despachamos la clave de inmediato en la mayoría de los casos."}
               </li>
               <li>
                 <span className="font-medium text-foreground">Recibes:</span>{" "}

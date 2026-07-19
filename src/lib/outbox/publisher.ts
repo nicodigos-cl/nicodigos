@@ -1,6 +1,7 @@
 import "server-only";
 
 import { DeliveryStatus, OutboxEventStatus } from "@/generated/prisma/client";
+import { getDeliveryRetryOptions, canProcessDeliveryJobs } from "@/lib/deliveries/policy";
 import { createLogger } from "@/lib/logger";
 import { enqueueDelivery } from "@/lib/queues/delivery";
 import prisma from "@/lib/prisma";
@@ -36,6 +37,11 @@ export async function publishDeliveryOutbox(batchSize = 50): Promise<{
   let published = 0;
   let failed = 0;
   const settings = await getOperationalSettings();
+  const jobsOk = canProcessDeliveryJobs(settings);
+  if (!jobsOk.ok) {
+    log.info({ reason: jobsOk.reason }, "Skipping outbox publish during maintenance");
+    return { published: 0, failed: 0 };
+  }
   for (const event of events) {
     const claimed = await prisma.outboxEvent.updateMany({
       where: { id: event.id, status: event.status },
@@ -65,12 +71,13 @@ export async function publishDeliveryOutbox(batchSize = 50): Promise<{
         published += 1;
         continue;
       }
-      const retryMax = deliverySnapshot.deliveryMethod === "SMM"
-        ? settings.smmMaxRetries
-        : settings.deliveryRetryMax;
+      const retry = getDeliveryRetryOptions(
+        settings,
+        deliverySnapshot.deliveryMethod,
+      );
       await enqueueDelivery(event.aggregateId, {
-        attempts: Math.max(1, retryMax + 1),
-        backoffDelay: Math.max(1, settings.deliveryRetryIntervalMinutes) * 60_000,
+        attempts: retry.attempts,
+        backoffDelay: retry.backoffDelayMs,
       });
       await prisma.$transaction(async (tx) => {
         await tx.outboxEvent.update({
@@ -107,8 +114,14 @@ export async function publishDeliveryOutbox(batchSize = 50): Promise<{
       });
       published += 1;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Error al publicar evento";
-      const delaySeconds = Math.min(30 * 60, 2 ** Math.min(event.attemptCount, 10) * 15);
+      const message =
+        error instanceof Error ? error.message : "Error al publicar evento";
+      const delayMs =
+        Math.max(1, settings.deliveryRetryIntervalMinutes) * 60_000;
+      const delaySeconds = Math.min(
+        30 * 60,
+        Math.max(delayMs / 1000, 2 ** Math.min(event.attemptCount, 10) * 15),
+      );
       await prisma.outboxEvent.update({
         where: { id: event.id },
         data: {
@@ -119,7 +132,14 @@ export async function publishDeliveryOutbox(batchSize = 50): Promise<{
         },
       });
       failed += 1;
-      log.error({ outboxEventId: event.id, deliveryId: event.aggregateId, err: message }, "Outbox publish failed");
+      log.error(
+        {
+          outboxEventId: event.id,
+          deliveryId: event.aggregateId,
+          err: message,
+        },
+        "Outbox publish failed",
+      );
     }
   }
 

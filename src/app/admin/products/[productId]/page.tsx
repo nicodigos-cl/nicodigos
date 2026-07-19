@@ -1,15 +1,18 @@
 import { notFound, redirect } from "next/navigation";
 
 import { ArchiveProductButton } from "@/components/admin/products/archive-product-button";
+import { ProductAccountsManager } from "@/components/admin/products/product-accounts-manager";
 import { ProductForm } from "@/components/admin/products/product-form";
 import { ProductKeysManager } from "@/components/admin/products/product-keys-manager";
 import {
   getCategoryOptions,
+  getProductAccountsPage,
   getProductById,
   getProductKeysPage,
 } from "@/lib/products/queries";
 import {
   parseSearchParamsRecord,
+  productAccountsQuerySchema,
   productKeysQuerySchema,
 } from "@/lib/validations/products";
 
@@ -25,15 +28,17 @@ export default async function ProductEditPage({
   const { productId } = await params;
   const rawParams = parseSearchParamsRecord(await searchParams);
   const keysQuery = productKeysQuerySchema.safeParse(rawParams);
+  const accountsQuery = productAccountsQuerySchema.safeParse(rawParams);
 
-  if (!keysQuery.success) {
+  if (!keysQuery.success || !accountsQuery.success) {
     redirect(`/admin/products/${productId}`);
   }
 
-  const [product, categories, keysPage] = await Promise.all([
+  const [product, categories, keysPage, accountsPage] = await Promise.all([
     getProductById(productId),
     getCategoryOptions(),
     getProductKeysPage(productId, keysQuery.data),
+    getProductAccountsPage(productId, accountsQuery.data),
   ]);
 
   if (!product) {
@@ -70,11 +75,21 @@ export default async function ProductEditPage({
         />
       }
       keysSlot={
-        <ProductKeysManager
-          productId={product.id}
-          keysPage={keysPage}
-          query={keysQuery.data}
-        />
+        product.deliveryMethod === "MANUAL" ? (
+          <ProductKeysManager
+            productId={product.id}
+            keysPage={keysPage}
+            query={keysQuery.data}
+          />
+        ) : null
+      }
+      accountsSlot={
+        product.deliveryMethod === "MANUAL" ? (
+          <ProductAccountsManager
+            productId={product.id}
+            accountsPage={accountsPage}
+          />
+        ) : null
       }
     />
   );

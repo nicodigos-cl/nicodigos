@@ -87,6 +87,7 @@
     "@types/react-dom": "^19",
     "@types/sanitize-html": "^2.16.1",
     "babel-plugin-react-compiler": "1.0.0",
+    "chilean-territorial-divisions": "^1.0.1",
     "concurrently": "^10.0.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",

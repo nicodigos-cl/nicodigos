@@ -78,6 +78,7 @@ type ProductFormProps = {
   product?: ProductDetailDto;
   archiveSlot?: React.ReactNode;
   keysSlot?: React.ReactNode;
+  accountsSlot?: React.ReactNode;
   smmPicker?: SmmPickerProps;
   kinguinPicker?: KinguinPickerProps;
 };
@@ -192,6 +193,7 @@ export function ProductForm({
   product,
   archiveSlot,
   keysSlot,
+  accountsSlot,
   smmPicker,
   kinguinPicker,
 }: ProductFormProps) {
@@ -726,6 +728,7 @@ export function ProductForm({
           </Card>
 
           {keysSlot}
+          {accountsSlot}
         </div>
 
         <div className="flex flex-col gap-6">

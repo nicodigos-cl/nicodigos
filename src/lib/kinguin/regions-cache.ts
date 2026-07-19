@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getRedis } from "@/lib/redis";
+import { getReadyRedis } from "@/lib/redis";
 import { createLogger } from "@/lib/logger";
 import { getKinguinClient } from "@/lib/kinguin-client";
 
@@ -14,14 +14,11 @@ export async function getCachedKinguinRegionName(
 ): Promise<string | null> {
   if (regionId == null) return null;
 
-  const redis = getRedis();
+  const redis = await getReadyRedis();
   let raw: string | null = null;
 
   if (redis) {
     try {
-      if (redis.status !== "ready") {
-        await redis.connect().catch(() => undefined);
-      }
       raw = await redis.get(KINGUIN_REGIONS_CACHE_KEY);
     } catch {
       raw = null;

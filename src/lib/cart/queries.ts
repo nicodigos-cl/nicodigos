@@ -206,6 +206,15 @@ const cartItemSelect = {
 export async function getCartForUser(userId: string): Promise<CartDto | null> {
   const cart = await prisma.cart.findUnique({
     where: { userId },
+    select: { id: true },
+  });
+
+  return cart ? getCartById(cart.id) : null;
+}
+
+export async function getCartById(cartId: string): Promise<CartDto | null> {
+  const cart = await prisma.cart.findUnique({
+    where: { id: cartId },
     select: {
       id: true,
       items: {

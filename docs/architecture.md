@@ -35,12 +35,12 @@ Usuario → Catálogo / Carrito → Checkout (Flow) → Order + Payment
 - **Product**: precio en CLP, `deliveryMethod` (`MANUAL` \| `KINGUIN` \| `SMM`), estado `DRAFT` / `ACTIVE` / `ARCHIVED`.
 - Productos SMM/Kinguin guardan ids remotos, costo fuente y **markup %** para reprecio al sincronizar.
 - **Asset**: imágenes/video/YouTube ligados a product o category.
-- **ProductKey**: inventario de keys para delivery manual.
+- **ProductKey** / **ProductAccount**: inventario MANUAL (keys y cuentas; reserva opcional en checkout).
 - **ProductOffer**: ofertas Kinguin (precio EUR, qty, default offer).
 
 ### Comercio
 
-- **Cart** / **Wishlist** por usuario. Ítems SMM llevan payload (`CartItemSmm`: link, username, etc.).
+- **Cart** por usuario o invitado (token aleatorio en cookie HTTP-only; solo el hash se persiste). **Wishlist** por usuario. Ítems SMM llevan payload (`CartItemSmm`: link, username, etc.).
 - **Order** → **OrderItem** (+ `OrderItemSmm` si aplica) → **Delivery** (+ keys/credentials/events) → **Payment**.
 - **OutboxEvent**: puente transaccional hacia BullMQ tras confirmar pago.
 
@@ -111,11 +111,12 @@ public/
 
 ### Checkout
 
-1. Actions de carrito mutan `Cart` / `CartItem`.
-2. `checkoutFromCartAction` / `startCheckoutPaymentAction` crean `Order` + `Payment` e inician Flow.
-3. Confirmación Flow marca pago, crea `Delivery` y `OutboxEvent` en una sola transacción.
-4. El publisher de outbox encola `delivery.fulfill`; el worker consulta PostgreSQL y ejecuta MANUAL, SMM o Kinguin.
-5. PostgreSQL conserva el estado auditable; Redis solo transporta `{ deliveryId }`.
+1. Actions de carrito mutan `Cart` / `CartItem`; un invitado conserva el carrito mediante una cookie HTTP-only.
+2. En checkout, el invitado indica nombre/email y verifica un OTP. La sesión passwordless resultante vincula la orden al email confirmado.
+3. `checkoutFromCartAction` / `startCheckoutPaymentAction` crean `Order` + `Payment` (con `accessToken`) e inician Flow. El return de Flow y los emails de estado usan `/checkout/[orderId]?s=<token>`; tras validar el secret se setea cookie HTTP-only para live-status sin sesión.
+4. Confirmación Flow marca pago, crea `Delivery` y `OutboxEvent` en una sola transacción.
+5. El publisher de outbox encola `delivery.fulfill`; el worker consulta PostgreSQL y ejecuta MANUAL, SMM o Kinguin.
+6. PostgreSQL conserva el estado auditable; Redis solo transporta `{ deliveryId }`.
 
 ### Fulfillment asíncrono
 
@@ -124,7 +125,7 @@ public/
 - `OutboxEvent` evita perder el job entre el commit del pago y Redis.
 - `Delivery.idempotencyKey`, el claim de estado y las referencias externas protegen contra duplicados.
 - SMM sin respuesta concluyente pasa a `MANUAL_REVIEW`; no se repite una compra incierta.
-- Kinguin consulta primero `orderExternalId` para conciliar antes de crear una orden.
+- Kinguin: errores de negocio (4xx, fondos, oferta/precio) pasan a `MANUAL_REVIEW` + email a `ADMIN_EMAILS`; solo se reintentan 429/5xx/timeouts. Antes de crear, concilia por `orderExternalId`.
 - Credenciales MANUAL sensibles van en `DeliveryCredential` (AES-GCM con `DELIVERY_SECRETS_KEY`).
 
 ### Admin

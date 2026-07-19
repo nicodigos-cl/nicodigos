@@ -118,6 +118,26 @@ export type ProductKeysPageResult = {
   totalPages: number;
 };
 
+export type ProductAccountDto = {
+  id: string;
+  status: ProductKeyStatus;
+  label: string | null;
+  username: string | null;
+  email: string | null;
+  url: string | null;
+  createdAt: string;
+  orderItemId: string | null;
+  canRevoke: boolean;
+};
+
+export type ProductAccountsPageResult = {
+  items: ProductAccountDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
 export type CategoryOptionDto = {
   id: string;
   name: string;

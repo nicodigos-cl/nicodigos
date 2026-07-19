@@ -5,7 +5,7 @@ import { getFlowClient } from "@/lib/flow/client";
 import { createLogger } from "@/lib/logger";
 import prisma from "@/lib/prisma";
 import { processVerifiedFlowPayment } from "@/lib/transactions/processing";
-import { mapFlowStatus } from "@/lib/transactions/status";
+import { mapFlowStatus, normalizeFlowAmount } from "@/lib/transactions/status";
 import { PaymentStatus } from "@/generated/prisma/client";
 
 const log = createLogger({ module: "flow-confirmation" });
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
         providerStatus: payment.statusStr,
         flowOrder: payment.flowOrder,
         commerceOrder: payment.commerceOrder,
-        amount: payment.amount,
+        amount: normalizeFlowAmount(payment.amount),
         currency: payment.currency,
         payerEmail: payment.payer,
         paymentMethod: payment.paymentData?.media ?? null,

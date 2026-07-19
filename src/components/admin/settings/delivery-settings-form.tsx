@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import {
   ConfirmationField,
-  EnvStatusNote,
   SettingsField,
   SettingsFormShell,
   SettingsSectionHeader,
@@ -239,11 +238,6 @@ export function DeliverySettingsForm({
 
       <fieldset className="space-y-4 rounded-2xl border border-border bg-card p-4 sm:p-5">
         <legend className="px-1 text-sm font-medium">Keys</legend>
-
-        <EnvStatusNote>
-          La reserva de keys durante checkout se almacena, pero la ruta de
-          reserva en runtime aún es limitada.
-        </EnvStatusNote>
 
         <SettingsSwitchRow
           label="Asignación automática de keys"

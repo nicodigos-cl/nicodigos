@@ -12,7 +12,7 @@ export function initializeOneSignal(): Promise<void> {
     allowLocalhostAsSecureOrigin: process.env.NODE_ENV !== "production",
     serviceWorkerPath: "push/onesignal/OneSignalSDKWorker.js",
     serviceWorkerParam: { scope: "/push/onesignal/" },
-    promptOptions: { slidedown: { prompts: [{ type: "push", autoPrompt: false, delay: { pageViews: 99, timeDelay: 86_400 } }] } },
+    promptOptions: { slidedown: { prompts: [{ type: "push", autoPrompt: false, delay: { pageViews: 1, timeDelay: 0 }, text: { actionMessage: "Activa las notificaciones para recibir novedades sobre tus pedidos, pagos y entregas.", acceptButton: "Activar", cancelButton: "Ahora no" } }] } },
     notifyButton: { enable: false, prenotify: false, position: "bottom-right", showCredit: false, offset: { bottom: "0px", left: "0px", right: "0px" }, text: { "tip.state.unsubscribed": "Activar notificaciones", "tip.state.subscribed": "Notificaciones activas", "tip.state.blocked": "Notificaciones bloqueadas", "message.prenotify": "", "message.action.subscribing": "Activando…", "message.action.subscribed": "Suscripción activa", "message.action.resubscribed": "Suscripción reactivada", "message.action.unsubscribed": "Suscripción desactivada", "dialog.main.title": "Notificaciones", "dialog.main.button.subscribe": "Activar", "dialog.main.button.unsubscribe": "Desactivar", "dialog.blocked.title": "Permiso bloqueado", "dialog.blocked.message": "Habilita las notificaciones en la configuración del navegador." } },
   });
   return initialization;

@@ -42,6 +42,15 @@ const JOBS = [
       12_000,
     ),
   },
+  {
+    name: "cron-delivery-ops-alerts",
+    path: "/api/cron/delivery-ops-alerts",
+    intervalMs: envInt("CRON_DELIVERY_OPS_ALERTS_INTERVAL_MS", 300_000),
+    initialDelayMs: envInt(
+      "CRON_DELIVERY_OPS_ALERTS_INITIAL_DELAY_MS",
+      25_000,
+    ),
+  },
 ] as const;
 
 async function main() {

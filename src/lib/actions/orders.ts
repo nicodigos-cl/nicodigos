@@ -12,13 +12,21 @@ import {
 import type { ActionResult } from "@/lib/actions/types";
 import { requireSession } from "@/lib/auth/session";
 import {
-  ensureCartForUser,
-  getCartForUser,
-} from "@/lib/cart/queries";
+  clearGuestCartCookie,
+  ensureCurrentCart,
+  getCurrentCart,
+  getCurrentCartId,
+} from "@/lib/cart/current";
 import {
   createFlowPaymentForOrder,
   getOrCreateFlowRedirectUrl,
 } from "@/lib/flow/payments";
+import {
+  generateOrderAccessToken,
+  buildOrderAccessUrl,
+  setOrderAccessCookie,
+} from "@/lib/orders/access";
+import { getAppBaseUrl } from "@/lib/flow/client";
 import prisma from "@/lib/prisma";
 import {
   estimateSmmLineTotalClp,
@@ -35,6 +43,7 @@ import {
   checkoutFromCartSchema,
   createOrderSchema,
   createPaymentLinkSchema,
+  guestCheckoutOtpSchema,
   removeCartItemSchema,
   updateCartItemSchema,
   updateCartItemSmmSchema,
@@ -123,6 +132,7 @@ export async function createOrderAction(rawInput: unknown): Promise<
     id: string;
     checkoutUrl: string;
     paymentRedirectUrl: string | null;
+    accessToken: string;
   }>
 > {
   if (!(await requireAdminActor())) {
@@ -193,30 +203,66 @@ export async function createOrderAction(rawInput: unknown): Promise<
       userId: data.userId,
     });
 
-    const order = await prisma.order.create({
-      data: {
-        userId: user.id,
-        email: data.email.toLowerCase(),
-        customerName: data.customerName ?? user.name,
-        status: OrderStatus.PENDING,
-        subtotal,
-        total: subtotal,
-        currency,
-        items: {
-          create: lineItems.map((item) => ({
-            productId: item.productId,
-            productName: item.productName,
-            unitPrice: item.unitPrice,
-            quantity: item.quantity,
-            deliveryMethod: item.deliveryMethod,
-          })),
+    const accessToken = generateOrderAccessToken();
+    const { getOperationalSettings } = await import("@/lib/settings/runtime");
+    const operational = await getOperationalSettings();
+
+    const order = await prisma.$transaction(async (tx) => {
+      const created = await tx.order.create({
+        data: {
+          userId: user.id,
+          email: data.email.toLowerCase(),
+          customerName: data.customerName ?? user.name,
+          status: OrderStatus.PENDING,
+          subtotal,
+          total: subtotal,
+          currency,
+          accessToken,
+          items: {
+            create: lineItems.map((item) => ({
+              productId: item.productId,
+              productName: item.productName,
+              unitPrice: item.unitPrice,
+              quantity: item.quantity,
+              deliveryMethod: item.deliveryMethod,
+            })),
+          },
         },
-      },
-      select: { id: true },
+        select: {
+          id: true,
+          accessToken: true,
+          items: {
+            select: {
+              id: true,
+              productId: true,
+              quantity: true,
+              deliveryMethod: true,
+              productName: true,
+            },
+          },
+        },
+      });
+
+      const { reserveKeysForOrderItems } = await import(
+        "@/lib/deliveries/key-reservation"
+      );
+      await reserveKeysForOrderItems(tx, {
+        enabled: operational.keysReserveDuringCheckout,
+        durationMinutes: operational.keysReserveDurationMinutes,
+        items: created.items,
+      });
+
+      return created;
     });
 
+    await setOrderAccessCookie(order.id, order.accessToken);
+
     let paymentRedirectUrl: string | null = null;
-    let checkoutUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "http://localhost:3000"}/checkout?orderId=${encodeURIComponent(order.id)}`;
+    let checkoutUrl = buildOrderAccessUrl(
+      getAppBaseUrl(),
+      order.id,
+      order.accessToken,
+    );
 
     if (data.createPaymentLink) {
       const payment = await createFlowPaymentForOrder(order.id);
@@ -233,6 +279,7 @@ export async function createOrderAction(rawInput: unknown): Promise<
         id: order.id,
         checkoutUrl,
         paymentRedirectUrl,
+        accessToken: order.accessToken,
       },
     };
   } catch (error) {
@@ -287,9 +334,18 @@ export async function updateOrderStatusAction(
   if (!parsed.success) return validationError(parsed.error);
 
   try {
-    await prisma.order.update({
-      where: { id: parsed.data.id },
-      data: { status: parsed.data.status },
+    await prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id: parsed.data.id },
+        data: { status: parsed.data.status },
+      });
+
+      if (parsed.data.status === OrderStatus.CANCELED) {
+        const { releaseReservationsForOrder } = await import(
+          "@/lib/deliveries/key-reservation"
+        );
+        await releaseReservationsForOrder(tx, parsed.data.id);
+      }
     });
 
     if (
@@ -350,10 +406,20 @@ export async function startCheckoutPaymentAction(
 export async function checkoutFromCartAction(
   rawInput: unknown,
 ): Promise<
-  ActionResult<{ orderId: string; redirectUrl: string; checkoutUrl: string }>
+  ActionResult<{
+    orderId: string;
+    redirectUrl: string;
+    checkoutUrl: string;
+    accessToken: string;
+  }>
 > {
   const session = await requireSession();
-  if (!session?.user) return unauthorized();
+  if (!session?.user) {
+    return {
+      success: false,
+      message: "Verifica tu email con el código antes de pagar.",
+    };
+  }
 
   let input: unknown;
   try {
@@ -388,7 +454,7 @@ export async function checkoutFromCartAction(
     }
   }
 
-  const cart = await getCartForUser(session.user.id);
+  const cart = await getCurrentCart(session.user.id);
   if (!cart || cart.items.length === 0) {
     return { success: false, message: "Tu carrito está vacío." };
   }
@@ -404,6 +470,13 @@ export async function checkoutFromCartAction(
   }
 
   const email = (parsed.data.email ?? session.user.email).toLowerCase();
+  if (email !== session.user.email.toLowerCase()) {
+    return {
+      success: false,
+      message: "El email del checkout debe coincidir con el email verificado.",
+      fieldErrors: { email: ["Verifica este email antes de continuar"] },
+    };
+  }
   const orderTotalClp = Number.parseFloat(cart.subtotal);
   const billing = validateCheckoutBilling({
     data: {
@@ -560,6 +633,7 @@ export async function checkoutFromCartAction(
       });
     }
 
+    const accessToken = generateOrderAccessToken();
     const order = await prisma.$transaction(async (tx) => {
       const created = await tx.order.create({
         data: {
@@ -570,6 +644,7 @@ export async function checkoutFromCartAction(
           subtotal,
           total: subtotal,
           currency: cart.currency,
+          accessToken,
           items: {
             create: lineItems.map((line) => ({
               productId: line.productId,
@@ -590,14 +665,47 @@ export async function checkoutFromCartAction(
             })),
           },
         },
-        select: { id: true },
+        select: {
+          id: true,
+          accessToken: true,
+          items: {
+            select: {
+              id: true,
+              productId: true,
+              quantity: true,
+              deliveryMethod: true,
+              productName: true,
+            },
+          },
+        },
       });
 
-      await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+      const { reserveKeysForOrderItems } = await import(
+        "@/lib/deliveries/key-reservation"
+      );
+      await reserveKeysForOrderItems(tx, {
+        enabled: operational.keysReserveDuringCheckout,
+        durationMinutes: operational.keysReserveDurationMinutes,
+        items: created.items,
+      });
+
+      const cartOwner = await tx.cart.findUnique({
+        where: { id: cart.id },
+        select: { userId: true },
+      });
+      if (cartOwner?.userId) {
+        await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+      } else {
+        await tx.cart.delete({ where: { id: cart.id } });
+      }
       return created;
     });
 
+    await setOrderAccessCookie(order.id, order.accessToken);
+
     const payment = await createFlowPaymentForOrder(order.id);
+
+    await clearGuestCartCookie();
 
     revalidatePath("/cart");
     revalidatePath("/checkout");
@@ -610,6 +718,7 @@ export async function checkoutFromCartAction(
         orderId: order.id,
         redirectUrl: payment.redirectUrl,
         checkoutUrl: payment.checkoutUrl,
+        accessToken: order.accessToken,
       },
     };
   } catch (error) {
@@ -621,11 +730,43 @@ export async function checkoutFromCartAction(
   }
 }
 
+export async function prepareGuestCheckoutOtpAction(
+  rawInput: unknown,
+): Promise<ActionResult<{ email: string }>> {
+  const parsed = guestCheckoutOtpSchema.safeParse(
+    rawInput instanceof FormData ? parseSubmission(rawInput) : rawInput,
+  );
+  if (!parsed.success) return validationError(parsed.error);
+
+  const session = await requireSession();
+  if (session?.user) {
+    return { success: true, data: { email: session.user.email } };
+  }
+
+  const cart = await getCurrentCart();
+  if (!cart || cart.items.length === 0) {
+    return { success: false, message: "Tu carrito está vacío." };
+  }
+
+  try {
+    const user = await findOrCreateCustomer({
+      email: parsed.data.email,
+      customerName: parsed.data.customerName,
+    });
+
+    return { success: true, data: { email: user.email } };
+  } catch {
+    return {
+      success: false,
+      message: "No se pudo preparar el checkout. Intenta nuevamente.",
+    };
+  }
+}
+
 export async function addCartItemAction(
   rawInput: unknown,
 ): Promise<ActionResult<{ cartItemId: string }>> {
   const session = await requireSession();
-  if (!session?.user) return unauthorized();
 
   const parsed = addCartItemSchema.safeParse(
     rawInput instanceof FormData ? parseSubmission(rawInput) : rawInput,
@@ -648,7 +789,7 @@ export async function addCartItemAction(
     };
   }
 
-  const cartId = await ensureCartForUser(session.user.id);
+  const cartId = await ensureCurrentCart(session?.user.id);
   const existing = await prisma.cartItem.findFirst({
     where: { cartId, productId: product.id, smm: null },
     select: { id: true, quantity: true },
@@ -677,7 +818,6 @@ export async function addSmmCartItemAction(
   rawInput: unknown,
 ): Promise<ActionResult<{ cartItemId: string }>> {
   const session = await requireSession();
-  if (!session?.user) return unauthorized();
 
   const parsed = addSmmCartItemSchema.safeParse(
     rawInput instanceof FormData ? parseSubmission(rawInput) : rawInput,
@@ -735,7 +875,7 @@ export async function addSmmCartItemAction(
     smmParsed.data,
     1,
   );
-  const cartId = await ensureCartForUser(session.user.id);
+  const cartId = await ensureCurrentCart(session?.user.id);
 
   const cartItem = await prisma.cartItem.create({
     data: {
@@ -758,17 +898,19 @@ export async function updateCartItemSmmAction(
   rawInput: unknown,
 ): Promise<ActionResult<{ cartItemId: string }>> {
   const session = await requireSession();
-  if (!session?.user) return unauthorized();
 
   const parsed = updateCartItemSmmSchema.safeParse(
     rawInput instanceof FormData ? parseSubmission(rawInput) : rawInput,
   );
   if (!parsed.success) return validationError(parsed.error);
 
+  const cartId = await getCurrentCartId(session?.user.id);
+  if (!cartId) return { success: false, message: "Ítem no encontrado." };
+
   const item = await prisma.cartItem.findFirst({
     where: {
       id: parsed.data.cartItemId,
-      cart: { userId: session.user.id },
+      cartId,
     },
     select: {
       id: true,
@@ -846,17 +988,19 @@ export async function updateCartItemAction(
   rawInput: unknown,
 ): Promise<ActionResult<{ cartItemId: string }>> {
   const session = await requireSession();
-  if (!session?.user) return unauthorized();
 
   const parsed = updateCartItemSchema.safeParse(
     rawInput instanceof FormData ? parseSubmission(rawInput) : rawInput,
   );
   if (!parsed.success) return validationError(parsed.error);
 
+  const cartId = await getCurrentCartId(session?.user.id);
+  if (!cartId) return { success: false, message: "Ítem no encontrado." };
+
   const item = await prisma.cartItem.findFirst({
     where: {
       id: parsed.data.cartItemId,
-      cart: { userId: session.user.id },
+      cartId,
     },
     select: {
       id: true,
@@ -889,17 +1033,19 @@ export async function removeCartItemAction(
   rawInput: unknown,
 ): Promise<ActionResult<{ cartItemId: string }>> {
   const session = await requireSession();
-  if (!session?.user) return unauthorized();
 
   const parsed = removeCartItemSchema.safeParse(
     rawInput instanceof FormData ? parseSubmission(rawInput) : rawInput,
   );
   if (!parsed.success) return validationError(parsed.error);
 
+  const cartId = await getCurrentCartId(session?.user.id);
+  if (!cartId) return { success: false, message: "Ítem no encontrado." };
+
   const item = await prisma.cartItem.findFirst({
     where: {
       id: parsed.data.cartItemId,
-      cart: { userId: session.user.id },
+      cartId,
     },
     select: { id: true },
   });

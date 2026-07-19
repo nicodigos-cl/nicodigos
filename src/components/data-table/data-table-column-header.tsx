@@ -61,18 +61,18 @@ export function DataTableColumnHeader<TData, TValue>({
         <DropdownMenuContent align="start">
           <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
             <HugeiconsIcon icon={ArrowUp01Icon} strokeWidth={2} />
-            Asc
+            Ascendente
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
             <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} />
-            Desc
+            Descendente
           </DropdownMenuItem>
           {column.getCanHide() ? (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => column.toggleVisibility(false)}>
                 <HugeiconsIcon icon={ViewOffIcon} strokeWidth={2} />
-                Hide
+                Ocultar
               </DropdownMenuItem>
             </>
           ) : null}

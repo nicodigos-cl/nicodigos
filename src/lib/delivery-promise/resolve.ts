@@ -50,15 +50,23 @@ export async function resolveDeliveryPromiseForProduct(
     };
   }
 
-  const availableKeysCount =
+  const [availableKeysCount, availableAccountsCount] =
     product.deliveryMethod === "MANUAL"
-      ? await prisma.productKey.count({
-          where: {
-            productId: product.id,
-            status: ProductKeyStatus.AVAILABLE,
-          },
-        })
-      : 0;
+      ? await Promise.all([
+          prisma.productKey.count({
+            where: {
+              productId: product.id,
+              status: ProductKeyStatus.AVAILABLE,
+            },
+          }),
+          prisma.productAccount.count({
+            where: {
+              productId: product.id,
+              status: ProductKeyStatus.AVAILABLE,
+            },
+          }),
+        ])
+      : [0, 0];
 
   const defaultOffer = product.offers[0];
   const stock = getProductStock({
@@ -66,6 +74,7 @@ export async function resolveDeliveryPromiseForProduct(
     qty: product.qty,
     textQty: product.textQty,
     availableKeysCount,
+    availableAccountsCount,
     totalKeysCount: product._count.keys,
     defaultOfferAvailableQty: defaultOffer
       ? resolvePersistedOfferQty(defaultOffer)

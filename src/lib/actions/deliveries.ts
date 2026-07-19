@@ -14,12 +14,26 @@ import {
 
 import type { ActionResult } from "@/lib/actions/types";
 import { decryptSecret, encryptSecret } from "@/lib/crypto/secrets";
-import { ensureDeliveriesForOrder } from "@/lib/deliveries/ensure";
+import {
+  ensureDeliveriesForOrder,
+  requestDeliveryFulfillment,
+} from "@/lib/deliveries/ensure";
 import { sendDeliveryNotification } from "@/lib/deliveries/notifications";
+import {
+  canAdminFulfillKinguin,
+  canAdminSendSmm,
+  canCompleteManualDelivery,
+  canReplaceDeliveryContent,
+  canResendDeliveryEmail,
+  canRevealDeliverySecrets,
+  defaultContentIsSecret,
+  isSmmPartialAllowed,
+} from "@/lib/deliveries/policy";
 import { canTransitionDeliveryStatus } from "@/lib/deliveries/status";
 import { KinguinClient } from "@/lib/kinguin-client";
 import { createLogger } from "@/lib/logger";
 import prisma from "@/lib/prisma";
+import { getOperationalSettings } from "@/lib/settings/runtime";
 import { SmmService } from "@/lib/smm-service";
 import type { SmmOrderPayload } from "@/types/smm";
 import {
@@ -111,6 +125,7 @@ async function persistManualContent(
     productId: string;
     quantity: number;
     orderItemId: string;
+    keyIsSecret: boolean;
   },
 ) {
   if (input.replaceExisting) {
@@ -198,7 +213,7 @@ async function persistManualContent(
         serial: productKey.code,
         contentType: DeliveryContentType.PRODUCT_KEY,
         label: "Product key",
-        isSecret: true,
+        isSecret: input.keyIsSecret,
         productKeyId,
       },
     });
@@ -286,12 +301,14 @@ export async function saveManualDeliveryDraftAction(
       return { success: false, message: "La entrega está cancelada." };
     }
 
+    const settings = await getOperationalSettings();
     await prisma.$transaction(async (tx) => {
       await persistManualContent(tx, {
         ...parsed.data,
         productId: delivery.orderItem.productId,
         quantity: delivery.orderItem.quantity,
         orderItemId: delivery.orderItem.id,
+        keyIsSecret: defaultContentIsSecret(settings, "key"),
       });
       await tx.delivery.update({
         where: { id: delivery.id },
@@ -337,6 +354,12 @@ export async function completeManualDeliveryAction(
 
   const parsed = completeManualDeliverySchema.safeParse(input);
   if (!parsed.success) return validationError(parsed.error);
+
+  const settings = await getOperationalSettings();
+  const manualOk = canCompleteManualDelivery(settings);
+  if (!manualOk.ok) {
+    return { success: false, message: manualOk.message };
+  }
 
   try {
     const delivery = await prisma.delivery.findUnique({
@@ -393,6 +416,25 @@ export async function completeManualDeliveryAction(
       };
     }
 
+    const willReplace =
+      parsed.data.replaceExisting ||
+      delivery._count.keys > 0 ||
+      delivery._count.credentials > 0;
+    if (willReplace) {
+      const hasKeys =
+        parsed.data.keys.length > 0 ||
+        parsed.data.productKeyIds.length > 0 ||
+        delivery._count.keys > 0;
+      const hasCreds =
+        parsed.data.credentials.length > 0 || delivery._count.credentials > 0;
+      const kind =
+        hasKeys && hasCreds ? "mixed" : hasCreds ? "accounts" : "keys";
+      const replaceOk = canReplaceDeliveryContent(settings, kind);
+      if (!replaceOk.ok) {
+        return { success: false, message: replaceOk.message };
+      }
+    }
+
     if (delivery.status === DeliveryStatus.DELIVERED) {
       // Idempotent complete: do not re-assign keys
       const email = await sendDeliveryNotification({
@@ -421,6 +463,7 @@ export async function completeManualDeliveryAction(
         productId: delivery.orderItem.productId,
         quantity: delivery.orderItem.quantity,
         orderItemId: delivery.orderItem.id,
+        keyIsSecret: defaultContentIsSecret(settings, "key"),
       });
 
       const counts = await tx.delivery.findUniqueOrThrow({
@@ -639,7 +682,11 @@ export async function reopenDeliveryAction(
       data: {
         status: DeliveryStatus.PENDING,
         errorMessage: null,
+        lastError: null,
+        failedAt: null,
         deliveredAt: null,
+        effectiveDeliveryMethod: null,
+        customerMessage: null,
       },
     });
     await appendEvent(tx, {
@@ -649,6 +696,12 @@ export async function reopenDeliveryAction(
       actor,
     });
   });
+
+  const { enqueued } = await requestDeliveryFulfillment(delivery.id);
+  if (!enqueued) {
+    // Policy does not allow auto-send — park for manual attention.
+    await ensureDeliveriesForOrder(delivery.orderItem.orderId);
+  }
 
   revalidateDelivery(delivery.id, delivery.orderItem.orderId);
   return { success: true, data: { id: delivery.id } };
@@ -664,6 +717,12 @@ export async function resendDeliveryEmailAction(
     rawInput instanceof FormData ? parseSubmission(rawInput) : rawInput,
   );
   if (!parsed.success) return validationError(parsed.error);
+
+  const settings = await getOperationalSettings();
+  const resendOk = canResendDeliveryEmail(settings);
+  if (!resendOk.ok) {
+    return { success: false, message: resendOk.message };
+  }
 
   const delivery = await prisma.delivery.findUnique({
     where: { id: parsed.data.deliveryId },
@@ -743,6 +802,16 @@ export async function revealCustomerDeliverySecretAction(
   const parsed = revealDeliverySecretSchema.safeParse(rawInput);
   if (!parsed.success) return validationError(parsed.error);
 
+  const settings = await getOperationalSettings();
+  const revealOk = canRevealDeliverySecrets(settings, {
+    kind: parsed.data.kind === "credential" ? "credential" : "key",
+    sessionUpdatedAt: session.session?.updatedAt ?? null,
+    userLastActivityAt: null,
+  });
+  if (!revealOk.ok) {
+    return { success: false, message: revealOk.message };
+  }
+
   const owned = await prisma.delivery.findFirst({
     where: {
       id: parsed.data.deliveryId,
@@ -820,6 +889,12 @@ export async function sendSmmDeliveryAction(
   );
   if (!parsed.success) return validationError(parsed.error);
 
+  const settings = await getOperationalSettings();
+  const smmOk = canAdminSendSmm(settings);
+  if (!smmOk.ok) {
+    return { success: false, message: smmOk.message };
+  }
+
   const delivery = await prisma.delivery.findUnique({
     where: { id: parsed.data.deliveryId },
     select: {
@@ -861,6 +936,22 @@ export async function sendSmmDeliveryAction(
         success: false,
         message: "Faltan los datos de destino del pedido SMM en el ítem.",
       };
+    }
+    if (settings.smmValidateUrl && smm.link) {
+      try {
+        const parsedUrl = new URL(smm.link);
+        if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+          return {
+            success: false,
+            message: "La URL SMM debe usar http o https (ajuste Validar URL SMM).",
+          };
+        }
+      } catch {
+        return {
+          success: false,
+          message: "La URL SMM no es válida (ajuste Validar URL SMM).",
+        };
+      }
     }
     const payload = {
       service: remoteServiceId,
@@ -984,9 +1075,8 @@ export async function syncSmmDeliveryAction(
     const { client } = await resolveSmmClient(delivery.orderItem.productId);
     const remote = await client.status(delivery.externalOrderId);
     const remoteStatus = String(remote.status);
-    const completed =
-      remoteStatus.toLowerCase() === "completed" ||
-      remoteStatus.toLowerCase() === "partial";
+    const settings = await getOperationalSettings();
+    const completed = isSmmPartialAllowed(settings, remoteStatus);
 
     let nextStatus = delivery.status;
     if (completed && canTransitionDeliveryStatus(delivery.status, DeliveryStatus.DELIVERED)) {
@@ -1109,6 +1199,12 @@ export async function fulfillKinguinDeliveryAction(
   );
   if (!parsed.success) return validationError(parsed.error);
 
+  const settings = await getOperationalSettings();
+  const kinguinOk = canAdminFulfillKinguin(settings);
+  if (!kinguinOk.ok) {
+    return { success: false, message: kinguinOk.message };
+  }
+
   const delivery = await prisma.delivery.findUnique({
     where: { id: parsed.data.deliveryId },
     select: {
@@ -1159,9 +1255,20 @@ export async function fulfillKinguinDeliveryAction(
   }
 
   const orderExternalId = delivery.orderExternalId || delivery.id;
-  const price = Number.parseFloat(
-    (delivery.orderItem.product.sourceCostPrice ?? delivery.orderItem.unitPrice).toString(),
-  );
+  const sourceCost = delivery.orderItem.product.sourceCostPrice;
+  if (sourceCost == null) {
+    return {
+      success: false,
+      message: "El producto no tiene costo fuente (EUR) para comprar en Kinguin.",
+    };
+  }
+  const price = Number.parseFloat(sourceCost.toString());
+  if (!Number.isFinite(price) || price <= 0) {
+    return {
+      success: false,
+      message: `Costo fuente Kinguin inválido (${sourceCost.toString()}).`,
+    };
+  }
 
   try {
     await prisma.delivery.updateMany({
@@ -1259,6 +1366,7 @@ export async function syncKinguinDeliveryAction(
   );
   if (!parsed.success) return validationError(parsed.error);
 
+  const settings = await getOperationalSettings();
   const delivery = await prisma.delivery.findUnique({
     where: { id: parsed.data.deliveryId },
     select: {
@@ -1283,6 +1391,7 @@ export async function syncKinguinDeliveryAction(
 
     if (String(order.status).toLowerCase() === "completed") {
       const keys = await client.downloadKeys(remoteOrderId);
+      const keyIsSecret = defaultContentIsSecret(settings, "key");
       await prisma.$transaction(async (tx) => {
         for (const key of keys) {
           const existing = await tx.deliveryKey.findFirst({
@@ -1303,7 +1412,7 @@ export async function syncKinguinDeliveryAction(
               contentType: DeliveryContentType.PRODUCT_KEY,
               externalKeyId: key.id,
               label: key.name ?? "Kinguin key",
-              isSecret: true,
+              isSecret: keyIsSecret,
             },
           });
           keysImported += 1;

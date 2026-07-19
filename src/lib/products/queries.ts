@@ -24,6 +24,7 @@ import type {
   CategoryOptionDto,
   ProductDetailDto,
   ProductKeysPageResult,
+  ProductAccountsPageResult,
   ProductListItemDto,
   ProductsPageResult,
   StoreCatalogPageResult,
@@ -38,6 +39,7 @@ import type {
   StoreCatalogSortField,
 } from "@/lib/validations/catalog";
 import type {
+  ProductAccountsQuery,
   ProductKeysQuery,
   ProductsListQuery,
   ProductsSortField,
@@ -122,6 +124,7 @@ function toListItemDto(product: {
   assets: { url: string; thumbnailUrl: string | null; sortOrder: number }[];
   _count: { keys: number };
   availableKeysCount: number;
+  availableAccountsCount?: number;
   defaultOfferAvailableQty: number | null;
 }): ProductListItemDto {
   const stock = getProductStock({
@@ -129,6 +132,7 @@ function toListItemDto(product: {
     qty: product.qty,
     textQty: product.textQty,
     availableKeysCount: product.availableKeysCount,
+    availableAccountsCount: product.availableAccountsCount ?? 0,
     totalKeysCount: product._count.keys,
     defaultOfferAvailableQty: product.defaultOfferAvailableQty,
   });
@@ -245,9 +249,23 @@ export async function getProductsPage(
           },
           _count: { _all: true },
         });
+  const availableAccountGroups =
+    productIds.length === 0
+      ? []
+      : await prisma.productAccount.groupBy({
+          by: ["productId"],
+          where: {
+            productId: { in: productIds },
+            status: ProductKeyStatus.AVAILABLE,
+          },
+          _count: { _all: true },
+        });
 
   const availableKeysByProduct = new Map(
     availableKeyGroups.map((group) => [group.productId, group._count._all]),
+  );
+  const availableAccountsByProduct = new Map(
+    availableAccountGroups.map((group) => [group.productId, group._count._all]),
   );
 
   const totalPages = Math.max(1, Math.ceil(total / input.pageSize));
@@ -257,6 +275,7 @@ export async function getProductsPage(
     return toListItemDto({
       ...product,
       availableKeysCount: availableKeysByProduct.get(product.id) ?? 0,
+      availableAccountsCount: availableAccountsByProduct.get(product.id) ?? 0,
       defaultOfferAvailableQty: defaultOffer
         ? resolvePersistedOfferQty(defaultOffer)
         : null,
@@ -357,6 +376,12 @@ export async function getProductById(
       status: ProductKeyStatus.AVAILABLE,
     },
   });
+  const availableAccountsCount = await prisma.productAccount.count({
+    where: {
+      productId: product.id,
+      status: ProductKeyStatus.AVAILABLE,
+    },
+  });
 
   const defaultOffer = product.offers[0];
   const stock = getProductStock({
@@ -364,6 +389,7 @@ export async function getProductById(
     qty: product.qty,
     textQty: product.textQty,
     availableKeysCount,
+    availableAccountsCount,
     totalKeysCount: product._count.keys,
     defaultOfferAvailableQty: defaultOffer
       ? resolvePersistedOfferQty(defaultOffer)
@@ -492,6 +518,56 @@ export async function getProductKeysPage(
     total,
     page: input.keysPage,
     pageSize: input.keysPageSize,
+    totalPages,
+  };
+}
+
+export async function getProductAccountsPage(
+  productId: string,
+  input: ProductAccountsQuery,
+): Promise<ProductAccountsPageResult> {
+  const where: Prisma.ProductAccountWhereInput = { productId };
+  if (input.accountsStatus) where.status = input.accountsStatus;
+
+  const skip = (input.accountsPage - 1) * input.accountsPageSize;
+  const [total, accounts] = await prisma.$transaction([
+    prisma.productAccount.count({ where }),
+    prisma.productAccount.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: input.accountsPageSize,
+      select: {
+        id: true,
+        status: true,
+        label: true,
+        username: true,
+        email: true,
+        url: true,
+        createdAt: true,
+        orderItemId: true,
+      },
+    }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(total / input.accountsPageSize));
+  return {
+    items: accounts.map((account) => ({
+      id: account.id,
+      status: account.status,
+      label: account.label,
+      username: account.username,
+      email: account.email,
+      url: account.url,
+      createdAt: account.createdAt.toISOString(),
+      orderItemId: account.orderItemId,
+      canRevoke:
+        account.status !== ProductKeyStatus.REVOKED &&
+        account.status !== ProductKeyStatus.SOLD,
+    })),
+    total,
+    page: input.accountsPage,
+    pageSize: input.accountsPageSize,
     totalPages,
   };
 }
@@ -633,25 +709,32 @@ async function enrichStoreProductCards(
     smmByUrl.set(url, smmBalances[index] ?? null);
   });
 
-  const manualKeyCounts = await Promise.all(
+  const manualInventoryCounts = await Promise.all(
     products
       .filter((p) => p.deliveryMethod === "MANUAL")
       .map(async (p) => {
-        const count = await prisma.productKey.count({
-          where: { productId: p.id, status: ProductKeyStatus.AVAILABLE },
-        });
-        return [p.id, count] as const;
+        const [keys, accounts] = await Promise.all([
+          prisma.productKey.count({
+            where: { productId: p.id, status: ProductKeyStatus.AVAILABLE },
+          }),
+          prisma.productAccount.count({
+            where: { productId: p.id, status: ProductKeyStatus.AVAILABLE },
+          }),
+        ]);
+        return [p.id, { keys, accounts }] as const;
       }),
   );
-  const keysByProduct = new Map(manualKeyCounts);
+  const inventoryByProduct = new Map(manualInventoryCounts);
 
   return products.map((product) => {
     const defaultOffer = product.offers[0];
+    const inventory = inventoryByProduct.get(product.id);
     const stock = getProductStock({
       deliveryMethod: product.deliveryMethod,
       qty: product.qty,
       textQty: product.textQty,
-      availableKeysCount: keysByProduct.get(product.id) ?? 0,
+      availableKeysCount: inventory?.keys ?? 0,
+      availableAccountsCount: inventory?.accounts ?? 0,
       totalKeysCount: product._count.keys,
       defaultOfferAvailableQty: defaultOffer
         ? resolvePersistedOfferQty(defaultOffer)
@@ -799,11 +882,13 @@ function storeDeliveryLabel(
 ): string {
   switch (method) {
     case "SMM":
-      return options?.delayed ? "Servicio SMM · 12–24 h" : "Servicio SMM";
+      return options?.delayed
+        ? "Servicio SMM · 12–24 h"
+        : "Servicio SMM · minutos a horas";
     case "KINGUIN":
-      return options?.delayed ? "Entrega 12–24 h" : "Entrega automática";
+      return options?.delayed ? "Entrega 12–24 h" : "Entrega inmediata";
     case "MANUAL":
-      return options?.delayed ? "Key digital · 12–24 h" : "Key digital";
+      return "Key digital · 12–24 h";
   }
 }
 
@@ -1052,6 +1137,12 @@ export async function getStoreProductBySlug(
       status: ProductKeyStatus.AVAILABLE,
     },
   });
+  const availableAccountsCount = await prisma.productAccount.count({
+    where: {
+      productId: product.id,
+      status: ProductKeyStatus.AVAILABLE,
+    },
+  });
 
   const defaultOffer = product.offers[0];
   const stock = getProductStock({
@@ -1059,6 +1150,7 @@ export async function getStoreProductBySlug(
     qty: product.qty,
     textQty: product.textQty,
     availableKeysCount,
+    availableAccountsCount,
     totalKeysCount: product._count.keys,
     defaultOfferAvailableQty: defaultOffer
       ? resolvePersistedOfferQty(defaultOffer)
@@ -1094,7 +1186,10 @@ export async function getStoreProductBySlug(
     smmBalance,
   });
   const deliveryDelayed = promiseEstimate.promise === "DELAYED_12_24H";
-  const deliveryEta = deliveryPromiseLabel(promiseEstimate.promise);
+  const deliveryEta = deliveryPromiseLabel(
+    promiseEstimate.promise,
+    product.deliveryMethod,
+  );
   const priceIsPerThousand =
     product.deliveryMethod === "SMM" &&
     smmUsesPerThousandPricing(product.smmServiceType);
@@ -1207,7 +1302,10 @@ function buildInStockWhere(): Prisma.ProductWhereInput {
     OR: [
       {
         deliveryMethod: "MANUAL",
-        keys: { some: { status: ProductKeyStatus.AVAILABLE } },
+        OR: [
+          { keys: { some: { status: ProductKeyStatus.AVAILABLE } } },
+          { accounts: { some: { status: ProductKeyStatus.AVAILABLE } } },
+        ],
       },
       {
         deliveryMethod: "SMM",

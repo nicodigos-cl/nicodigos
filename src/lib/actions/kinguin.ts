@@ -136,6 +136,13 @@ export async function importKinguinProductAction(
           fieldErrors: { categoryIds: ["Categoría inválida"] },
         };
       }
+      if (error.message.startsWith("R2_CONFIG_MISSING:")) {
+        return {
+          success: false,
+          message:
+            "R2 no está configurado. Configura el almacenamiento para importar imágenes de Kinguin.",
+        };
+      }
     }
 
     return {

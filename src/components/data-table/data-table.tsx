@@ -11,17 +11,15 @@ import {
   type ColumnDef,
   type ColumnFiltersState,
   type OnChangeFn,
+  type Row,
   type RowSelectionState,
   type SortingState,
   type VisibilityState,
 } from "@tanstack/react-table";
 
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-} from "@/components/ui/empty";
+import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -32,6 +30,7 @@ import {
 } from "@/components/ui/table";
 
 import { DataTablePagination } from "./data-table-pagination";
+import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableViewOptions } from "./data-table-view-options";
 
 interface DataTableProps<TData, TValue> {
@@ -39,12 +38,20 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   searchKey?: string;
   searchPlaceholder?: string;
-  /** SSR / server-driven mode: skip client filtering, sorting and pagination. */
+  /** SSR / server-driven mode: skip client filtering and pagination. */
   manual?: boolean;
+  /** Skip client sorting because the consumer handles it on the server. */
+  manualSorting?: boolean;
   hideToolbar?: boolean;
   hidePagination?: boolean;
   emptyMessage?: string;
   className?: string;
+  containerClassName?: string;
+  tableContainerClassName?: string;
+  tableClassName?: string;
+  headerClassName?: string;
+  getRowClassName?: (row: Row<TData>) => string | undefined;
+  onRowClick?: (row: Row<TData>) => void;
   enableRowSelection?: boolean;
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
@@ -60,10 +67,17 @@ export function DataTable<TData, TValue>({
   searchKey,
   searchPlaceholder = "Filter...",
   manual = false,
+  manualSorting,
   hideToolbar = false,
   hidePagination = false,
   emptyMessage = "No results.",
   className,
+  containerClassName,
+  tableContainerClassName,
+  tableClassName,
+  headerClassName,
+  getRowClassName,
+  onRowClick,
   enableRowSelection,
   rowSelection: controlledRowSelection,
   onRowSelectionChange: controlledOnRowSelectionChange,
@@ -83,8 +97,10 @@ export function DataTable<TData, TValue>({
 
   const isSortingControlled = controlledSorting !== undefined;
   const sorting = isSortingControlled ? controlledSorting : uncontrolledSorting;
-  const onSortingChange =
-    controlledOnSortingChange ?? setUncontrolledSorting;
+  const onSortingChange = controlledOnSortingChange ?? setUncontrolledSorting;
+  const isSortingManual =
+    manualSorting ??
+    (manual && isSortingControlled && controlledOnSortingChange !== undefined);
 
   const isSelectionControlled = controlledRowSelection !== undefined;
   const rowSelection = isSelectionControlled
@@ -114,16 +130,16 @@ export function DataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: manual ? undefined : getFilteredRowModel(),
     getPaginationRowModel: manual ? undefined : getPaginationRowModel(),
-    getSortedRowModel: manual ? undefined : getSortedRowModel(),
+    getSortedRowModel: isSortingManual ? undefined : getSortedRowModel(),
     manualPagination: manual,
-    manualSorting: manual,
+    manualSorting: isSortingManual,
     manualFiltering: manual,
   });
 
   const showToolbar = !hideToolbar && (!manual || Boolean(searchKey));
 
   return (
-    <div className={className ?? "flex flex-col gap-4"}>
+    <div className={className ?? "flex flex-col gap-4 w-full"}>
       {showToolbar ? (
         <div className="flex items-center gap-2">
           {searchKey ? (
@@ -141,19 +157,33 @@ export function DataTable<TData, TValue>({
           {!manual ? <DataTableViewOptions table={table} /> : null}
         </div>
       ) : null}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card">
-        <Table>
-          <TableHeader>
+      <div
+        className={cn(
+          "overflow-hidden rounded-2xl border border-border bg-card w-full",
+          containerClassName,
+        )}
+      >
+        <Table
+          className={tableClassName}
+          containerClassName={tableContainerClassName}
+        >
+          <TableHeader className={headerClassName}>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <TableHead key={header.id} colSpan={header.colSpan}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                    {header.isPlaceholder ? null : typeof header.column
+                        .columnDef.header === "string" ? (
+                      <DataTableColumnHeader
+                        column={header.column}
+                        title={header.column.columnDef.header}
+                      />
+                    ) : (
+                      flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )
+                    )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -165,6 +195,8 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() ? "selected" : undefined}
+                  className={getRowClassName?.(row)}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

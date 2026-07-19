@@ -3,6 +3,7 @@ import { UnrecoverableError, Worker } from "bullmq";
 import {
   FulfillmentManualReviewError,
   fulfillDelivery,
+  isFulfillmentManualReviewError,
   reconcileDelivery,
   recordFulfillmentFailure,
 } from "@/lib/deliveries/fulfillment";
@@ -54,11 +55,37 @@ const deliveryWorker = new Worker<FulfillDeliveryJob>(
       }
       return result;
     } catch (error) {
-      const manualReview = error instanceof FulfillmentManualReviewError;
-      await recordFulfillmentFailure(job.data.deliveryId, error, manualReview);
+      const maxAttempts = job.opts.attempts ?? 1;
+      // attemptsMade is 0-based before failure is recorded; +1 = current attempt.
+      const isLastAttempt = job.attemptsMade + 1 >= maxAttempts;
+      const manualReview =
+        isFulfillmentManualReviewError(error) || isLastAttempt;
+
+      const failureError =
+        isLastAttempt && !isFulfillmentManualReviewError(error)
+          ? new FulfillmentManualReviewError(
+              `Se agotaron los reintentos automáticos. ${
+                error instanceof Error ? error.message : "Error desconocido"
+              }`,
+            )
+          : error;
+
+      await recordFulfillmentFailure(
+        job.data.deliveryId,
+        failureError,
+        manualReview,
+      );
+
       if (manualReview) {
-        await enqueueDeliveryEmail({ deliveryId: job.data.deliveryId, type: "FAILED" });
-        throw new UnrecoverableError(error.message);
+        await enqueueDeliveryEmail({
+          deliveryId: job.data.deliveryId,
+          type: "FAILED",
+        });
+        throw new UnrecoverableError(
+          failureError instanceof Error
+            ? failureError.message
+            : "Fulfillment requiere revisión manual",
+        );
       }
       throw error;
     }
@@ -85,17 +112,6 @@ deliveryWorker.on("completed", (job) => {
 });
 deliveryWorker.on("failed", (job, error) => {
   log.error({ jobId: job?.id, deliveryId: job?.data.deliveryId, err: error }, "Delivery job failed");
-  if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
-    void (async () => {
-      const exhausted = new FulfillmentManualReviewError(
-        `Se agotaron los reintentos automáticos. ${error.message}`,
-      );
-      await recordFulfillmentFailure(job.data.deliveryId, exhausted, true);
-      await enqueueDeliveryEmail({ deliveryId: job.data.deliveryId, type: "FAILED" });
-    })().catch((handlerError) => {
-      log.error({ jobId: job.id, err: handlerError }, "Failed to persist exhausted delivery job");
-    });
-  }
 });
 emailWorker.on("failed", (job, error) => {
   log.error({ jobId: job?.id, deliveryId: job?.data.deliveryId, err: error }, "Delivery email job failed");

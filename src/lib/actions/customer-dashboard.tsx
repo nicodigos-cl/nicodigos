@@ -33,11 +33,16 @@ import {
   updateCustomerProfileSchema,
 } from "@/lib/customer-dashboard/validations";
 import { sendDeliveryNotification } from "@/lib/deliveries/notifications";
+import {
+  canResendDeliveryEmail,
+  canRevealDeliverySecrets,
+} from "@/lib/deliveries/policy";
 import { SupportRequestEmail } from "@/emails/order-lifecycle-email";
 import { sendReactEmail } from "@/lib/email/resend";
 import { getOrCreateFlowRedirectUrl } from "@/lib/flow/payments";
 import { createLogger } from "@/lib/logger";
 import { recordCommunicationAudit } from "@/lib/communications/audit";
+import { getOperationalSettings } from "@/lib/settings/runtime";
 import prisma from "@/lib/prisma";
 import { addCartItemAction } from "@/lib/actions/orders";
 
@@ -316,6 +321,12 @@ export async function resendDeliveryEmailAction(
   if (!parsed.success) return validationError(parsed.error);
 
   try {
+    const settings = await getOperationalSettings();
+    const resendOk = canResendDeliveryEmail(settings);
+    if (!resendOk.ok) {
+      return { success: false, message: resendOk.message };
+    }
+
     const delivery = await requireOwnedDelivery(
       parsed.data.deliveryId,
       session.user.id,

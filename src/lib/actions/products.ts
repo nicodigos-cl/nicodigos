@@ -3,23 +3,27 @@
 import { revalidatePath } from "next/cache";
 import { flattenError } from "zod";
 
-import { Prisma, ProductKeyStatus, DeliveryMethod } from "@/generated/prisma/client";
+import { Prisma, ProductKeyStatus, DeliveryMethod, DeliveryContentType } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/actions/types";
 import { requireSession } from "@/lib/auth/session";
+import { encryptSecret } from "@/lib/crypto/secrets";
 import {
   resolveKinguinLinkPayload,
   writeKinguinRelatedRecords,
 } from "@/lib/kinguin/import";
+import { mirrorKinguinProductImages } from "@/lib/kinguin/mirror-images";
 import prisma from "@/lib/prisma";
 import { deleteImageFromR2 } from "@/lib/r2";
 import { DEFAULT_KINGUIN_MARKUP_PCT, DEFAULT_MARKUP_MIN_PCT } from "@/lib/smm-services/constants";
 import {
   addProductImageSchema,
+  addProductAccountsSchema,
   addProductKeysSchema,
   archiveProductSchema,
   createProductSchema,
   removeProductImageSchema,
   reorderProductImagesSchema,
+  revokeProductAccountSchema,
   revokeProductKeySchema,
   setCoverImageSchema,
   updateProductSchema,
@@ -210,13 +214,17 @@ export async function createProductAction(
         ? await resolveKinguinLinkPayload(data.kinguinId)
         : null;
 
+    const mirroredImages = kinguinLink
+      ? await mirrorKinguinProductImages(kinguinLink.remote)
+      : null;
+
     const kinguinMarkupPct =
       data.kinguinMarkupPct ?? DEFAULT_KINGUIN_MARKUP_PCT;
 
     if (
       !coverUrlFromAssets(data.assets) &&
       !data.coverImageUrl &&
-      !kinguinLink?.meta.coverImageUrl
+      !mirroredImages?.coverImageUrl
     ) {
       return {
         success: false,
@@ -234,7 +242,7 @@ export async function createProductAction(
           coverImageUrl:
             coverUrlFromAssets(data.assets) ??
             data.coverImageUrl ??
-            kinguinLink?.meta.coverImageUrl ??
+            mirroredImages?.coverImageUrl ??
             null,
           status: data.status,
           deliveryMethod: data.deliveryMethod,
@@ -332,6 +340,7 @@ export async function createProductAction(
           created.id,
           kinguinLink.remote,
           kinguinLink.cheapest.offerId,
+          { imageAssets: mirroredImages?.assets ?? [] },
         );
       }
 
@@ -392,6 +401,14 @@ export async function createProductAction(
         success: false,
         message: "El producto Kinguin no tiene ofertas disponibles.",
         fieldErrors: { kinguinId: ["Sin ofertas"] },
+      };
+    }
+
+    if (error instanceof Error && error.message.startsWith("R2_CONFIG_MISSING:")) {
+      return {
+        success: false,
+        message:
+          "R2 no está configurado. Configura el almacenamiento para importar imágenes de Kinguin.",
       };
     }
 
@@ -944,3 +961,112 @@ export async function setCoverImageAction(
     };
   }
 }
+
+export async function addProductAccountsAction(
+  rawInput: unknown,
+): Promise<ActionResult<{ created: number }>> {
+  const session = await requireSession();
+  if (!session) return unauthorized();
+
+  const parsed = addProductAccountsSchema.safeParse(
+    rawInput instanceof FormData
+      ? (() => {
+          const payload = rawInput.get("payload");
+          return typeof payload === "string" ? JSON.parse(payload) : rawInput;
+        })()
+      : rawInput,
+  );
+  if (!parsed.success) return validationError(parsed.error);
+
+  const { productId, accounts } = parsed.data;
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { id: true, deliveryMethod: true },
+  });
+  if (!product) {
+    return { success: false, message: "Producto no encontrado." };
+  }
+  if (product.deliveryMethod !== DeliveryMethod.MANUAL) {
+    return {
+      success: false,
+      message: "Solo productos MANUAL admiten inventario de cuentas.",
+    };
+  }
+
+  const valid = accounts.filter(
+    (account) =>
+      account.username ||
+      account.email ||
+      account.password ||
+      account.token ||
+      account.url,
+  );
+  if (valid.length === 0) {
+    return {
+      success: false,
+      message: "Cada cuenta necesita al menos un dato (usuario, email, password, token o URL).",
+    };
+  }
+
+  try {
+    await prisma.productAccount.createMany({
+      data: valid.map((account) => ({
+        productId,
+        status: ProductKeyStatus.AVAILABLE,
+        contentType: DeliveryContentType.USERNAME_PASSWORD,
+        label: account.label ?? null,
+        username: account.username ?? null,
+        email: account.email ?? null,
+        passwordEncrypted: account.password
+          ? encryptSecret(account.password)
+          : null,
+        tokenEncrypted: account.token ? encryptSecret(account.token) : null,
+        url: account.url ?? null,
+        notes: account.notes ?? null,
+      })),
+    });
+    revalidatePath(`/admin/products/${productId}`);
+    return { success: true, data: { created: valid.length } };
+  } catch {
+    return { success: false, message: "No se pudieron agregar las cuentas." };
+  }
+}
+
+export async function revokeProductAccountAction(
+  rawInput: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  const session = await requireSession();
+  if (!session) return unauthorized();
+
+  const parsed = revokeProductAccountSchema.safeParse(rawInput);
+  if (!parsed.success) return validationError(parsed.error);
+
+  const account = await prisma.productAccount.findFirst({
+    where: {
+      id: parsed.data.accountId,
+      productId: parsed.data.productId,
+    },
+    select: { id: true, status: true },
+  });
+  if (!account) {
+    return { success: false, message: "Cuenta no encontrada." };
+  }
+  if (account.status === ProductKeyStatus.SOLD) {
+    return {
+      success: false,
+      message: "No se puede revocar una cuenta ya vendida.",
+    };
+  }
+
+  await prisma.productAccount.update({
+    where: { id: account.id },
+    data: {
+      status: ProductKeyStatus.REVOKED,
+      orderItemId: null,
+      reservedUntil: null,
+    },
+  });
+  revalidatePath(`/admin/products/${parsed.data.productId}`);
+  return { success: true, data: { id: account.id } };
+}
+

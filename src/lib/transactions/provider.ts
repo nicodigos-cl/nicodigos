@@ -2,7 +2,7 @@ import "server-only";
 
 import type { Payment } from "@/generated/prisma/client";
 import { getFlowClient } from "@/lib/flow/client";
-import { mapFlowStatus } from "@/lib/transactions/status";
+import { mapFlowStatus, normalizeFlowAmount } from "@/lib/transactions/status";
 
 export type ProviderPaymentSnapshot = {
   status: ReturnType<typeof mapFlowStatus>;
@@ -30,7 +30,7 @@ export async function getProviderPaymentSnapshot(payment: Pick<Payment, "provide
     : payment.flowOrder
       ? await flow.payments.status.byFlowOrderNumber(payment.flowOrder)
       : await flow.payments.status.byCommerceId(payment.commerceOrder ?? payment.orderId);
-  return { status: mapFlowStatus(response.status), providerStatus: response.statusStr, flowOrder: response.flowOrder, commerceOrder: response.commerceOrder, amount: response.amount, currency: response.currency, payerEmail: response.payer, paymentMethod: response.paymentData?.media ?? null, paidAt: parseFlowDate(response.paymentData?.date) };
+  return { status: mapFlowStatus(response.status), providerStatus: response.statusStr, flowOrder: response.flowOrder, commerceOrder: response.commerceOrder, amount: normalizeFlowAmount(response.amount), currency: response.currency, payerEmail: response.payer, paymentMethod: response.paymentData?.media ?? null, paidAt: parseFlowDate(response.paymentData?.date) };
 }
 
 export function sanitizeProviderError(error: unknown): { message: string; code: string } {

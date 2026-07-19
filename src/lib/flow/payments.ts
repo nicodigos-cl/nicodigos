@@ -2,6 +2,7 @@ import "server-only";
 
 import { PaymentProvider, PaymentStatus } from "@/generated/prisma/client";
 import { getAppBaseUrl, getFlowClient } from "@/lib/flow/client";
+import { buildOrderAccessUrl } from "@/lib/orders/access";
 import prisma from "@/lib/prisma";
 
 export type FlowPaymentLinkResult = {
@@ -10,6 +11,7 @@ export type FlowPaymentLinkResult = {
   flowOrder: number;
   redirectUrl: string;
   checkoutUrl: string;
+  accessToken: string;
 };
 
 function toFlowAmount(amount: { toString(): string } | number): number {
@@ -41,6 +43,7 @@ export async function createFlowPaymentForOrder(orderId: string): Promise<FlowPa
       total: true,
       currency: true,
       status: true,
+      accessToken: true,
       items: {
         select: { productName: true, quantity: true },
         take: 3,
@@ -108,13 +111,18 @@ export async function createFlowPaymentForOrder(orderId: string): Promise<FlowPa
           .join(", ")
           .slice(0, 100);
 
+  const accessPath = buildOrderAccessUrl(baseUrl, order.id, order.accessToken);
+  const returnUrl = new URL(`${baseUrl}/checkout/return`);
+  returnUrl.searchParams.set("orderId", order.id);
+  returnUrl.searchParams.set("s", order.accessToken);
+
   const created = await flow.payments.create({
     commerceOrder,
     subject,
     currency,
     amount,
     email: order.email,
-    urlReturn: `${baseUrl}/checkout/return?orderId=${encodeURIComponent(order.id)}`,
+    urlReturn: returnUrl.toString(),
     urlConfirmation: `${baseUrl}/api/payments/flow/confirmation`,
     optional: { orderId: order.id },
   });
@@ -154,7 +162,8 @@ export async function createFlowPaymentForOrder(orderId: string): Promise<FlowPa
     token: created.token,
     flowOrder: created.flowOrder,
     redirectUrl: created.redirectUrl,
-    checkoutUrl: `${baseUrl}/checkout/${encodeURIComponent(order.id)}`,
+    checkoutUrl: accessPath,
+    accessToken: order.accessToken,
   };
 }
 

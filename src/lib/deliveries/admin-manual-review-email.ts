@@ -1,7 +1,6 @@
 import "server-only";
 
 import { AdminManualReviewEmail } from "@/emails/admin-manual-review-email";
-import { getAdminEmailsFromEnv } from "@/lib/auth/admin-allowlist";
 import { sendReactEmail } from "@/lib/email/resend";
 import { createLogger } from "@/lib/logger";
 import { sanitizeProviderError } from "@/lib/providers/balance-types";
@@ -18,11 +17,12 @@ function appBaseUrl() {
 }
 
 export async function sendAdminManualReviewEmail(deliveryId: string): Promise<void> {
-  const recipients = getAdminEmailsFromEnv().filter((entry) =>
-    entry.includes("@"),
+  const { resolveAdminNotificationRecipients } = await import(
+    "@/lib/deliveries/ops-alerts"
   );
+  const recipients = await resolveAdminNotificationRecipients();
   if (recipients.length === 0) {
-    log.warn({ deliveryId }, "No ADMIN_EMAILS addresses for manual review alert");
+    log.warn({ deliveryId }, "No admin notification addresses for manual review alert");
     return;
   }
 

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  HiStar,
   HiOutlineClock,
   HiOutlineShieldCheck,
   HiOutlineShoppingCart,
@@ -16,7 +15,6 @@ import { StoreProductGallery } from "@/components/store/store-product-gallery";
 import StoreProductCarousel from "@/components/store/store-product-carousel";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/products/format";
-import { cn } from "@/lib/utils";
 import type {
   StoreProductCardDto,
   StoreProductDetailDto,
@@ -31,24 +29,6 @@ export function StoreProductDetail({
   product,
   relatedProducts,
 }: StoreProductDetailProps) {
-  // Determine rating based on metacriticScore or fallback to standard 4.9
-  const ratingVal =
-    product.metacriticScore != null
-      ? Math.max(
-          1,
-          Math.min(5, Math.round((product.metacriticScore / 20) * 10) / 10),
-        )
-      : 4.9;
-
-  const ratingStars = Math.round(ratingVal);
-
-  // Generate a realistic, persistent number of sales based on product id
-  const mockSales =
-    Math.abs(
-      product.id.charCodeAt(0) * 12 +
-        (product.id.charCodeAt(product.id.length - 1) || 0) * 8,
-    ) + 120;
-
   // Calculate discount and savings
   const priceNum = Number(product.price);
   const compareAtPriceNum = product.compareAtPrice
@@ -167,22 +147,8 @@ export function StoreProductDetail({
                 </Badge>
               ) : null}
               <Badge variant="outline" className="border-border/80 font-medium">
-                Producto Oficial
+                {product.deliveryLabel}
               </Badge>
-              <Badge
-                variant="outline"
-                className="border-border/80 font-medium bg-muted/20"
-              >
-                Garantizado
-              </Badge>
-              {mockSales > 250 && (
-                <Badge
-                  variant="outline"
-                  className="border-chart-4/40 text-chart-4 bg-chart-4/5 font-semibold"
-                >
-                  Más vendido
-                </Badge>
-              )}
             </div>
 
             {/* Title */}
@@ -191,7 +157,6 @@ export function StoreProductDetail({
                 {product.name}
               </h1>
 
-              {/* Category sub-title */}
               {product.categories[0] && (
                 <p className="text-xs sm:text-sm text-muted-foreground mt-1.5">
                   Categoría:{" "}
@@ -202,43 +167,42 @@ export function StoreProductDetail({
               )}
             </div>
 
-            {/* Social Proof Stats */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3 border-y border-border/40 text-xs sm:text-sm">
-              <div className="flex items-center gap-1.5">
-                <div className="flex items-center">
-                  {[0, 1, 2, 3, 4].map((star) => (
-                    <HiStar
-                      key={star}
-                      aria-hidden
-                      className={cn(
-                        "size-4 shrink-0",
-                        ratingStars > star
-                          ? "text-chart-4"
-                          : "text-muted-foreground/30",
-                      )}
-                    />
-                  ))}
-                </div>
-                <span className="font-bold text-foreground">{ratingVal}</span>
-                <span className="text-muted-foreground">
-                  (
-                  {product.metacriticScore != null
-                    ? "Metacritic"
-                    : "150+ valoraciones"}
-                  )
-                </span>
+            {/* Availability */}
+            <div className="flex flex-col gap-2 rounded-2xl border border-border/40 bg-muted/30 px-4 py-3 text-sm">
+              <div className="flex items-center gap-2">
+                {product.inStock ? (
+                  <>
+                    <span className="relative flex size-2.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
+                    </span>
+                    <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                      Disponible
+                    </span>
+                    <span className="text-muted-foreground">
+                      ({product.stockLabel})
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="relative flex size-2.5 rounded-full bg-destructive" />
+                    <span className="font-semibold text-destructive">
+                      Sin stock
+                    </span>
+                    <span className="text-muted-foreground">
+                      ({product.stockLabel})
+                    </span>
+                  </>
+                )}
               </div>
-              <span
-                className="text-muted-foreground/40 max-lg:hidden"
-                aria-hidden
-              >
-                |
-              </span>
-              <div className="text-muted-foreground">
-                <span className="font-semibold text-foreground">
-                  {mockSales}
-                </span>{" "}
-                vendidos
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <HiOutlineClock className="size-4 shrink-0" aria-hidden />
+                <span>
+                  Entrega:{" "}
+                  <span className="font-semibold text-foreground">
+                    {product.deliveryEta}
+                  </span>
+                </span>
               </div>
             </div>
 
@@ -276,36 +240,6 @@ export function StoreProductDetail({
                   </p>
                 </div>
               )}
-
-              {/* Availability stock pulse */}
-              <div className="flex items-center gap-2 pt-1.5">
-                {product.inStock ? (
-                  <>
-                    <span className="relative flex size-2.5">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500"></span>
-                    </span>
-                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                      Disponible ({product.stockLabel})
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="relative flex size-2.5">
-                      <span className="relative inline-flex size-2.5 rounded-full bg-destructive"></span>
-                    </span>
-                    <span className="text-xs font-semibold text-destructive">
-                      Sin Stock ({product.stockLabel})
-                    </span>
-                  </>
-                )}
-                <span className="text-muted-foreground/40" aria-hidden>
-                  ·
-                </span>
-                <span className="text-xs text-muted-foreground/80">
-                  Entrega {product.deliveryEta.toLowerCase()}
-                </span>
-              </div>
             </div>
 
             {/* Platform / limitations info */}
@@ -344,7 +278,7 @@ export function StoreProductDetail({
               price={product.price}
               currency={product.currency}
               priceIsPerThousand={product.priceIsPerThousand}
-              deliveryDelayed={product.deliveryDelayed}
+              deliveryEta={product.deliveryEta}
               regionAvailabilityLabel={product.regionAvailabilityLabel}
               maxOrderQuantity={product.maxOrderQuantity}
               smmServiceType={product.smmServiceType}

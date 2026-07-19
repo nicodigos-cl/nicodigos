@@ -56,10 +56,8 @@ type StoreCartDrawerProps = {
 };
 
 function CartEmpty({
-  authenticated,
   onClose,
 }: {
-  authenticated: boolean;
   onClose: () => void;
 }) {
   return (
@@ -68,29 +66,15 @@ function CartEmpty({
         <EmptyMedia variant="icon">
           <HiOutlineShoppingBag className="size-5" />
         </EmptyMedia>
-        <EmptyTitle>
-          {authenticated ? "Tu carrito está vacío" : "Inicia sesión"}
-        </EmptyTitle>
+        <EmptyTitle>Tu carrito está vacío</EmptyTitle>
         <EmptyDescription>
-          {authenticated
-            ? "Agrega productos para continuar con la compra."
-            : "Necesitas una cuenta para guardar y pagar tu carrito."}
+          Agrega productos para continuar con la compra.
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        {authenticated ? (
-          <Button type="button" variant="outline" onClick={onClose}>
-            Seguir comprando
-          </Button>
-        ) : (
-          <Button
-            render={<Link href="/auth/login?next=/" />}
-            nativeButton={false}
-            onClick={onClose}
-          >
-            Iniciar sesión
-          </Button>
-        )}
+        <Button type="button" variant="outline" onClick={onClose}>
+          Seguir comprando
+        </Button>
       </EmptyContent>
     </Empty>
   );
@@ -233,7 +217,6 @@ export function StoreCartDrawer({ open, onOpenChange }: StoreCartDrawerProps) {
   const [editing, setEditing] = useState<CartLineDto | null>(null);
 
   const cart = data?.cart ?? null;
-  const authenticated = data?.authenticated ?? false;
   const itemsCount = cart?.itemsCount ?? 0;
   const mutating = updateItem.isPending || removeItem.isPending;
   const hasItems = Boolean(cart && cart.items.length > 0);
@@ -257,10 +240,9 @@ export function StoreCartDrawer({ open, onOpenChange }: StoreCartDrawerProps) {
         No se pudo cargar el carrito.
       </p>
     );
-  } else if (!authenticated || !hasItems) {
+  } else if (!hasItems) {
     body = (
       <CartEmpty
-        authenticated={authenticated}
         onClose={() => onOpenChange(false)}
       />
     );

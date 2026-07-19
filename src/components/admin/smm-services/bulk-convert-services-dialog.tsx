@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import type { ColumnDef } from "@tanstack/react-table";
 import { HiOutlineSparkles } from "react-icons/hi";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/data-table";
 import {
   Dialog,
   DialogContent,
@@ -52,8 +54,12 @@ export function BulkConvertServicesDialog({
 }: BulkConvertServicesDialogProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [minMarkupPct, setMinMarkupPct] = useState(String(DEFAULT_MARKUP_MIN_PCT));
-  const [maxMarkupPct, setMaxMarkupPct] = useState(String(DEFAULT_MARKUP_MAX_PCT));
+  const [minMarkupPct, setMinMarkupPct] = useState(
+    String(DEFAULT_MARKUP_MIN_PCT),
+  );
+  const [maxMarkupPct, setMaxMarkupPct] = useState(
+    String(DEFAULT_MARKUP_MAX_PCT),
+  );
   const [categoryId, setCategoryId] = useState<string>("");
   const [rows, setRows] = useState<DraftRow[]>([]);
   const [usdClpHint, setUsdClpHint] = useState<number | null>(null);
@@ -140,12 +146,79 @@ export function BulkConvertServicesDialog({
           toast.error(result.message);
           return;
         }
-        toast.success(`Creados ${result.data.created.length} productos (DRAFT)`);
+        toast.success(
+          `Creados ${result.data.created.length} productos (DRAFT)`,
+        );
         onOpenChange(false);
         router.refresh();
       })();
     });
   }
+
+  const columns: ColumnDef<DraftRow>[] = [
+    {
+      accessorKey: "originalName",
+      header: "Original",
+      cell: ({ row }) => (
+        <span className="block max-w-40 truncate text-muted-foreground">
+          {row.original.originalName}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "name",
+      header: "Nombre ES",
+      cell: ({ row }) => (
+        <Input
+          value={row.original.name}
+          onChange={(event) => {
+            const value = event.target.value;
+            setRows((prev) =>
+              prev.map((item, index) =>
+                index === row.index ? { ...item, name: value } : item,
+              ),
+            );
+          }}
+        />
+      ),
+    },
+    {
+      accessorKey: "markupPct",
+      header: "Markup %",
+      cell: ({ row }) => (
+        <Input
+          className="w-24"
+          value={row.original.markupPct}
+          onChange={(event) => {
+            const value = event.target.value;
+            setRows((prev) =>
+              prev.map((item, index) =>
+                index === row.index ? { ...item, markupPct: value } : item,
+              ),
+            );
+          }}
+        />
+      ),
+    },
+    {
+      accessorKey: "price",
+      header: "Precio CLP",
+      cell: ({ row }) => (
+        <Input
+          className="w-32"
+          value={row.original.price}
+          onChange={(event) => {
+            const value = event.target.value;
+            setRows((prev) =>
+              prev.map((item, index) =>
+                index === row.index ? { ...item, price: value } : item,
+              ),
+            );
+          }}
+        />
+      ),
+    },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -154,9 +227,7 @@ export function BulkConvertServicesDialog({
           <DialogTitle>Convertir {services.length} servicios</DialogTitle>
           <DialogDescription>
             Define markup min/máx, genera con IA y confirma. Status DRAFT · CLP.
-            {usdClpHint != null
-              ? ` USD/CLP ≈ ${Math.round(usdClpHint)}`
-              : null}
+            {usdClpHint != null ? ` USD/CLP ≈ ${Math.round(usdClpHint)}` : null}
           </DialogDescription>
         </DialogHeader>
 
@@ -209,68 +280,15 @@ export function BulkConvertServicesDialog({
             {isPending ? "Generando..." : "Traducir / generar precios con IA"}
           </Button>
 
-          <div className="overflow-x-auto rounded-2xl border border-border">
-            <table className="w-full min-w-[40rem] text-left text-sm">
-              <thead className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 font-medium">Original</th>
-                  <th className="px-3 py-2 font-medium">Nombre ES</th>
-                  <th className="px-3 py-2 font-medium">Markup %</th>
-                  <th className="px-3 py-2 font-medium">Precio CLP</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, index) => (
-                  <tr key={row.serviceId} className="border-b border-border last:border-0">
-                    <td className="max-w-40 truncate px-3 py-2 text-muted-foreground">
-                      {row.originalName}
-                    </td>
-                    <td className="px-3 py-2">
-                      <Input
-                        value={row.name}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          setRows((prev) =>
-                            prev.map((item, i) =>
-                              i === index ? { ...item, name: value } : item,
-                            ),
-                          );
-                        }}
-                      />
-                    </td>
-                    <td className="w-24 px-3 py-2">
-                      <Input
-                        value={row.markupPct}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          setRows((prev) =>
-                            prev.map((item, i) =>
-                              i === index
-                                ? { ...item, markupPct: value }
-                                : item,
-                            ),
-                          );
-                        }}
-                      />
-                    </td>
-                    <td className="w-32 px-3 py-2">
-                      <Input
-                        value={row.price}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          setRows((prev) =>
-                            prev.map((item, i) =>
-                              i === index ? { ...item, price: value } : item,
-                            ),
-                          );
-                        }}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={columns}
+            data={rows}
+            manual
+            hideToolbar
+            hidePagination
+            tableClassName="min-w-[40rem]"
+            getRowId={(row) => row.serviceId}
+          />
         </div>
 
         <DialogFooter>
@@ -284,7 +302,9 @@ export function BulkConvertServicesDialog({
           </Button>
           <Button
             type="button"
-            disabled={isPending || rows.some((row) => !row.name.trim() || !row.price)}
+            disabled={
+              isPending || rows.some((row) => !row.name.trim() || !row.price)
+            }
             onClick={handleSubmit}
           >
             {isPending ? "Creando..." : `Crear ${rows.length} productos`}

@@ -1,20 +1,19 @@
 import Link from "next/link";
-import {
-  HiOutlineArrowLeft,
-  HiOutlineExclamationCircle,
-} from "react-icons/hi";
+import { HiOutlineArrowLeft, HiOutlineExclamationCircle } from "react-icons/hi";
 
 import { UserActionMenu } from "@/components/admin/users/user-action-menu";
 import { UserAdminNotes } from "@/components/admin/users/user-admin-notes";
 import { UserProfileForms } from "@/components/admin/users/user-profile-forms";
 import { UserSessionsTable } from "@/components/admin/users/user-sessions-table";
 import {
+  UserDeliveriesTable,
+  UserOrdersTable,
+  UserTransactionsTable,
+} from "@/components/admin/users/user-commerce-tables";
+import {
   UserRoleBadge,
   UserStatusBadge,
 } from "@/components/admin/users/user-status-badge";
-import { OrderStatusBadge } from "@/components/admin/orders/order-status-badge";
-import { DeliveryStatusBadge } from "@/components/admin/deliveries/delivery-status-badge";
-import { TransactionStatusBadge } from "@/components/admin/transactions/transaction-status-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +22,6 @@ import { formatMoney } from "@/lib/products/format";
 import { userDetailHref } from "@/lib/users/url";
 import type { UserDetailQuery } from "@/lib/validations/users";
 import type { UserDetailDto } from "@/types/users";
-import type { DeliveryStatus, OrderStatus, PaymentStatus } from "@/generated/prisma/enums";
 
 function Row({
   label,
@@ -293,59 +291,7 @@ export function UserDetail({
           {user.orders.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sin pedidos.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="text-xs text-muted-foreground">
-                  <tr>
-                    <th className="pb-2 font-medium">Pedido</th>
-                    <th className="pb-2 font-medium">Estado</th>
-                    <th className="pb-2 font-medium">Total</th>
-                    <th className="pb-2 font-medium">Ítems</th>
-                    <th className="pb-2 font-medium">Pago</th>
-                    <th className="pb-2 font-medium">Entrega</th>
-                    <th className="pb-2 font-medium">Fecha</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {user.orders.map((order) => (
-                    <tr key={order.id} className="border-t border-border/60">
-                      <td className="py-2">
-                        <Link
-                          href={`/admin/orders/${order.id}`}
-                          className="font-medium hover:underline"
-                        >
-                          #{order.orderNumber}
-                        </Link>
-                      </td>
-                      <td className="py-2">
-                        <OrderStatusBadge status={order.status as OrderStatus} />
-                      </td>
-                      <td className="py-2 tabular-nums">
-                        {formatMoney(order.total, order.currency)}
-                      </td>
-                      <td className="py-2 tabular-nums">{order.itemsCount}</td>
-                      <td className="py-2">
-                        {order.paymentStatus ? (
-                          <TransactionStatusBadge
-                            status={order.paymentStatus as PaymentStatus}
-                          />
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="py-2 text-xs text-muted-foreground">
-                        {order.deliveryStatuses.length
-                          ? order.deliveryStatuses.join(", ")
-                          : "Sin iniciar"}
-                      </td>
-                      <td className="py-2 text-xs text-muted-foreground">
-                        {formatDateTime(order.createdAt)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <UserOrdersTable data={user.orders} />
           )}
         </section>
       ) : null}
@@ -356,58 +302,7 @@ export function UserDetail({
           {user.transactions.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sin transacciones.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="text-xs text-muted-foreground">
-                  <tr>
-                    <th className="pb-2 font-medium">ID</th>
-                    <th className="pb-2 font-medium">Proveedor</th>
-                    <th className="pb-2 font-medium">Estado</th>
-                    <th className="pb-2 font-medium">Monto</th>
-                    <th className="pb-2 font-medium">Pedido</th>
-                    <th className="pb-2 font-medium">Referencia</th>
-                    <th className="pb-2 font-medium">Fecha</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {user.transactions.map((tx) => (
-                    <tr key={tx.id} className="border-t border-border/60">
-                      <td className="py-2">
-                        <Link
-                          href={`/admin/transactions/${tx.id}`}
-                          className="font-mono text-xs hover:underline"
-                        >
-                          {tx.id.slice(0, 12)}…
-                        </Link>
-                      </td>
-                      <td className="py-2">{tx.provider}</td>
-                      <td className="py-2">
-                        <TransactionStatusBadge
-                          status={tx.status as PaymentStatus}
-                        />
-                      </td>
-                      <td className="py-2 tabular-nums">
-                        {formatMoney(tx.amount, tx.currency)}
-                      </td>
-                      <td className="py-2">
-                        <Link
-                          href={`/admin/orders/${tx.orderId}`}
-                          className="hover:underline"
-                        >
-                          #{tx.orderNumber}
-                        </Link>
-                      </td>
-                      <td className="py-2 font-mono text-xs text-muted-foreground">
-                        {tx.externalReference ?? "—"}
-                      </td>
-                      <td className="py-2 text-xs text-muted-foreground">
-                        {formatDateTime(tx.createdAt)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <UserTransactionsTable data={user.transactions} />
           )}
         </section>
       ) : null}
@@ -422,54 +317,7 @@ export function UserDetail({
           {user.deliveries.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sin entregas.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="text-xs text-muted-foreground">
-                  <tr>
-                    <th className="pb-2 font-medium">Producto</th>
-                    <th className="pb-2 font-medium">Pedido</th>
-                    <th className="pb-2 font-medium">Método</th>
-                    <th className="pb-2 font-medium">Estado</th>
-                    <th className="pb-2 font-medium">Referencia</th>
-                    <th className="pb-2 font-medium">Fecha</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {user.deliveries.map((delivery) => (
-                    <tr key={delivery.id} className="border-t border-border/60">
-                      <td className="py-2">
-                        <Link
-                          href={`/admin/deliveries/${delivery.id}`}
-                          className="font-medium hover:underline"
-                        >
-                          {delivery.productName}
-                        </Link>
-                      </td>
-                      <td className="py-2">
-                        <Link
-                          href={`/admin/orders/${delivery.orderId}`}
-                          className="hover:underline"
-                        >
-                          #{delivery.orderNumber}
-                        </Link>
-                      </td>
-                      <td className="py-2">{delivery.method}</td>
-                      <td className="py-2">
-                        <DeliveryStatusBadge
-                          status={delivery.status as DeliveryStatus}
-                        />
-                      </td>
-                      <td className="py-2 font-mono text-xs text-muted-foreground">
-                        {delivery.externalReference ?? "—"}
-                      </td>
-                      <td className="py-2 text-xs text-muted-foreground">
-                        {formatDateTime(delivery.createdAt)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <UserDeliveriesTable data={user.deliveries} />
           )}
         </section>
       ) : null}
@@ -486,10 +334,7 @@ export function UserDetail({
                 value={user.emailVerified ? "Sí" : "No"}
               />
               <Row label="Creado" value={formatDateTime(user.createdAt)} />
-              <Row
-                label="Actualizado"
-                value={formatDateTime(user.updatedAt)}
-              />
+              <Row label="Actualizado" value={formatDateTime(user.updatedAt)} />
               <Row
                 label="Completitud facturación"
                 value={user.billing.completeness}
@@ -515,22 +360,13 @@ export function UserDetail({
           <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
             <h2 className="text-sm font-medium">Autenticación</h2>
             <dl className="mt-3 text-sm">
-              <Row
-                label="Sesiones activas"
-                value={user.activeSessionCount}
-              />
+              <Row label="Sesiones activas" value={user.activeSessionCount} />
               <Row
                 label="Última sesión"
                 value={formatDateTime(user.lastSessionAt)}
               />
-              <Row
-                label="Estado de cuenta"
-                value={user.accountStatus}
-              />
-              <Row
-                label="Motivo suspensión"
-                value={user.suspensionReason}
-              />
+              <Row label="Estado de cuenta" value={user.accountStatus} />
+              <Row label="Motivo suspensión" value={user.suspensionReason} />
             </dl>
             <ul className="mt-4 space-y-2">
               {user.providers.map((provider) => (

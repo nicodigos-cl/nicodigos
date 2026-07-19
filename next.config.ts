@@ -4,6 +4,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   reactCompiler: true,
+  allowedDevOrigins: ["nicodigos.nicotordev.com"],
   images: {
     remotePatterns: [
       {
@@ -11,9 +12,40 @@ const nextConfig: NextConfig = {
         hostname: "images.pexels.com",
         pathname: "/photos/**",
       },
+      {
+        protocol: "https",
+        hostname: "cdns.kinguin.net",
+        pathname: "/media/**",
+      },
+      ...r2PublicRemotePatterns(),
     ],
   },
 };
+
+function r2PublicRemotePatterns(): Array<{
+  protocol: "http" | "https";
+  hostname: string;
+  pathname: string;
+}> {
+  const publicUrl = process.env.R2_PUBLIC_URL?.trim();
+  if (!publicUrl) return [];
+
+  try {
+    const parsed = new URL(publicUrl);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return [];
+    }
+    return [
+      {
+        protocol: parsed.protocol.replace(":", "") as "http" | "https",
+        hostname: parsed.hostname,
+        pathname: "/**",
+      },
+    ];
+  } catch {
+    return [];
+  }
+}
 
 export default withSentryConfig(nextConfig, {
   // For all available options, see:

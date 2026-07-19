@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { ColumnDef } from "@tanstack/react-table";
 import { HiOutlineCheck, HiOutlineCollection } from "react-icons/hi";
 
 import { SsrSearchInput } from "@/components/admin/ssr-search-input";
+import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -13,7 +15,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { cn } from "@/lib/utils";
 import type { SmmServiceListItemDto } from "@/types/smm-provider";
 
 type SmmServicePickerProps = {
@@ -66,6 +67,52 @@ export function SmmServicePicker({
   const router = useRouter();
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
+  const columns: ColumnDef<SmmServiceListItemDto>[] = [
+    {
+      accessorKey: "name",
+      header: "Servicio",
+      cell: ({ row }) => (
+        <div className="max-w-48">
+          <p className="truncate font-medium">{row.original.name}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            #{row.original.remoteServiceId} · {row.original.type}
+          </p>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "category",
+      header: "Categoría",
+      cell: ({ row }) => (
+        <span className="block max-w-32 truncate text-muted-foreground">
+          {row.original.category}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "rate",
+      header: "Rate USD",
+      cell: ({ row }) => (
+        <span className="tabular-nums">{row.original.rate}</span>
+      ),
+    },
+    {
+      accessorKey: "providerName",
+      header: "Provider",
+      cell: ({ row }) => (
+        <span className="block max-w-28 truncate text-muted-foreground">
+          {row.original.providerName}
+        </span>
+      ),
+    },
+    {
+      id: "selected",
+      cell: ({ row }) =>
+        row.original.id === selectedId ? (
+          <HiOutlineCheck className="mx-auto size-4 text-primary" />
+        ) : null,
+    },
+  ];
 
   return (
     <div className="space-y-3 rounded-2xl border border-border bg-muted/20 p-3">
@@ -106,62 +153,28 @@ export function SmmServicePicker({
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="max-h-64 overflow-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-muted/80 text-xs text-muted-foreground backdrop-blur">
-                <tr>
-                  <th className="px-3 py-2 font-medium">Servicio</th>
-                  <th className="px-3 py-2 font-medium">Categoría</th>
-                  <th className="px-3 py-2 font-medium">Rate USD</th>
-                  <th className="px-3 py-2 font-medium">Provider</th>
-                  <th className="w-10 px-2 py-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((service) => {
-                  const selected = service.id === selectedId;
-                  return (
-                    <tr
-                      key={service.id}
-                      className={cn(
-                        "border-t border-border cursor-pointer transition-colors hover:bg-muted/50",
-                        selected && "bg-primary/5",
-                      )}
-                      onClick={() => onSelect(service)}
-                    >
-                      <td className="max-w-48 px-3 py-2">
-                        <p className="truncate font-medium">{service.name}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          #{service.remoteServiceId} · {service.type}
-                        </p>
-                      </td>
-                      <td className="max-w-32 truncate px-3 py-2 text-muted-foreground">
-                        {service.category}
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">{service.rate}</td>
-                      <td className="max-w-28 truncate px-3 py-2 text-muted-foreground">
-                        {service.providerName}
-                      </td>
-                      <td className="px-2 py-2 text-center">
-                        {selected ? (
-                          <HiOutlineCheck className="mx-auto size-4 text-primary" />
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable
+          columns={columns}
+          data={items}
+          manual
+          hideToolbar
+          hidePagination
+          containerClassName="rounded-xl"
+          tableContainerClassName="max-h-64 overflow-auto"
+          headerClassName="sticky top-0 z-10 bg-muted/80 backdrop-blur"
+          getRowId={(service) => service.id}
+          getRowClassName={(row) =>
+            row.original.id === selectedId
+              ? "cursor-pointer bg-primary/5"
+              : "cursor-pointer"
+          }
+          onRowClick={(row) => onSelect(row.original)}
+        />
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>
-          {total === 0
-            ? "0 resultados"
-            : `${from}–${to} de ${total}`}
+          {total === 0 ? "0 resultados" : `${from}–${to} de ${total}`}
         </span>
         <div className="flex items-center gap-1">
           <Button

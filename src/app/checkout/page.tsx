@@ -6,7 +6,7 @@ import {
   type CheckoutBillingFlags,
 } from "@/components/store/checkout-page-client";
 import { getSession } from "@/lib/auth/session";
-import { getCartForUser } from "@/lib/cart/queries";
+import { getCurrentCart } from "@/lib/cart/current";
 import prisma from "@/lib/prisma";
 import { getOperationalSettings } from "@/lib/settings/runtime";
 import { BOLETA_NAMED_THRESHOLD_CLP } from "@/lib/validations/checkout-billing";
@@ -27,29 +27,27 @@ export default async function CheckoutPage({
   }
 
   const session = await getSession();
-  if (!session?.user) {
-    redirect("/auth/login?next=/checkout");
-  }
-
   const [cart, user, settings] = await Promise.all([
-    getCartForUser(session.user.id),
-    prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        email: true,
-        name: true,
-        phone: true,
-        invoiceType: true,
-        rut: true,
-        businessName: true,
-        businessActivity: true,
-        addressLine1: true,
-        addressLine2: true,
-        commune: true,
-        city: true,
-        region: true,
-      },
-    }),
+    getCurrentCart(session?.user.id),
+    session?.user
+      ? prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: {
+            email: true,
+            name: true,
+            phone: true,
+            invoiceType: true,
+            rut: true,
+            businessName: true,
+            businessActivity: true,
+            addressLine1: true,
+            addressLine2: true,
+            commune: true,
+            city: true,
+            region: true,
+          },
+        })
+      : null,
     getOperationalSettings(),
   ]);
 
@@ -58,8 +56,8 @@ export default async function CheckoutPage({
   }
 
   const billingDefaults: CheckoutBillingDefaults = {
-    email: user?.email ?? session.user.email,
-    customerName: user?.name ?? session.user.name ?? "",
+    email: user?.email ?? session?.user.email ?? "",
+    customerName: user?.name ?? session?.user.name ?? "",
     phone: user?.phone ?? "",
     invoiceType: user?.invoiceType ?? "BOLETA",
     rut: user?.rut ?? "",
@@ -86,6 +84,7 @@ export default async function CheckoutPage({
       cart={cart}
       billingDefaults={billingDefaults}
       billingFlags={billingFlags}
+      authenticated={Boolean(session?.user)}
     />
   );
 }

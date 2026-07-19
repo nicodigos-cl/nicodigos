@@ -437,6 +437,7 @@ async function getInventoryHealth() {
         _count: {
           select: {
             keys: { where: { status: ProductKeyStatus.AVAILABLE } },
+            accounts: { where: { status: ProductKeyStatus.AVAILABLE } },
           },
         },
       },
@@ -448,14 +449,14 @@ async function getInventoryHealth() {
   ) as Record<string, number>;
 
   const productsWithoutKeys = activeManual.filter(
-    (product) => product._count.keys === 0 && product.qty <= 0,
+    (product) =>
+      product._count.keys + product._count.accounts === 0 && product.qty <= 0,
   ).length;
   const activeWithoutStock = productsWithoutKeys;
-  const lowStockProducts = activeManual.filter(
-    (product) =>
-      product._count.keys > 0 &&
-      product._count.keys < lowStockThreshold,
-  ).length;
+  const lowStockProducts = activeManual.filter((product) => {
+    const available = product._count.keys + product._count.accounts;
+    return available > 0 && available < lowStockThreshold;
+  }).length;
 
   return {
     keysAvailable: byStatus.AVAILABLE ?? 0,

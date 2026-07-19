@@ -2,9 +2,11 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/data-table";
 import {
   Dialog,
   DialogContent,
@@ -116,7 +118,28 @@ export function ImportProductsFileDialog({
   }
 
   const accept = mode === "csv" ? ".csv,text/csv" : "application/json,.json";
-  const title = mode === "csv" ? "Importar productos (CSV)" : "Importar productos (JSON)";
+  const title =
+    mode === "csv" ? "Importar productos (CSV)" : "Importar productos (JSON)";
+  const previewColumns: ColumnDef<ImportProductItem>[] = [
+    {
+      accessorKey: "name",
+      header: "Nombre",
+      cell: ({ row }) => (
+        <span className="block max-w-48 truncate">{row.original.name}</span>
+      ),
+    },
+    {
+      accessorKey: "price",
+      header: "Precio",
+      cell: ({ row }) => (
+        <span className="tabular-nums">
+          {row.original.price} {row.original.currency}
+        </span>
+      ),
+    },
+    { accessorKey: "deliveryMethod", header: "Entrega" },
+    { accessorKey: "status", header: "Estado" },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -148,7 +171,9 @@ export function ImportProductsFileDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="product-import-category">Categoría (opcional)</Label>
+            <Label htmlFor="product-import-category">
+              Categoría (opcional)
+            </Label>
             <select
               id="product-import-category"
               className="flex h-9 w-full rounded-2xl border border-input bg-transparent px-3 text-sm"
@@ -164,34 +189,18 @@ export function ImportProductsFileDialog({
           </div>
 
           {items.length > 0 ? (
-            <div className="overflow-x-auto rounded-2xl border border-border">
-              <table className="w-full min-w-[28rem] text-left text-sm">
-                <thead className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">Nombre</th>
-                    <th className="px-3 py-2 font-medium">Precio</th>
-                    <th className="px-3 py-2 font-medium">Entrega</th>
-                    <th className="px-3 py-2 font-medium">Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.slice(0, 12).map((item, index) => (
-                    <tr
-                      key={`${item.name}-${index}`}
-                      className="border-b border-border last:border-0"
-                    >
-                      <td className="max-w-48 truncate px-3 py-2">{item.name}</td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {item.price} {item.currency}
-                      </td>
-                      <td className="px-3 py-2">{item.deliveryMethod}</td>
-                      <td className="px-3 py-2">{item.status}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div>
+              <DataTable
+                columns={previewColumns}
+                data={items.slice(0, 12)}
+                manual
+                hideToolbar
+                hidePagination
+                tableClassName="min-w-[28rem]"
+                getRowId={(item, index) => `${item.name}-${index}`}
+              />
               {items.length > 12 ? (
-                <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
+                <p className="mt-2 px-3 text-xs text-muted-foreground">
                   … y {items.length - 12} más
                 </p>
               ) : null}

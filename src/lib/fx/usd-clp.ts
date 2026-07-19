@@ -4,7 +4,7 @@ import {
   FX_USD_CLP_CACHE_KEY,
   FX_USD_CLP_TTL_SECONDS,
 } from "@/lib/smm-services/constants";
-import { getRedis } from "@/lib/redis";
+import { getReadyRedis } from "@/lib/redis";
 
 export { applyMarkupPct } from "@/lib/fx/markup";
 
@@ -32,13 +32,10 @@ async function fetchUsdClpFromMindicador(): Promise<number> {
 }
 
 export async function getUsdToClpRate(): Promise<number> {
-  const redis = getRedis();
+  const redis = await getReadyRedis();
 
   if (redis) {
     try {
-      if (redis.status !== "ready") {
-        await redis.connect().catch(() => undefined);
-      }
       const cached = await redis.get(FX_USD_CLP_CACHE_KEY);
       if (cached) {
         const parsed = Number.parseFloat(cached);

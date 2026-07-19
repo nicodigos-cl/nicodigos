@@ -208,9 +208,18 @@ export function CartPageClient({ cart }: { cart: CartDto | null }) {
                               )}
                             </NativeSelect>
                           )}
-                          {product.deliveryPromise === "DELAYED_12_24H" ? (
+                          {product.deliveryPromise === "DELAYED_12_24H" ||
+                          product.deliveryMethod === "MANUAL" ? (
                             <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
                               Entrega en 12–24 horas
+                            </p>
+                          ) : product.deliveryMethod === "SMM" ? (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              Entrega en minutos a unas horas
+                            </p>
+                          ) : product.deliveryPromise === "INSTANT" ? (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              Entrega inmediata
                             </p>
                           ) : null}
 

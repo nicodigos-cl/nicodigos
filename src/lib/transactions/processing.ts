@@ -12,7 +12,10 @@ import { ensureDeliveriesForOrder } from "@/lib/deliveries/ensure";
 import { publishOrderLiveStatus } from "@/lib/order-live/publish";
 import prisma from "@/lib/prisma";
 import type { ProviderPaymentSnapshot } from "@/lib/transactions/provider";
-import { canTransitionPaymentStatus } from "@/lib/transactions/status";
+import {
+  canTransitionPaymentStatus,
+  normalizeFlowAmount,
+} from "@/lib/transactions/status";
 
 type Actor = { userId?: string | null; email?: string | null };
 
@@ -61,6 +64,8 @@ export async function processVerifiedFlowPayment(input: {
   deliveriesCreated: number;
   orderId: string;
 }> {
+  const providerAmount = normalizeFlowAmount(input.snapshot.amount);
+
   const result = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.snapshot.commerceOrder}))`;
     const payment = await tx.payment.findFirst({
@@ -103,6 +108,7 @@ export async function processVerifiedFlowPayment(input: {
           changed: false,
           deliveriesCreated: 0,
           orderId: payment.orderId,
+          manualReviewIds: [] as string[],
         };
       }
     }
@@ -124,7 +130,7 @@ export async function processVerifiedFlowPayment(input: {
 
     if (
       input.snapshot.commerceOrder !== payment.orderId ||
-      input.snapshot.amount !== Number(payment.order.total) ||
+      providerAmount !== Number(payment.order.total) ||
       input.snapshot.currency !== payment.order.currency
     ) {
       await tx.payment.update({
@@ -152,6 +158,7 @@ export async function processVerifiedFlowPayment(input: {
         changed: false,
         deliveriesCreated: 0,
         orderId: payment.orderId,
+        manualReviewIds: [] as string[],
       };
     }
 
@@ -184,6 +191,7 @@ export async function processVerifiedFlowPayment(input: {
         changed: false,
         deliveriesCreated: 0,
         orderId: payment.orderId,
+        manualReviewIds: [] as string[],
       };
     }
 
@@ -223,6 +231,7 @@ export async function processVerifiedFlowPayment(input: {
     }
 
     let deliveriesCreated = 0;
+    let manualReviewIds: string[] = [];
     if (input.snapshot.status === PaymentStatus.PAID) {
       if (payment.order.status === OrderStatus.PENDING) {
         await tx.order.update({
@@ -242,6 +251,7 @@ export async function processVerifiedFlowPayment(input: {
       }
       const deliveries = await ensureDeliveriesForOrder(payment.orderId, tx);
       deliveriesCreated = deliveries.created;
+      manualReviewIds = deliveries.manualReviewIds;
       if (deliveries.requested > 0) {
         await appendPaymentEvent(tx, {
           paymentId: payment.id,
@@ -259,11 +269,20 @@ export async function processVerifiedFlowPayment(input: {
       changed,
       deliveriesCreated,
       orderId: payment.orderId,
+      manualReviewIds,
     };
   });
 
   if (result.changed) {
     await publishOrderLiveStatus(result.orderId);
+  }
+  if (result.manualReviewIds.length > 0) {
+    const { notifyManualReviewDeliveries } =
+      await import("@/lib/deliveries/ensure");
+    await notifyManualReviewDeliveries(
+      result.orderId,
+      result.manualReviewIds,
+    );
   }
   return result;
 }

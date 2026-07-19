@@ -302,6 +302,60 @@ export const revokeProductKeySchema = z.object({
   keyId: z.string().cuid(),
 });
 
+export const addProductAccountsSchema = z.object({
+  productId: z.string().cuid(),
+  accounts: z
+    .array(
+      z.object({
+        label: z.preprocess(
+          emptyToUndefined,
+          z.string().trim().max(120).optional(),
+        ),
+        username: z.preprocess(
+          emptyToUndefined,
+          z.string().trim().max(320).optional(),
+        ),
+        email: z.preprocess(
+          emptyToUndefined,
+          z.string().trim().email("Email inválido").max(320).optional(),
+        ),
+        password: z.preprocess(
+          emptyToUndefined,
+          z.string().min(1).max(500).optional(),
+        ),
+        token: z.preprocess(
+          emptyToUndefined,
+          z.string().min(1).max(2000).optional(),
+        ),
+        url: z.preprocess(
+          emptyToUndefined,
+          z.string().trim().url("URL inválida").max(2000).optional(),
+        ),
+        notes: z.preprocess(
+          emptyToUndefined,
+          z.string().trim().max(4000).optional(),
+        ),
+      }),
+    )
+    .min(1)
+    .max(100),
+});
+
+export const revokeProductAccountSchema = z.object({
+  productId: z.string().cuid(),
+  accountId: z.string().cuid(),
+});
+
+export const productAccountsQuerySchema = z.object({
+  accountsPage: z.coerce.number().int().min(1).default(1),
+  accountsPageSize: z.coerce.number().int().min(5).max(100).default(10),
+  accountsStatus: z
+    .enum(["AVAILABLE", "RESERVED", "SOLD", "REVOKED"])
+    .optional(),
+});
+
+export type ProductAccountsQuery = z.infer<typeof productAccountsQuerySchema>;
+
 export const addProductImageSchema = z.object({
   productId: z.string().cuid(),
   url: z.string().url("URL inválida").max(2000),

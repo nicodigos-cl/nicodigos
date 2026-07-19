@@ -70,6 +70,7 @@
         "@types/react-dom": "^19",
         "@types/sanitize-html": "^2.16.1",
         "babel-plugin-react-compiler": "1.0.0",
+        "chilean-territorial-divisions": "^1.0.1",
         "concurrently": "^10.0.3",
         "eslint": "^9",
         "eslint-config-next": "16.2.10",
@@ -1023,6 +1024,8 @@
     "chalk": ["chalk@5.6.2", "", {}, "sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA=="],
 
     "chart.js": ["chart.js@4.5.1", "", { "dependencies": { "@kurkle/color": "^0.3.0" } }, "sha512-GIjfiT9dbmHRiYi6Nl2yFCq7kkwdkp1W/lp2J99rX0yo9tgJGn3lKQATztIjb5tVtevcBtIdICNWqlq5+E8/Pw=="],
+
+    "chilean-territorial-divisions": ["chilean-territorial-divisions@1.0.1", "", {}, "sha512-3zE4lgaNpNZiRkkmgnX8U2xyyDQu/tmYqCLujDcVYbreyJscnvuVzMu/KHtWhPcMLJy+Dtbs42pbw7k73lpMPA=="],
 
     "chokidar": ["chokidar@4.0.3", "", { "dependencies": { "readdirp": "^4.0.1" } }, "sha512-Qgzu8kfBvo+cA4962jnP1KkS6Dop5NS6g7R5LFYJr4b8Ub94PPQXUksCw9PvXoeXPRRddRNC5C1JQUR2SMGtnA=="],
 

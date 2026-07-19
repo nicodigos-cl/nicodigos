@@ -127,6 +127,7 @@ Endpoints:
 - `/api/cron/cleanup-price-change-events`
 - `/api/cron/process-communications`
 - `/api/cron/publish-outbox`
+- `/api/cron/delivery-ops-alerts`
 
 ### OpenAI
 

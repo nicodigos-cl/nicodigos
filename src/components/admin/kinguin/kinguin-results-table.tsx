@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { HiOutlineDownload, HiOutlineSearch } from "react-icons/hi";
 
 import { ImportKinguinDialog } from "@/components/admin/kinguin/import-kinguin-dialog";
+import { DataTable } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +42,91 @@ export function KinguinResultsTable({
   const [importTarget, setImportTarget] = useState<KinguinSearchHitDto | null>(
     null,
   );
+  const columns: ColumnDef<KinguinSearchHitDto>[] = [
+    {
+      accessorKey: "name",
+      header: "Juego",
+      cell: ({ row }) => (
+        <div className="flex min-w-0 max-w-md items-center gap-3">
+          <CoverThumb
+            src={row.original.coverThumbnailUrl || row.original.coverUrl}
+          />
+          <div className="min-w-0">
+            <p className="truncate font-medium">{row.original.name}</p>
+            <p className="text-xs text-muted-foreground">
+              #{row.original.kinguinId}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "platform",
+      header: "Plataforma",
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">
+          {row.original.platform ?? "—"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "priceEur",
+      header: "Precio EUR",
+      cell: ({ row }) => (
+        <span className="tabular-nums">
+          {row.original.priceEur != null
+            ? `€${row.original.priceEur.toFixed(2)}`
+            : "—"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "offersCount",
+      header: "Ofertas",
+      cell: ({ row }) => (
+        <span className="tabular-nums">{row.original.offersCount}</span>
+      ),
+    },
+    {
+      accessorKey: "qty",
+      header: "Stock",
+      cell: ({ row }) => (
+        <span className="tabular-nums">{row.original.qty}</span>
+      ),
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const item = row.original;
+        return (
+          <div className="text-right">
+            {item.alreadyImported && item.localProductId ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                nativeButton={false}
+                render={
+                  <Link href={`/admin/products/${item.localProductId}`} />
+                }
+              >
+                Ver producto
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setImportTarget(item)}
+              >
+                <HiOutlineDownload className="size-4" />
+                Importar
+              </Button>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
 
   if (items.length === 0) {
     return (
@@ -59,71 +146,15 @@ export function KinguinResultsTable({
 
   return (
     <>
-      <div className="hidden overflow-hidden rounded-2xl border border-border bg-card md:block">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-muted/50 text-xs text-muted-foreground">
-            <tr>
-              <th className="px-3 py-2.5 font-medium">Juego</th>
-              <th className="px-3 py-2.5 font-medium">Platform</th>
-              <th className="px-3 py-2.5 font-medium">Precio EUR</th>
-              <th className="px-3 py-2.5 font-medium">Ofertas</th>
-              <th className="px-3 py-2.5 font-medium">Stock</th>
-              <th className="px-3 py-2.5 font-medium" />
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.kinguinId} className="border-t border-border">
-                <td className="px-3 py-2.5">
-                  <div className="flex min-w-0 max-w-md items-center gap-3">
-                    <CoverThumb
-                      src={item.coverThumbnailUrl || item.coverUrl}
-                    />
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        #{item.kinguinId}
-                      </p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-3 py-2.5 text-muted-foreground">
-                  {item.platform ?? "—"}
-                </td>
-                <td className="px-3 py-2.5 tabular-nums">
-                  {item.priceEur != null ? `€${item.priceEur.toFixed(2)}` : "—"}
-                </td>
-                <td className="px-3 py-2.5 tabular-nums">{item.offersCount}</td>
-                <td className="px-3 py-2.5 tabular-nums">{item.qty}</td>
-                <td className="px-3 py-2.5 text-right">
-                  {item.alreadyImported && item.localProductId ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      nativeButton={false}
-                      render={
-                        <Link href={`/admin/products/${item.localProductId}`} />
-                      }
-                    >
-                      Ver producto
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => setImportTarget(item)}
-                    >
-                      <HiOutlineDownload className="size-4" />
-                      Importar
-                    </Button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={columns}
+        data={items}
+        manual
+        hideToolbar
+        hidePagination
+        className="hidden md:flex"
+        getRowId={(item) => String(item.kinguinId)}
+      />
 
       <div className="space-y-3 md:hidden">
         {items.map((item) => (
@@ -137,9 +168,7 @@ export function KinguinResultsTable({
                 <p className="truncate font-medium">{item.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {item.platform ?? "—"} ·{" "}
-                  {item.priceEur != null
-                    ? `€${item.priceEur.toFixed(2)}`
-                    : "—"}
+                  {item.priceEur != null ? `€${item.priceEur.toFixed(2)}` : "—"}
                 </p>
                 <div className="mt-1 flex flex-wrap gap-1">
                   <Badge variant="secondary">{item.offersCount} ofertas</Badge>

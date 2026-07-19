@@ -2,7 +2,7 @@ import "server-only";
 
 import { createLogger } from "@/lib/logger";
 import prisma from "@/lib/prisma";
-import { getRedis } from "@/lib/redis";
+import { getReadyRedis } from "@/lib/redis";
 import {
   getKinguinBalance,
   markKinguinBalanceInsufficient,
@@ -72,14 +72,11 @@ export async function refreshProviderBalances(options?: {
 export async function assertAdminBalanceRefreshAllowed(
   actorUserId: string,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
-  const redis = getRedis();
+  const redis = await getReadyRedis();
   if (!redis) return { ok: true };
 
   const key = `${ADMIN_REFRESH_LIMIT_KEY}:${actorUserId}`;
   try {
-    if (redis.status !== "ready") {
-      await redis.connect().catch(() => undefined);
-    }
     const count = await redis.incr(key);
     if (count === 1) {
       await redis.expire(key, ADMIN_REFRESH_WINDOW_SECONDS);

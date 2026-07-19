@@ -26,6 +26,17 @@ export function mapFlowStatus(status: 1 | 2 | 3 | 4): PaymentStatus {
   return PaymentStatus.CANCELLED;
 }
 
+export function normalizeFlowAmount(value: unknown): number {
+  const amount =
+    typeof value === "string" && value.trim() === "" ? Number.NaN : Number(value);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Flow informó un monto de pago inválido.");
+  }
+
+  return amount;
+}
+
 export function isSuccessfulPaymentStatus(status: PaymentStatus): boolean {
   return status === PaymentStatus.PAID || status === PaymentStatus.PARTIALLY_REFUNDED || status === PaymentStatus.REFUNDED;
 }

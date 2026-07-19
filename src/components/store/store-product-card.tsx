@@ -62,11 +62,23 @@ export function StoreProductCard({
               {product.categoryName}
             </p>
           ) : null}
-          {product.deliveryDelayed ? (
+          {product.deliveryPromise === "UNAVAILABLE" ? (
+            <p className="mt-0.5 text-[10px] text-destructive sm:text-xs">
+              No disponible
+            </p>
+          ) : product.deliveryMethod === "SMM" && !product.deliveryDelayed ? (
+            <p className="mt-0.5 text-[10px] text-muted-foreground sm:text-xs">
+              Entrega en minutos a unas horas
+            </p>
+          ) : product.deliveryDelayed || product.deliveryMethod === "MANUAL" ? (
             <p className="mt-0.5 text-[10px] text-amber-700 dark:text-amber-400 sm:text-xs">
               Entrega en 12–24 horas
             </p>
-          ) : null}
+          ) : (
+            <p className="mt-0.5 text-[10px] text-muted-foreground sm:text-xs">
+              Entrega inmediata
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-baseline gap-1.5 text-left sm:block sm:text-right">
           <p className="text-xs font-medium tabular-nums text-foreground sm:text-sm">

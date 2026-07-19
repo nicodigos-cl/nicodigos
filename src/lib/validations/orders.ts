@@ -150,6 +150,11 @@ export const addSmmCartItemSchema = z.object({
   smm: z.record(z.string(), z.unknown()).optional(),
 });
 
+export const guestCheckoutOtpSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Email inválido").max(320),
+  customerName: z.string().trim().min(1, "Ingresa tu nombre").max(200),
+});
+
 export const updateCartItemSmmSchema = z.object({
   cartItemId: z.string().cuid(),
   smm: z.record(z.string(), z.unknown()),

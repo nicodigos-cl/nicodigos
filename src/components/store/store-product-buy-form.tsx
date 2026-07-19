@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, useTransition } from "react";
-import { HiOutlineHeart, HiOutlineClock, HiOutlineShieldCheck } from "react-icons/hi";
-import { Badge } from "@/components/ui/badge";
+import { HiOutlineHeart } from "react-icons/hi";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -41,7 +40,7 @@ type StoreProductBuyFormProps = {
   price: string;
   currency: string;
   priceIsPerThousand: boolean;
-  deliveryDelayed: boolean;
+  deliveryEta: string;
   regionAvailabilityLabel: string | null;
   maxOrderQuantity: number;
   smmServiceType: string | null;
@@ -58,7 +57,7 @@ export function StoreProductBuyForm({
   price,
   currency,
   priceIsPerThousand,
-  deliveryDelayed,
+  deliveryEta,
   regionAvailabilityLabel,
   maxOrderQuantity,
   smmServiceType,
@@ -67,7 +66,7 @@ export function StoreProductBuyForm({
 }: StoreProductBuyFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: session, isPending: sessionPending } = useSession();
+  const { data: session } = useSession();
   const [pending, startTransition] = useTransition();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -91,7 +90,6 @@ export function StoreProductBuyForm({
   const [smmValues, setSmmValues] = useState<SmmOrderFieldsPayload>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  const loginHref = `/auth/login?callbackUrl=${encodeURIComponent(productHref)}`;
   const isAuthenticated = Boolean(session?.user);
   const catalogPrice = Number.parseFloat(price);
 
@@ -128,15 +126,6 @@ export function StoreProductBuyForm({
 
   const savings = originalTotal - estimatedTotal;
 
-  function requireAuth(): boolean {
-    if (sessionPending) return false;
-    if (!isAuthenticated) {
-      router.push(loginHref);
-      return false;
-    }
-    return true;
-  }
-
   function parseFreeQuantity(): number | null {
     const parsed = Number.parseInt(quantityInput.replace(/\D/g, ""), 10);
     if (!Number.isFinite(parsed) || parsed < 1) return null;
@@ -155,8 +144,6 @@ export function StoreProductBuyForm({
       toast.error("Este producto no tiene stock disponible.");
       return;
     }
-    if (!requireAuth()) return;
-
     setFieldErrors({});
 
     if (isSmm) {
@@ -396,7 +383,7 @@ export function StoreProductBuyForm({
             type="button"
             size="lg"
             className="h-11 flex-1 font-bold max-lg:rounded-full"
-            disabled={!inStock || sessionPending}
+            disabled={!inStock}
             onClick={() => setIsOpen(true)}
           >
             Configurar servicio
@@ -406,7 +393,7 @@ export function StoreProductBuyForm({
             type="button"
             size="lg"
             className="h-11 flex-1 font-bold max-lg:rounded-full"
-            disabled={!inStock || pending || sessionPending}
+            disabled={!inStock || pending}
             onClick={handleAddToCart}
           >
             {!inStock
@@ -439,7 +426,7 @@ export function StoreProductBuyForm({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        {deliveryDelayed ? "Entrega en 12–24 h" : "Entrega inmediata"}
+        Entrega: {deliveryEta}
         {" · "}
         Webpay, MACH y más
         {regionAvailabilityLabel ? ` · ${regionAvailabilityLabel}` : ""}

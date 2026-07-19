@@ -527,6 +527,7 @@ model Product {
   assets             Asset[]
   systemRequirements ProductSystemRequirement[]
   keys               ProductKey[]
+  accounts           ProductAccount[]
   offers             ProductOffer[]
   orderItems         OrderItem[]
   cartItems          CartItem[]
@@ -629,21 +630,51 @@ model ProductSystemRequirement {
 }
 
 model ProductKey {
-  id           String           @id @default(cuid())
-  productId    String
-  product      Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
-  code         String
-  status       ProductKeyStatus @default(AVAILABLE)
-  orderItemId  String?
-  orderItem    OrderItem?       @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
-  deliveryKeys DeliveryKey[]
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  id            String           @id @default(cuid())
+  productId     String
+  product       Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  code          String
+  status        ProductKeyStatus @default(AVAILABLE)
+  orderItemId   String?
+  orderItem     OrderItem?       @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  /// When status=RESERVED, auto-release after this timestamp if unpaid.
+  reservedUntil DateTime?
+  deliveryKeys  DeliveryKey[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   @@unique([productId, code])
   @@index([productId, status])
   @@index([orderItemId])
+  @@index([status, reservedUntil])
   @@map("product_key")
+}
+
+/// Inventory of account credentials for MANUAL delivery auto-assign.
+model ProductAccount {
+  id                String              @id @default(cuid())
+  productId         String
+  product           Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  status            ProductKeyStatus    @default(AVAILABLE)
+  contentType       DeliveryContentType @default(USERNAME_PASSWORD)
+  label             String?
+  username          String?
+  email             String?
+  /// AES-256-GCM ciphertext (base64): iv.authTag.ciphertext
+  passwordEncrypted String?
+  tokenEncrypted    String?
+  url               String?
+  notes             String?
+  orderItemId       String?
+  orderItem         OrderItem?          @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  reservedUntil     DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([productId, status])
+  @@index([orderItemId])
+  @@index([status, reservedUntil])
+  @@map("product_account")
 }
 
 model ProductOffer {
@@ -680,6 +711,8 @@ model Order {
   currency             String                @default("CLP")
   email                String
   customerName         String?
+  /// Capability token for guest order status links (emails / Flow return). High entropy; never log.
+  accessToken          String                @unique
   items                OrderItem[]
   payments             Payment[]
   communicationThreads CommunicationThread[]
@@ -711,6 +744,7 @@ model OrderItem {
   smm                   OrderItemSmm?
   delivery              Delivery?
   productKeys           ProductKey[]
+  productAccounts       ProductAccount[]
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
 
@@ -1001,12 +1035,13 @@ model PaymentRefund {
 // ---------------------------------------------------------------------------
 
 model Cart {
-  id        String     @id @default(cuid())
-  userId    String     @unique
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     CartItem[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id             String     @id @default(cuid())
+  userId         String?    @unique
+  user           User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guestTokenHash String?    @unique
+  items          CartItem[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   @@map("cart")
 }

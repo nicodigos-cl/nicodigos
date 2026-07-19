@@ -7,7 +7,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { buildDeliveriesHref } from "@/components/admin/deliveries/deliveries-toolbar";
+import { buildDeliveriesHref } from "@/lib/deliveries/href";
 import type { DeliveriesListQuery } from "@/lib/validations/deliveries";
 
 type DeliveriesPaginationProps = {

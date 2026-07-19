@@ -13,6 +13,7 @@ import {
 } from "@/lib/customer-dashboard/format";
 import { sendReactEmail } from "@/lib/email/resend";
 import { createLogger } from "@/lib/logger";
+import { buildOrderAccessUrl } from "@/lib/orders/access";
 import prisma from "@/lib/prisma";
 import { formatMoney, decimalToString } from "@/lib/products/format";
 
@@ -40,6 +41,7 @@ export async function sendCustomerOrderStatusEmail(input: {
       customerName: true,
       total: true,
       currency: true,
+      accessToken: true,
       user: { select: { name: true } },
       payments: {
         orderBy: { createdAt: "desc" },
@@ -57,7 +59,11 @@ export async function sendCustomerOrderStatusEmail(input: {
   const customerName =
     order.customerName?.trim() || order.user.name?.trim() || "cliente";
   const orderNumber = formatCustomerOrderNumber(order.id);
-  const orderUrl = `${appBaseUrl()}/dashboard/pedidos/${order.id}`;
+  const orderUrl = buildOrderAccessUrl(
+    appBaseUrl(),
+    order.id,
+    order.accessToken,
+  );
   const totalLabel = formatMoney(
     decimalToString(order.total) ?? "0",
     order.currency,

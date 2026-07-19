@@ -16,14 +16,15 @@ export function OneSignalProvider({ userId, children }: { userId: string; childr
   const [state, setState] = useState<PushState>(process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID ? "inactive" : "unavailable");
   const [pending, setPending] = useState(false);
 
-  const synchronize = useCallback(async () => {
+  const synchronize = useCallback(async (): Promise<PushState> => {
     const supported = OneSignal.Notifications.isPushSupported();
-    if (!supported) { setState("unsupported"); return; }
+    if (!supported) { setState("unsupported"); return "unsupported"; }
     const permission = OneSignal.Notifications.permissionNative;
     const optedIn = Boolean(OneSignal.User.PushSubscription.optedIn);
     const next: PushState = permission === "denied" ? "blocked" : permission === "granted" && optedIn ? "active" : "inactive";
     setState(next);
     await syncWebPushSubscriptionAction({ permissionStatus: permissionStatus(next), optedIn, subscriptionId: OneSignal.User.PushSubscription.id ?? null, browser: navigator.userAgent.slice(0, 80), platform: navigator.platform?.slice(0, 80) });
+    return next;
   }, []);
 
   useEffect(() => {
@@ -34,7 +35,10 @@ export function OneSignalProvider({ userId, children }: { userId: string; childr
       await OneSignal.login(userId);
       OneSignal.User.PushSubscription.addEventListener("change", onSubscriptionChange);
       OneSignal.Notifications.addEventListener("permissionChange", onSubscriptionChange);
-      await synchronize();
+      const next = await synchronize();
+      if (next === "inactive" && OneSignal.Notifications.permissionNative === "default") {
+        try { await OneSignal.Slidedown.promptPush(); } catch { /* Manual controls remain available. */ }
+      }
     }).catch(() => { if (active) setState("unavailable"); });
     return () => {
       active = false;

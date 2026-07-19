@@ -13,6 +13,10 @@ import {
   parseReleaseDate,
   pickCheapestOffer,
 } from "@/lib/kinguin/offers";
+import {
+  mirrorKinguinProductImages,
+  type MirroredKinguinImageAsset,
+} from "@/lib/kinguin/mirror-images";
 import { getKinguinClient, KinguinApiError } from "@/lib/kinguin-client";
 import { createLogger } from "@/lib/logger";
 import prisma from "@/lib/prisma";
@@ -142,6 +146,7 @@ export async function writeKinguinRelatedRecords(
   productId: string,
   remote: KinguinProduct,
   defaultOfferId: string,
+  options?: { imageAssets?: MirroredKinguinImageAsset[] },
 ) {
   const offers = remote.offers ?? [];
 
@@ -162,34 +167,21 @@ export async function writeKinguinRelatedRecords(
     });
   }
 
-  const coverUrl = remote.images?.cover?.url;
-  const coverThumb = remote.images?.cover?.thumbnail ?? coverUrl;
-  if (coverUrl) {
-    await tx.asset.create({
-      data: {
-        productId,
-        type: "IMAGE",
-        url: coverUrl,
-        thumbnailUrl: coverThumb ?? null,
-        sortOrder: 0,
-        isCover: true,
-      },
-    });
-  }
-
-  const screenshots = remote.images?.screenshots ?? [];
-  if (screenshots.length > 0) {
+  const imageAssets = options?.imageAssets;
+  if (imageAssets && imageAssets.length > 0) {
     await tx.asset.createMany({
-      data: screenshots
-        .filter((shot) => shot.url)
-        .slice(0, 12)
-        .map((shot, index) => ({
-          productId,
-          type: "IMAGE" as const,
-          url: shot.url as string,
-          thumbnailUrl: shot.thumbnail ?? null,
-          sortOrder: index + 1,
-        })),
+      data: imageAssets.map((asset) => ({
+        productId,
+        type: "IMAGE" as const,
+        url: asset.url,
+        objectKey: asset.objectKey,
+        thumbnailUrl: asset.thumbnailUrl,
+        mimeType: asset.mimeType,
+        fileName: asset.fileName,
+        sizeBytes: asset.sizeBytes,
+        sortOrder: asset.sortOrder,
+        isCover: asset.isCover,
+      })),
     });
   }
 
@@ -271,6 +263,7 @@ export async function importKinguinProduct(
   const { remote, cheapest, meta, costClp, availableQty } =
     await resolveKinguinLinkPayload(input.kinguinId);
   const sellPrice = applyMarkupPct(costClp, input.markupPct);
+  const mirroredImages = await mirrorKinguinProductImages(remote);
 
   const productId = await prisma.$transaction(async (tx) => {
     const slug = await uniqueSlug(tx, remote.name);
@@ -280,7 +273,7 @@ export async function importKinguinProduct(
         name: meta.name,
         slug,
         description: meta.description,
-        coverImageUrl: meta.coverImageUrl,
+        coverImageUrl: mirroredImages.coverImageUrl,
         status: ProductStatus.DRAFT,
         deliveryMethod: DeliveryMethod.KINGUIN,
         price: sellPrice,
@@ -327,6 +320,7 @@ export async function importKinguinProduct(
       created.id,
       remote,
       cheapest.offerId,
+      { imageAssets: mirroredImages.assets },
     );
 
     return created.id;

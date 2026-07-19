@@ -37,6 +37,7 @@ import {
   type CustomerDeliveriesListQuery,
 } from "@/lib/customer-dashboard/validations";
 import { parseSearchParamsRecord } from "@/lib/validations/products";
+import { buildDeliveriesHref } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Mis entregas",
@@ -45,23 +46,6 @@ export const metadata: Metadata = {
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
-
-function buildDeliveriesHref(
-  query: CustomerDeliveriesListQuery,
-  page: number,
-): string {
-  return customerDeliveriesPath({
-    page: page > 1 ? page : undefined,
-    pageSize: query.pageSize !== 10 ? query.pageSize : undefined,
-    q: query.q,
-    filter: query.filter !== "all" ? query.filter : undefined,
-    method: query.method,
-    sort: query.sort !== "newest" ? query.sort : undefined,
-    from: query.from,
-    to: query.to,
-  });
-}
-
 function hasActiveFilters(query: CustomerDeliveriesListQuery): boolean {
   return Boolean(
     query.q ||

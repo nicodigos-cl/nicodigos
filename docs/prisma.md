@@ -106,12 +106,21 @@ Order 1─* Payment
 OutboxEvent → entrega transaccional hacia BullMQ
 ```
 
+`Order.accessToken` es un secret de alta entropía (64 hex) para capability URLs
+(`/checkout/[orderId]?s=…`). Permite ver el estado del pedido sin sesión; se envía
+en el return de Flow y en emails de pedido/entrega. Tras validar `?s=`, se setea
+la cookie HTTP-only `nicodigos_order_access`.
+
 ### Carrito y wishlist
 
 ```
 User 1─0..1 Cart 1─* CartItem 1─0..1 CartItemSmm
 User 1─0..1 Wishlist 1─* WishlistItem
 ```
+
+`Cart.userId` es nullable para carritos invitados. En ese caso, `guestTokenHash`
+guarda únicamente el SHA-256 del token aleatorio enviado en una cookie HTTP-only;
+el constraint `cart_owner_check` exige exactamente un dueño (usuario o token guest).
 
 `CartItem` **no** tiene unique `(cartId, productId)`: el mismo producto SMM puede repetirse con links distintos.
 

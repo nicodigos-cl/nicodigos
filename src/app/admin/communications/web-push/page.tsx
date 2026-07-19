@@ -1,24 +1,158 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { HiOutlineBell } from "react-icons/hi2";
-import { Badge } from "@/components/ui/badge";
+
+import { WebPushTable } from "@/components/admin/communications/web-push-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import { getWebPushMetrics, getWebPushNotifications } from "@/lib/communications/web-push-queries";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
+import {
+  getWebPushMetrics,
+  getWebPushNotifications,
+} from "@/lib/communications/web-push-queries";
 import { webPushStatusLabels } from "@/lib/communications/status";
-import { parseSearchParamsRecord } from "@/lib/validations/products";
 import { pushListQuerySchema } from "@/lib/validations/communications";
+import { parseSearchParamsRecord } from "@/lib/validations/products";
 
-export default async function WebPushPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const parsed = pushListQuerySchema.safeParse(parseSearchParamsRecord(await searchParams)); if (!parsed.success) redirect("/admin/communications/web-push");
-  const [result, metrics] = await Promise.all([getWebPushNotifications(parsed.data), getWebPushMetrics(30)]);
-  const cards = [["Suscriptores activos", metrics.activeSubscribers], ["Nuevos suscriptores", metrics.newSubscribers], ["Permiso bloqueado", metrics.denied], ["Enviadas", metrics.sent], ["Entregadas", metrics.delivered], ["Clics", metrics.clicked], ["Fallidas", metrics.failedNotifications], ["Programadas", metrics.scheduled]] as const;
-  return <div className="space-y-5"><header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h1 className="font-heading text-2xl font-semibold">Notificaciones web</h1><p className="mt-1 text-sm text-muted-foreground">Borradores, programaciones, envíos y resultados reales de OneSignal.</p></div><Button nativeButton={false} render={<Link href="/admin/communications/web-push/new" />}>Nueva notificación web</Button></header>
-    <section><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{cards.map(([label, value]) => <Card key={label}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-heading text-2xl font-semibold tabular-nums">{value}</p></CardContent></Card>)}</div><p className="mt-2 text-xs text-muted-foreground">Actividad de los últimos {metrics.periodDays} días; suscriptores y permisos reflejan el estado local más reciente.</p></section>
-    <form method="get" action="/admin/communications/web-push" className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-3 sm:flex-row"><Input name="q" defaultValue={parsed.data.q} placeholder="Título, mensaje, ID interno o OneSignal…" aria-label="Buscar notificaciones" className="sm:flex-1" /><NativeSelect name="status" defaultValue={parsed.data.status ?? ""} aria-label="Estado"><NativeSelectOption value="">Todos los estados</NativeSelectOption>{Object.entries(webPushStatusLabels).map(([value, label]) => <NativeSelectOption key={value} value={value}>{label}</NativeSelectOption>)}</NativeSelect><NativeSelect name="kind" defaultValue={parsed.data.kind ?? ""} aria-label="Tipo"><NativeSelectOption value="">Todos los tipos</NativeSelectOption><NativeSelectOption value="OPERATIONAL">Operacional</NativeSelectOption><NativeSelectOption value="MARKETING">Marketing</NativeSelectOption><NativeSelectOption value="SECURITY">Seguridad</NativeSelectOption></NativeSelect><Button type="submit" variant="secondary">Aplicar</Button></form>
-    {result.total ? <><div className="hidden overflow-hidden rounded-2xl border border-border bg-card md:block"><table className="w-full text-sm"><thead className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground"><tr><th className="p-3">Título</th><th className="p-3">Estado</th><th className="p-3">Audiencia</th><th className="p-3 text-right">Enviadas</th><th className="p-3 text-right">Entregadas</th><th className="p-3 text-right">Clics</th><th className="p-3">Creada por</th><th className="p-3">Programada / enviada</th></tr></thead><tbody className="divide-y divide-border">{result.items.map((item) => <tr key={item.id} className="hover:bg-muted/30"><td className="p-3"><Link className="font-medium hover:text-primary" href={`/admin/communications/web-push/${item.id}`}>{item.title}</Link><p className="line-clamp-1 text-xs text-muted-foreground">{item.name}</p></td><td className="p-3"><Badge variant="secondary">{webPushStatusLabels[item.status]}</Badge></td><td className="p-3 text-xs">{item.audienceType.replaceAll("_", " ")} · {item.estimatedRecipients ?? "por resolver"}</td><td className="p-3 text-right tabular-nums">{item.successful}</td><td className="p-3 text-right tabular-nums">{item.delivered}</td><td className="p-3 text-right tabular-nums">{item.clicked}</td><td className="p-3 text-xs">{item.createdByEmail}</td><td className="p-3 text-xs">{item.scheduledAt ? new Intl.DateTimeFormat("es-CL", { dateStyle: "short", timeStyle: "short", timeZone: "America/Santiago" }).format(new Date(item.scheduledAt)) : item.sentAt ? new Intl.DateTimeFormat("es-CL", { dateStyle: "short", timeStyle: "short", timeZone: "America/Santiago" }).format(new Date(item.sentAt)) : "—"}</td></tr>)}</tbody></table></div><div className="grid gap-3 md:hidden">{result.items.map((item) => <Link href={`/admin/communications/web-push/${item.id}`} key={item.id} className="rounded-2xl border border-border bg-card p-4"><div className="flex items-start justify-between gap-3"><p className="font-medium">{item.title}</p><Badge variant="secondary">{webPushStatusLabels[item.status]}</Badge></div><p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{item.body}</p><div className="mt-3 grid grid-cols-3 gap-2 text-xs"><span>Entregadas {item.delivered}</span><span>Clics {item.clicked}</span><span>Fallidas {item.failed}</span></div></Link>)}</div></> : <Empty className="border border-border bg-card"><EmptyHeader><EmptyMedia variant="icon"><HiOutlineBell /></EmptyMedia><EmptyTitle>Sin notificaciones</EmptyTitle><EmptyDescription>Crea un borrador para comenzar. No se mostrarán datos simulados.</EmptyDescription></EmptyHeader><EmptyContent><Button nativeButton={false} render={<Link href="/admin/communications/web-push/new" />}>Crear notificación</Button></EmptyContent></Empty>}
-  </div>;
+export default async function WebPushPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const parsed = pushListQuerySchema.safeParse(
+    parseSearchParamsRecord(await searchParams),
+  );
+  if (!parsed.success) redirect("/admin/communications/web-push");
+
+  const [result, metrics] = await Promise.all([
+    getWebPushNotifications(parsed.data),
+    getWebPushMetrics(30),
+  ]);
+  const cards = [
+    ["Suscriptores activos", metrics.activeSubscribers],
+    ["Nuevos suscriptores", metrics.newSubscribers],
+    ["Permiso bloqueado", metrics.denied],
+    ["Enviadas", metrics.sent],
+    ["Entregadas", metrics.delivered],
+    ["Clics", metrics.clicked],
+    ["Fallidas", metrics.failedNotifications],
+    ["Programadas", metrics.scheduled],
+  ] as const;
+
+  return (
+    <div className="space-y-5">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold">
+            Notificaciones web
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Borradores, programaciones, envíos y resultados reales de OneSignal.
+          </p>
+        </div>
+        <Button
+          nativeButton={false}
+          render={<Link href="/admin/communications/web-push/new" />}
+        >
+          Nueva notificación web
+        </Button>
+      </header>
+
+      <section>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {cards.map(([label, value]) => (
+            <Card key={label}>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">{label}</p>
+                <p className="mt-1 font-heading text-2xl font-semibold tabular-nums">
+                  {value}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Actividad de los últimos {metrics.periodDays} días; suscriptores y
+          permisos reflejan el estado local más reciente.
+        </p>
+      </section>
+
+      <form
+        method="get"
+        action="/admin/communications/web-push"
+        className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-3 sm:flex-row"
+      >
+        <Input
+          name="q"
+          defaultValue={parsed.data.q}
+          placeholder="Título, mensaje, ID interno o OneSignal…"
+          aria-label="Buscar notificaciones"
+          className="sm:flex-1"
+        />
+        <NativeSelect
+          name="status"
+          defaultValue={parsed.data.status ?? ""}
+          aria-label="Estado"
+        >
+          <NativeSelectOption value="">Todos los estados</NativeSelectOption>
+          {Object.entries(webPushStatusLabels).map(([value, label]) => (
+            <NativeSelectOption key={value} value={value}>
+              {label}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+        <NativeSelect
+          name="kind"
+          defaultValue={parsed.data.kind ?? ""}
+          aria-label="Tipo"
+        >
+          <NativeSelectOption value="">Todos los tipos</NativeSelectOption>
+          <NativeSelectOption value="OPERATIONAL">
+            Operacional
+          </NativeSelectOption>
+          <NativeSelectOption value="MARKETING">Marketing</NativeSelectOption>
+          <NativeSelectOption value="SECURITY">Seguridad</NativeSelectOption>
+        </NativeSelect>
+        <Button type="submit" variant="secondary">
+          Aplicar
+        </Button>
+      </form>
+
+      {result.total ? (
+        <WebPushTable items={result.items} />
+      ) : (
+        <Empty className="border border-border bg-card">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <HiOutlineBell />
+            </EmptyMedia>
+            <EmptyTitle>Sin notificaciones</EmptyTitle>
+            <EmptyDescription>
+              Crea un borrador para comenzar. No se mostrarán datos simulados.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button
+              nativeButton={false}
+              render={<Link href="/admin/communications/web-push/new" />}
+            >
+              Crear notificación
+            </Button>
+          </EmptyContent>
+        </Empty>
+      )}
+    </div>
+  );
 }

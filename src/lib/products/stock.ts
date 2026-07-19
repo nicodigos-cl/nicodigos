@@ -5,6 +5,7 @@ export type ProductStockInput = {
   qty: number;
   textQty: number | null;
   availableKeysCount: number;
+  availableAccountsCount?: number;
   totalKeysCount: number;
   defaultOfferAvailableQty: number | null;
 };
@@ -23,7 +24,8 @@ export type ProductStockInfo = {
 export function getProductStock(input: ProductStockInput): ProductStockInfo {
   switch (input.deliveryMethod) {
     case "MANUAL": {
-      const available = input.availableKeysCount;
+      const available =
+        input.availableKeysCount + (input.availableAccountsCount ?? 0);
       const totalKeys = input.totalKeysCount;
 
       if (available <= 0) {
@@ -35,10 +37,16 @@ export function getProductStock(input: ProductStockInput): ProductStockInfo {
         };
       }
 
+      const accounts = input.availableAccountsCount ?? 0;
+      const label =
+        accounts > 0
+          ? `${available} disp. · ${input.availableKeysCount} keys · ${accounts} cuentas`
+          : `${available} disp. · ${totalKeys} keys`;
+
       return {
         available,
         totalKeys,
-        label: `${available} disp. · ${totalKeys} keys`,
+        label,
         isOutOfStock: false,
       };
     }
