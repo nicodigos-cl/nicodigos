@@ -2,6 +2,16 @@ import type { ServerWebSocket } from "bun";
 import Redis from "ioredis";
 
 import {
+  ORDER_EVENTS_CHANNEL,
+  type OrderLiveEvent,
+  type OrderWsClientMessage,
+  type OrderWsServerMessage,
+} from "../src/lib/order-live/events";
+import {
+  verifyOrderWsTicket,
+  type OrderWsTicketClaims,
+} from "../src/lib/order-live/ticket";
+import {
   SUPPORT_EVENTS_CHANNEL,
   type SupportLiveEvent,
   type SupportWsClientMessage,
@@ -12,24 +22,47 @@ import {
   type SupportWsTicketClaims,
 } from "../src/lib/support-live/ticket";
 
-type SocketData = {
+type SupportSocketData = {
+  kind: "support";
   claims: SupportWsTicketClaims;
   threads: Set<string>;
+  lastPongAt: number;
 };
+
+type OrderSocketData = {
+  kind: "order";
+  claims: OrderWsTicketClaims;
+  orders: Set<string>;
+  lastPongAt: number;
+};
+
+type SocketData = SupportSocketData | OrderSocketData;
+
+type ServerMessage =
+  | SupportWsServerMessage
+  | OrderWsServerMessage;
 
 const port = Number(process.env.PORT) || 3011;
 const redisUrl = process.env.REDIS_URL?.trim() || "redis://127.0.0.1:6379";
+const HEARTBEAT_INTERVAL_MS = 25_000;
+const HEARTBEAT_TIMEOUT_MS = 60_000;
 
 const sockets = new Set<ServerWebSocket<SocketData>>();
 
-function send(ws: ServerWebSocket<SocketData>, message: SupportWsServerMessage) {
+function send(ws: ServerWebSocket<SocketData>, message: ServerMessage) {
   if (ws.readyState === 1) {
     ws.send(JSON.stringify(message));
   }
 }
 
-function fanOut(event: SupportLiveEvent) {
+function canObserveOrder(claims: OrderWsTicketClaims, orderId: string): boolean {
+  if (claims.role === "ADMIN") return true;
+  return claims.orderId === orderId;
+}
+
+function fanOutSupport(event: SupportLiveEvent) {
   for (const ws of sockets) {
+    if (ws.data.kind !== "support") continue;
     const { claims, threads } = ws.data;
     const isAdmin = claims.role === "ADMIN";
     const ownsThread =
@@ -55,6 +88,17 @@ function fanOut(event: SupportLiveEvent) {
   }
 }
 
+function fanOutOrder(event: OrderLiveEvent) {
+  for (const ws of sockets) {
+    if (ws.data.kind !== "order") continue;
+    const { claims, orders } = ws.data;
+    if (!orders.has(event.orderId)) continue;
+    if (!canObserveOrder(claims, event.orderId)) continue;
+    if (claims.role !== "ADMIN" && claims.userId !== event.userId) continue;
+    send(ws, event);
+  }
+}
+
 async function publishTypingOrPresence(
   publisher: Redis,
   event: Extract<SupportLiveEvent, { type: "typing" | "presence" }>,
@@ -73,19 +117,26 @@ const publisher = new Redis(redisUrl, {
 });
 
 subscriber.on("error", (error) => {
-  console.error("[support-ws] redis subscriber error", error.message);
+  console.error("[live-ws] redis subscriber error", error.message);
 });
 
 publisher.on("error", (error) => {
-  console.error("[support-ws] redis publisher error", error.message);
+  console.error("[live-ws] redis publisher error", error.message);
 });
 
-await subscriber.subscribe(SUPPORT_EVENTS_CHANNEL);
-subscriber.on("message", (_channel, raw) => {
+await subscriber.subscribe(SUPPORT_EVENTS_CHANNEL, ORDER_EVENTS_CHANNEL);
+subscriber.on("message", (channel, raw) => {
   try {
+    if (channel === ORDER_EVENTS_CHANNEL) {
+      const event = JSON.parse(raw) as OrderLiveEvent;
+      if (!event?.type || !event.orderId) return;
+      fanOutOrder(event);
+      return;
+    }
+
     const event = JSON.parse(raw) as SupportLiveEvent;
     if (!event?.type || !event.threadId) return;
-    fanOut(event);
+    fanOutSupport(event);
   } catch {
     // ignore malformed payloads
   }
@@ -99,7 +150,8 @@ const server = Bun.serve<SocketData>({
     if (url.pathname === "/health") {
       return Response.json({
         ok: true,
-        service: "support-ws",
+        service: "live-ws",
+        channels: ["support", "orders"],
         sockets: sockets.size,
       });
     }
@@ -110,16 +162,35 @@ const server = Bun.serve<SocketData>({
         return new Response("Missing ticket", { status: 401 });
       }
 
-      const claims = verifySupportWsTicket(ticket);
-      if (!claims) {
+      // Same host (`wss://ws.nicodigos.cl/ws`): ticket shape selects the channel.
+      const orderClaims = verifyOrderWsTicket(ticket);
+      if (orderClaims) {
+        const upgraded = serverRef.upgrade(req, {
+          data: {
+            kind: "order",
+            claims: orderClaims,
+            orders: new Set<string>([orderClaims.orderId]),
+            lastPongAt: Date.now(),
+          } satisfies OrderSocketData,
+        });
+        if (!upgraded) {
+          return new Response("WebSocket upgrade failed", { status: 500 });
+        }
+        return undefined;
+      }
+
+      const supportClaims = verifySupportWsTicket(ticket);
+      if (!supportClaims) {
         return new Response("Invalid ticket", { status: 401 });
       }
 
       const upgraded = serverRef.upgrade(req, {
         data: {
-          claims,
+          kind: "support",
+          claims: supportClaims,
           threads: new Set<string>(),
-        },
+          lastPongAt: Date.now(),
+        } satisfies SupportSocketData,
       });
 
       if (!upgraded) {
@@ -133,6 +204,11 @@ const server = Bun.serve<SocketData>({
   websocket: {
     open(ws) {
       sockets.add(ws);
+      if (ws.data.kind === "order") {
+        send(ws, { type: "ready", userId: ws.data.claims.userId });
+        send(ws, { type: "subscribed", orderId: ws.data.claims.orderId });
+        return;
+      }
       send(ws, {
         type: "ready",
         role: ws.data.claims.role,
@@ -140,21 +216,43 @@ const server = Bun.serve<SocketData>({
       });
     },
     async message(ws, message) {
-      let parsed: SupportWsClientMessage;
+      let parsed: SupportWsClientMessage | OrderWsClientMessage;
       try {
-        parsed = JSON.parse(String(message)) as SupportWsClientMessage;
+        parsed = JSON.parse(String(message)) as
+          | SupportWsClientMessage
+          | OrderWsClientMessage;
       } catch {
         send(ws, { type: "error", message: "JSON inválido" });
         return;
       }
 
       if (parsed.type === "ping") {
+        ws.data.lastPongAt = Date.now();
         send(ws, { type: "pong" });
         return;
       }
 
+      if (ws.data.kind === "order") {
+        if (parsed.type === "order.subscribe") {
+          if (!canObserveOrder(ws.data.claims, parsed.orderId)) {
+            send(ws, { type: "error", message: "Forbidden" });
+            return;
+          }
+          ws.data.orders.add(parsed.orderId);
+          send(ws, { type: "subscribed", orderId: parsed.orderId });
+          return;
+        }
+        if (parsed.type === "order.unsubscribe") {
+          ws.data.orders.delete(parsed.orderId);
+          send(ws, { type: "unsubscribed", orderId: parsed.orderId });
+          return;
+        }
+        send(ws, { type: "error", message: "Evento no soportado" });
+        return;
+      }
+
       if (parsed.type === "thread.subscribe") {
-        if (!parsed.threadId) {
+        if (!("threadId" in parsed) || !parsed.threadId) {
           send(ws, { type: "error", message: "threadId requerido" });
           return;
         }
@@ -164,13 +262,14 @@ const server = Bun.serve<SocketData>({
       }
 
       if (parsed.type === "thread.unsubscribe") {
+        if (!("threadId" in parsed)) return;
         ws.data.threads.delete(parsed.threadId);
         send(ws, { type: "unsubscribed", threadId: parsed.threadId });
         return;
       }
 
       if (parsed.type === "typing" || parsed.type === "presence") {
-        if (!parsed.threadId || !ws.data.threads.has(parsed.threadId)) {
+        if (!("threadId" in parsed) || !parsed.threadId || !ws.data.threads.has(parsed.threadId)) {
           send(ws, {
             type: "error",
             message: "Debes suscribirte al hilo primero",
@@ -216,12 +315,23 @@ const server = Bun.serve<SocketData>({
   },
 });
 
+setInterval(() => {
+  const now = Date.now();
+  for (const ws of sockets) {
+    if (now - ws.data.lastPongAt > HEARTBEAT_TIMEOUT_MS) {
+      ws.close(4000, "heartbeat timeout");
+      continue;
+    }
+    send(ws, { type: "pong" });
+  }
+}, HEARTBEAT_INTERVAL_MS);
+
 console.log(
-  `[support-ws] listening on http://localhost:${server.port} (ws /ws)`,
+  `[live-ws] listening on http://localhost:${server.port} (ws /ws · support + orders)`,
 );
 
 async function shutdown() {
-  console.log("[support-ws] shutting down");
+  console.log("[live-ws] shutting down");
   subscriber.disconnect();
   publisher.disconnect();
   server.stop(true);

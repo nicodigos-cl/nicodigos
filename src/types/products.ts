@@ -137,6 +137,8 @@ export type StoreProductCardDto = {
   isOffer: boolean;
   categoryName: string | null;
   deliveryMethod: DeliveryMethod;
+  deliveryPromise: "INSTANT" | "DELAYED_12_24H" | "UNAVAILABLE";
+  deliveryDelayed: boolean;
 };
 
 export type StoreCatalogPageResult = {
@@ -182,10 +184,11 @@ export type StoreProductDetailDto = {
   isPreorder: boolean;
   deliveryMethod: DeliveryMethod;
   deliveryLabel: string;
-  /** Customer-facing ETA, e.g. "Inmediata" or "12-24 h". */
+  /** Customer-facing ETA, e.g. "Inmediata" or "12–24 horas". */
   deliveryEta: string;
-  /** True when Kinguin wallet cannot cover cost → delayed delivery. */
+  /** True when delivery is promised within 12–24h. */
   deliveryDelayed: boolean;
+  deliveryPromise: "INSTANT" | "DELAYED_12_24H" | "UNAVAILABLE";
   stockAvailable: number;
   stockLabel: string;
   inStock: boolean;

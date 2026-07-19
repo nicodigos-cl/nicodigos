@@ -107,8 +107,8 @@ Credenciales sandbox ≠ producción. Ver [arquitectura → stock Kinguin](./arc
 
 | Variable | Notas |
 | --- | --- |
-| `SUPPORT_WS_SECRET` | HMAC tickets + auth del gateway |
-| `NEXT_PUBLIC_SUPPORT_WS_URL` | `ws://127.0.0.1:3011/ws` local; `wss://…` en prod |
+| `SUPPORT_WS_SECRET` | HMAC tickets (soporte + órdenes) |
+| `NEXT_PUBLIC_SUPPORT_WS_URL` | `ws://127.0.0.1:3011/ws` local; `wss://ws.nicodigos.cl/ws` en prod |
 | `PORT` | Puerto del gateway (`3011` típico) |
 
 ### Crons

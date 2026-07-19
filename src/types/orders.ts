@@ -39,6 +39,7 @@ export type OrderItemDto = {
   quantity: number;
   lineTotal: string;
   deliveryMethod: DeliveryMethod;
+  deliveryPromise: "INSTANT" | "DELAYED_12_24H" | "UNAVAILABLE" | null;
 };
 
 export type OrderPaymentDto = {
@@ -70,6 +71,7 @@ export type OrderDetailDto = {
   items: OrderItemDto[];
   payments: OrderPaymentDto[];
   checkoutUrl: string;
+  hasDelayedPromise: boolean;
 };
 
 export type OrderProductOptionDto = {
@@ -114,6 +116,7 @@ export type CartLineDto = {
   lineTotal: string;
   inStock: boolean;
   deliveryMethod: DeliveryMethod;
+  deliveryPromise: "INSTANT" | "DELAYED_12_24H" | "UNAVAILABLE" | null;
   smmServiceType: string | null;
   smmMin: number | null;
   smmMax: number | null;

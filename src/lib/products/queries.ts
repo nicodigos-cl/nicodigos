@@ -12,6 +12,14 @@ import {
   getCachedKinguinRegionName,
 } from "@/lib/kinguin/balance";
 import { resolvePersistedOfferQty } from "@/lib/kinguin/offers";
+import {
+  calculateDeliveryPromise,
+  deliveryPromiseCustomerCopy,
+  deliveryPromiseLabel,
+} from "@/lib/delivery-promise/calculate";
+import { getKinguinBalance } from "@/lib/providers/kinguin-balance";
+import { getSmmProviderBalanceByApiUrl } from "@/lib/providers/smm-balance";
+import type { ProviderBalanceSnapshot } from "@/lib/providers/balance-types";
 import type {
   CategoryOptionDto,
   ProductDetailDto,
@@ -515,12 +523,15 @@ function toStoreProductCard(product: {
     category: { name: string };
   }[];
   assets: Array<{ url: string; thumbnailUrl: string | null }>;
+  deliveryPromise?: "INSTANT" | "DELAYED_12_24H" | "UNAVAILABLE";
+  deliveryDelayed?: boolean;
 }): StoreProductCardDto {
   const imageUrl =
     product.coverImageUrl ??
     product.assets[0]?.thumbnailUrl ??
     product.assets[0]?.url ??
     null;
+  const deliveryPromise = product.deliveryPromise ?? "INSTANT";
 
   return {
     id: product.id,
@@ -534,6 +545,8 @@ function toStoreProductCard(product: {
     isOffer: product.isOffer,
     categoryName: product.categories[0]?.category.name ?? null,
     deliveryMethod: product.deliveryMethod,
+    deliveryPromise,
+    deliveryDelayed: product.deliveryDelayed ?? deliveryPromise === "DELAYED_12_24H",
   };
 }
 
@@ -547,6 +560,12 @@ const storeProductCardSelect = {
   currency: true,
   isOffer: true,
   deliveryMethod: true,
+  qty: true,
+  textQty: true,
+  sourceCostPrice: true,
+  smmRate: true,
+  smmServiceType: true,
+  smmApiUrl: true,
   categories: {
     take: 1,
     orderBy: { createdAt: "asc" as const },
@@ -558,7 +577,114 @@ const storeProductCardSelect = {
     take: 1,
     select: { url: true, thumbnailUrl: true },
   },
+  offers: {
+    where: { isDefault: true },
+    take: 1,
+    select: { availableQty: true, qty: true, textQty: true },
+  },
+  _count: { select: { keys: true } },
 } as const;
+
+async function enrichStoreProductCards(
+  products: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    coverImageUrl: string | null;
+    price: { toString(): string };
+    compareAtPrice: { toString(): string } | null;
+    currency: string;
+    isOffer: boolean;
+    deliveryMethod: "SMM" | "KINGUIN" | "MANUAL";
+    qty: number;
+    textQty: number | null;
+    sourceCostPrice: { toString(): string } | null;
+    smmRate: { toString(): string } | null;
+    smmServiceType: string | null;
+    smmApiUrl: string | null;
+    categories: { category: { name: string } }[];
+    assets: Array<{ url: string; thumbnailUrl: string | null }>;
+    offers: Array<{
+      availableQty: number | null;
+      qty: number;
+      textQty: number;
+    }>;
+    _count: { keys: number };
+  }>,
+): Promise<StoreProductCardDto[]> {
+  if (products.length === 0) return [];
+
+  const needsKinguin = products.some((p) => p.deliveryMethod === "KINGUIN");
+  const smmUrls = [
+    ...new Set(
+      products
+        .filter((p) => p.deliveryMethod === "SMM" && p.smmApiUrl)
+        .map((p) => p.smmApiUrl as string),
+    ),
+  ];
+
+  const [kinguinBalance, ...smmBalances] = await Promise.all([
+    needsKinguin ? getKinguinBalance() : Promise.resolve(null),
+    ...smmUrls.map((url) => getSmmProviderBalanceByApiUrl(url)),
+  ]);
+
+  const smmByUrl = new Map<string, ProviderBalanceSnapshot | null>();
+  smmUrls.forEach((url, index) => {
+    smmByUrl.set(url, smmBalances[index] ?? null);
+  });
+
+  const manualKeyCounts = await Promise.all(
+    products
+      .filter((p) => p.deliveryMethod === "MANUAL")
+      .map(async (p) => {
+        const count = await prisma.productKey.count({
+          where: { productId: p.id, status: ProductKeyStatus.AVAILABLE },
+        });
+        return [p.id, count] as const;
+      }),
+  );
+  const keysByProduct = new Map(manualKeyCounts);
+
+  return products.map((product) => {
+    const defaultOffer = product.offers[0];
+    const stock = getProductStock({
+      deliveryMethod: product.deliveryMethod,
+      qty: product.qty,
+      textQty: product.textQty,
+      availableKeysCount: keysByProduct.get(product.id) ?? 0,
+      totalKeysCount: product._count.keys,
+      defaultOfferAvailableQty: defaultOffer
+        ? resolvePersistedOfferQty(defaultOffer)
+        : null,
+    });
+
+    const estimate = calculateDeliveryPromise({
+      product: {
+        deliveryMethod: product.deliveryMethod,
+        quantity: 1,
+        stockAvailable: stock.available,
+        sourceCostEur: product.sourceCostPrice
+          ? Number.parseFloat(product.sourceCostPrice.toString())
+          : null,
+        smmRateUsd: product.smmRate
+          ? Number.parseFloat(product.smmRate.toString())
+          : null,
+        smmServiceType: product.smmServiceType,
+        smmApiUrl: product.smmApiUrl,
+      },
+      kinguinBalance,
+      smmBalance: product.smmApiUrl
+        ? smmByUrl.get(product.smmApiUrl)
+        : null,
+    });
+
+    return toStoreProductCard({
+      ...product,
+      deliveryPromise: estimate.promise,
+      deliveryDelayed: estimate.promise === "DELAYED_12_24H",
+    });
+  });
+}
 
 /**
  * Popular storefront products: featured first, then recent ACTIVE to fill.
@@ -577,7 +703,7 @@ export async function getPopularStoreProducts(
   });
 
   if (featured.length >= limit) {
-    return featured.map(toStoreProductCard);
+    return enrichStoreProductCards(featured);
   }
 
   const remaining = limit - featured.length;
@@ -593,7 +719,7 @@ export async function getPopularStoreProducts(
     select: storeProductCardSelect,
   });
 
-  return [...featured, ...fillers].map(toStoreProductCard);
+  return enrichStoreProductCards([...featured, ...fillers]);
 }
 
 /**
@@ -615,7 +741,7 @@ export async function getTrendingStoreProducts(
     select: storeProductCardSelect,
   });
 
-  return products.map(toStoreProductCard);
+  return enrichStoreProductCards(products);
 }
 
 /** Newest active products by creation date. */
@@ -631,7 +757,7 @@ export async function getNewStoreProducts(
     select: storeProductCardSelect,
   });
 
-  return products.map(toStoreProductCard);
+  return enrichStoreProductCards(products);
 }
 
 /** Active products marked as offers. */
@@ -649,7 +775,7 @@ export async function getOfferStoreProducts(
   });
 
   if (offers.length >= limit) {
-    return offers.map(toStoreProductCard);
+    return enrichStoreProductCards(offers);
   }
 
   const offerIds = offers.map((product) => product.id);
@@ -664,7 +790,7 @@ export async function getOfferStoreProducts(
     select: storeProductCardSelect,
   });
 
-  return [...offers, ...fillers].map(toStoreProductCard);
+  return enrichStoreProductCards([...offers, ...fillers]);
 }
 
 function storeDeliveryLabel(
@@ -673,25 +799,11 @@ function storeDeliveryLabel(
 ): string {
   switch (method) {
     case "SMM":
-      return "Servicio SMM";
+      return options?.delayed ? "Servicio SMM · 12–24 h" : "Servicio SMM";
     case "KINGUIN":
-      return options?.delayed ? "Entrega 12-24 h" : "Entrega automática";
+      return options?.delayed ? "Entrega 12–24 h" : "Entrega automática";
     case "MANUAL":
-      return "Key digital";
-  }
-}
-
-function storeDeliveryEta(
-  method: "SMM" | "KINGUIN" | "MANUAL",
-  delayed: boolean,
-): string {
-  switch (method) {
-    case "SMM":
-      return "Procesamiento automático";
-    case "KINGUIN":
-      return delayed ? "12-24 horas" : "Inmediata";
-    case "MANUAL":
-      return "Inmediata";
+      return options?.delayed ? "Key digital · 12–24 h" : "Key digital";
   }
 }
 
@@ -895,6 +1007,8 @@ export async function getStoreProductBySlug(
       releaseDate: true,
       sourceCostPrice: true,
       smmServiceType: true,
+      smmRate: true,
+      smmApiUrl: true,
       smmMin: true,
       smmMax: true,
       categories: {
@@ -956,18 +1070,31 @@ export async function getStoreProductBySlug(
   const sourceCostNumber =
     sourceCostEur != null ? Number.parseFloat(sourceCostEur) : null;
 
-  const [kinguinBalance, regionName] = await Promise.all([
-    isKinguin ? getCachedKinguinBalance() : Promise.resolve(null),
+  const [kinguinBalance, regionName, smmBalance] = await Promise.all([
+    isKinguin ? getKinguinBalance() : Promise.resolve(null),
     getCachedKinguinRegionName(product.regionId),
+    product.deliveryMethod === "SMM" && product.smmApiUrl
+      ? getSmmProviderBalanceByApiUrl(product.smmApiUrl)
+      : Promise.resolve(null),
   ]);
 
-  const deliveryDelayed =
-    isKinguin &&
-    !canAffordKinguinPurchase(kinguinBalance, sourceCostNumber);
-  const deliveryEta = storeDeliveryEta(
-    product.deliveryMethod,
-    deliveryDelayed,
-  );
+  const promiseEstimate = calculateDeliveryPromise({
+    product: {
+      deliveryMethod: product.deliveryMethod,
+      quantity: 1,
+      stockAvailable: stock.available,
+      sourceCostEur: sourceCostNumber,
+      smmRateUsd: product.smmRate
+        ? Number.parseFloat(product.smmRate.toString())
+        : null,
+      smmServiceType: product.smmServiceType,
+      smmApiUrl: product.smmApiUrl,
+    },
+    kinguinBalance,
+    smmBalance,
+  });
+  const deliveryDelayed = promiseEstimate.promise === "DELAYED_12_24H";
+  const deliveryEta = deliveryPromiseLabel(promiseEstimate.promise);
   const priceIsPerThousand =
     product.deliveryMethod === "SMM" &&
     smmUsesPerThousandPricing(product.smmServiceType);
@@ -1001,6 +1128,7 @@ export async function getStoreProductBySlug(
     }),
     deliveryEta,
     deliveryDelayed,
+    deliveryPromise: promiseEstimate.promise,
     stockAvailable: stock.available,
     stockLabel: stock.label,
     inStock: stock.available > 0,
@@ -1230,7 +1358,7 @@ export async function getStoreCatalogPage(
   const totalPages = Math.max(1, Math.ceil(total / input.pageSize));
 
   return {
-    items: products.map(toStoreProductCard),
+    items: await enrichStoreProductCards(products),
     total,
     page: input.page,
     pageSize: input.pageSize,
@@ -1253,7 +1381,7 @@ export async function getRelatedStoreProducts(
       take: limit,
       select: storeProductCardSelect,
     });
-    return products.map(toStoreProductCard);
+    return enrichStoreProductCards(products);
   }
 
   const related = await prisma.product.findMany({
@@ -1270,7 +1398,7 @@ export async function getRelatedStoreProducts(
   });
 
   if (related.length >= limit) {
-    return related.map(toStoreProductCard);
+    return enrichStoreProductCards(related);
   }
 
   const relatedIds = related.map((product) => product.id);
@@ -1286,5 +1414,5 @@ export async function getRelatedStoreProducts(
     select: storeProductCardSelect,
   });
 
-  return [...related, ...fillers].map(toStoreProductCard);
+  return enrichStoreProductCards([...related, ...fillers]);
 }

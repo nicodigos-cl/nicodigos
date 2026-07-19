@@ -7,7 +7,6 @@ import {
 } from "@/components/store/checkout-page-client";
 import { getSession } from "@/lib/auth/session";
 import { getCartForUser } from "@/lib/cart/queries";
-import { getOrderById } from "@/lib/orders/queries";
 import prisma from "@/lib/prisma";
 import { getOperationalSettings } from "@/lib/settings/runtime";
 import { BOLETA_NAMED_THRESHOLD_CLP } from "@/lib/validations/checkout-billing";
@@ -24,30 +23,7 @@ export default async function CheckoutPage({
   const orderId = Array.isArray(orderIdRaw) ? orderIdRaw[0] : orderIdRaw;
 
   if (orderId) {
-    const order = await getOrderById(orderId);
-    if (!order) {
-      redirect("/cart");
-    }
-    return (
-      <CheckoutPageClient
-        mode="order"
-        order={order}
-        billingDefaults={{
-          email: order.email,
-          customerName: order.customerName ?? order.userName ?? "",
-          phone: "",
-          invoiceType: "BOLETA",
-          rut: "",
-          businessName: "",
-          businessActivity: "",
-          addressLine1: "",
-          addressLine2: "",
-          commune: "",
-          city: "",
-          region: "",
-        }}
-      />
-    );
+    redirect(`/checkout/${encodeURIComponent(orderId)}`);
   }
 
   const session = await getSession();

@@ -156,6 +156,7 @@ export async function getOrderById(
           unitPrice: true,
           quantity: true,
           deliveryMethod: true,
+          deliveryPromise: true,
           product: {
             select: {
               slug: true,
@@ -193,6 +194,9 @@ export async function getOrderById(
   }
 
   const baseUrl = getAppBaseUrl();
+  const hasDelayedPromise = order.items.some(
+    (item) => item.deliveryPromise === "DELAYED_12_24H",
+  );
 
   return {
     id: order.id,
@@ -207,7 +211,8 @@ export async function getOrderById(
     userEmail: order.user.email,
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
-    checkoutUrl: `${baseUrl}/checkout?orderId=${encodeURIComponent(order.id)}`,
+    checkoutUrl: `${baseUrl}/checkout/${encodeURIComponent(order.id)}`,
+    hasDelayedPromise,
     items: order.items.map((item) => {
       const unitPrice = decimalToString(item.unitPrice) ?? "0";
       const lineTotal = (
@@ -229,6 +234,7 @@ export async function getOrderById(
         quantity: item.quantity,
         lineTotal,
         deliveryMethod: item.deliveryMethod,
+        deliveryPromise: item.deliveryPromise,
       };
     }),
     payments: order.payments.map((payment) => ({

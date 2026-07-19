@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -25,33 +26,36 @@ export default async function CheckoutReturnPage({
 
   let paid = order?.status === "PAID" || order?.status === "FULFILLED";
 
-  if (token && orderId && !paid) {
+  // Never trust browser params alone — always verify with Flow when a token is present.
+  if (token && orderId) {
     try {
       const flow = getFlowClient();
       const status = await flow.payments.status.byToken(token);
-      if (status.status === 2) {
-        await processVerifiedFlowPayment({
-          token,
-          source: "CALLBACK",
-          snapshot: {
-            status: mapFlowStatus(status.status),
-            providerStatus: status.statusStr,
-            flowOrder: status.flowOrder,
-            commerceOrder: status.commerceOrder,
-            amount: status.amount,
-            currency: status.currency,
-            payerEmail: status.payer,
-            paymentMethod: status.paymentData?.media ?? null,
-            paidAt: status.paymentData?.date
-              ? new Date(status.paymentData.date.replace(" ", "T"))
-              : null,
-          },
-        });
-        paid = true;
-      }
+      await processVerifiedFlowPayment({
+        token,
+        source: "CALLBACK",
+        snapshot: {
+          status: mapFlowStatus(status.status),
+          providerStatus: status.statusStr,
+          flowOrder: status.flowOrder,
+          commerceOrder: status.commerceOrder,
+          amount: status.amount,
+          currency: status.currency,
+          payerEmail: status.payer,
+          paymentMethod: status.paymentData?.media ?? null,
+          paidAt: status.paymentData?.date
+            ? new Date(status.paymentData.date.replace(" ", "T"))
+            : null,
+        },
+      });
+      paid = status.status === 2;
     } catch {
       // Keep pending UI if verification fails.
     }
+  }
+
+  if (orderId) {
+    redirect(`/checkout/${encodeURIComponent(orderId)}`);
   }
 
   return (
@@ -74,17 +78,6 @@ export default async function CheckoutReturnPage({
         <Button render={<Link href="/" />} nativeButton={false}>
           Ir al inicio
         </Button>
-        {orderId ? (
-          <Button
-            variant="outline"
-            render={
-              <Link href={`/checkout?orderId=${encodeURIComponent(orderId)}`} />
-            }
-            nativeButton={false}
-          >
-            Ver checkout
-          </Button>
-        ) : null}
       </div>
     </div>
   );

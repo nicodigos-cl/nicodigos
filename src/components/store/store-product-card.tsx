@@ -49,7 +49,7 @@ export function StoreProductCard({
         ) : null}
       </div>
 
-      <div className="mt-2 flex flex-col justify-between gap-1 sm:mt-4 sm:flex-row sm:gap-3">
+        <div className="mt-2 flex flex-col justify-between gap-1 sm:mt-4 sm:flex-row sm:gap-3">
         <div className="min-w-0">
           <h3 className="truncate text-xs font-medium text-foreground sm:text-sm">
             <Link href={product.href} className="hover:text-primary">
@@ -60,6 +60,11 @@ export function StoreProductCard({
           {product.categoryName ? (
             <p className="mt-0.5 truncate text-[10px] text-muted-foreground sm:mt-1 sm:text-sm">
               {product.categoryName}
+            </p>
+          ) : null}
+          {product.deliveryDelayed ? (
+            <p className="mt-0.5 text-[10px] text-amber-700 dark:text-amber-400 sm:text-xs">
+              Entrega en 12–24 horas
             </p>
           ) : null}
         </div>

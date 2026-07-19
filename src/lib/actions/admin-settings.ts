@@ -20,6 +20,10 @@ import {
   toStoreSettingsDto,
 } from "@/lib/settings/queries";
 import { invalidateOperationalSettingsCache } from "@/lib/settings/runtime";
+import {
+  assertAdminBalanceRefreshAllowed,
+  refreshProviderBalances,
+} from "@/lib/providers/balance";
 import { SmmService } from "@/lib/smm-service";
 import {
   checkoutSettingsSchema,
@@ -1004,3 +1008,49 @@ export async function testProviderConnectionAction(
 > {
   return testSmmProviderAction(rawInput);
 }
+
+export async function refreshProviderBalancesAction(): Promise<
+  ActionResult<{
+    kinguinStatus: string;
+    smmCount: number;
+  }>
+> {
+  const currentActor = await actor();
+  const gate = await assertAdminBalanceRefreshAllowed(currentActor.userId);
+  if (!gate.ok) {
+    return { success: false, message: gate.message };
+  }
+
+  try {
+    const result = await refreshProviderBalances({ forceRefresh: true });
+    await appendSettingsEvent({
+      section: "providers",
+      action: "refresh_balances",
+      actorUserId: currentActor.userId,
+      actorEmail: currentActor.email,
+      message: `Kinguin ${result.kinguin.status}; SMM ${result.smm.length}`,
+      result: "success",
+    });
+    return {
+      success: true,
+      data: {
+        kinguinStatus: result.kinguin.status,
+        smmCount: result.smm.length,
+      },
+    };
+  } catch {
+    await appendSettingsEvent({
+      section: "providers",
+      action: "refresh_balances",
+      actorUserId: currentActor.userId,
+      actorEmail: currentActor.email,
+      result: "failure",
+      message: "No se pudieron actualizar los saldos",
+    });
+    return {
+      success: false,
+      message: "No se pudieron actualizar los saldos de proveedores.",
+    };
+  }
+}
+

@@ -33,6 +33,15 @@ const JOBS = [
     intervalMs: envInt("CRON_CLEANUP_PRICE_EVENTS_INTERVAL_MS", 86_400_000),
     initialDelayMs: envInt("CRON_CLEANUP_PRICE_EVENTS_INITIAL_DELAY_MS", 15_000),
   },
+  {
+    name: "cron-refresh-provider-balances",
+    path: "/api/cron/refresh-provider-balances",
+    intervalMs: envInt("CRON_REFRESH_PROVIDER_BALANCES_INTERVAL_MS", 300_000),
+    initialDelayMs: envInt(
+      "CRON_REFRESH_PROVIDER_BALANCES_INITIAL_DELAY_MS",
+      12_000,
+    ),
+  },
 ] as const;
 
 async function main() {

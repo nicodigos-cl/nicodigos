@@ -137,8 +137,8 @@ public/
 
 - Persistencia en `CommunicationThread` / `CommunicationMessage` con `channel = LIVE_CHAT`.
 - Next.js mint ticket HMAC (`POST /api/support/ws-ticket`) y publica eventos a Redis `support:events`.
-- Servicio dedicado `support-ws` (`bun scripts/support-ws.ts`) hace fan-out por WebSocket.
-- Deploy: servicio WSS aparte; vars `SUPPORT_WS_SECRET`, `REDIS_URL`, `NEXT_PUBLIC_SUPPORT_WS_URL`.
+- El **mismo** gateway (`scripts/support-ws.ts` en `wss://ws.nicodigos.cl/ws`) también sirve estado de checkout: ticket `scope: order` (`POST /api/orders/[orderId]/ws-ticket`) y canal Redis `orders:events`.
+- Deploy: un servicio WSS; vars `SUPPORT_WS_SECRET`, `REDIS_URL`, `NEXT_PUBLIC_SUPPORT_WS_URL`.
 
 ### Deploy Railway
 

@@ -208,6 +208,11 @@ export function CartPageClient({ cart }: { cart: CartDto | null }) {
                               )}
                             </NativeSelect>
                           )}
+                          {product.deliveryPromise === "DELAYED_12_24H" ? (
+                            <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                              Entrega en 12–24 horas
+                            </p>
+                          ) : null}
 
                           <div className="absolute top-0 right-0">
                             <Button

@@ -223,6 +223,13 @@ enum DeliveryMethod {
   MANUAL
 }
 
+/// Snapshot of delivery ETA promised to the buyer at checkout / PDP.
+enum DeliveryPromise {
+  INSTANT
+  DELAYED_12_24H
+  UNAVAILABLE
+}
+
 enum ProductStatus {
   DRAFT
   ACTIVE
@@ -687,20 +694,25 @@ model Order {
 }
 
 model OrderItem {
-  id             String         @id @default(cuid())
-  orderId        String
-  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId      String
-  product        Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
-  productName    String
-  unitPrice      Decimal        @db.Decimal(12, 2)
-  quantity       Int
-  deliveryMethod DeliveryMethod
-  smm            OrderItemSmm?
-  delivery       Delivery?
-  productKeys    ProductKey[]
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id                    String           @id @default(cuid())
+  orderId               String
+  order                 Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId             String
+  product               Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productName           String
+  unitPrice             Decimal          @db.Decimal(12, 2)
+  quantity              Int
+  deliveryMethod        DeliveryMethod
+  /// ETA promised when the order was created (immutable snapshot).
+  deliveryPromise       DeliveryPromise?
+  /// Provider-side cost estimate used for the promise (USD/EUR).
+  estimatedCostAmount   Decimal?         @db.Decimal(14, 6)
+  estimatedCostCurrency String?
+  smm                   OrderItemSmm?
+  delivery              Delivery?
+  productKeys           ProductKey[]
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
 
   @@index([orderId])
   @@index([productId])
@@ -738,7 +750,10 @@ model Delivery {
   orderItemId         String         @unique
   orderItem           OrderItem      @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
   status              DeliveryStatus @default(PENDING)
+  /// Historical product method (never mutated for audit).
   deliveryMethod      DeliveryMethod
+  /// When set (e.g. MANUAL after provider failure), worker uses this instead of deliveryMethod.
+  effectiveDeliveryMethod DeliveryMethod?
   errorMessage        String?
   lastError           String?
   attemptCount        Int            @default(0)

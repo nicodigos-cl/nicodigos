@@ -1,4 +1,4 @@
-# Config-as-code for the support-ws service.
+# Config-as-code for the live WebSocket gateway (support + order status).
 # Railway → Settings → Config as Code → /railway.ws.toml
 
 [build]

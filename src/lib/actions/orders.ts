@@ -45,6 +45,7 @@ import {
   parseSmmOrderFieldsForType,
   type SmmOrderFieldsPayload,
 } from "@/lib/validations/smm-order-fields";
+import { resolveDeliveryPromisesForLines } from "@/lib/delivery-promise/resolve";
 
 function unauthorized<T>(): ActionResult<T> {
   return {
@@ -449,17 +450,25 @@ export async function checkoutFromCartAction(
     });
 
     const productIds = cart.items.map((item) => item.productId);
-    const products = await prisma.product.findMany({
-      where: { id: { in: productIds }, status: ProductStatus.ACTIVE },
-      select: {
-        id: true,
-        name: true,
-        price: true,
-        currency: true,
-        deliveryMethod: true,
-        smmServiceType: true,
-      },
-    });
+    const [products, promiseByLine] = await Promise.all([
+      prisma.product.findMany({
+        where: { id: { in: productIds }, status: ProductStatus.ACTIVE },
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          currency: true,
+          deliveryMethod: true,
+          smmServiceType: true,
+        },
+      }),
+      resolveDeliveryPromisesForLines(
+        cart.items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+      ),
+    ]);
     const productMap = new Map(products.map((p) => [p.id, p]));
 
     let subtotal = 0;
@@ -469,6 +478,9 @@ export async function checkoutFromCartAction(
       unitPrice: number;
       quantity: number;
       deliveryMethod: (typeof products)[number]["deliveryMethod"];
+      deliveryPromise: "INSTANT" | "DELAYED_12_24H" | "UNAVAILABLE";
+      estimatedCostAmount: number | null;
+      estimatedCostCurrency: string | null;
       smm: ReturnType<typeof smmPayloadToDb> | null;
     }> = [];
 
@@ -480,6 +492,16 @@ export async function checkoutFromCartAction(
           message: `El producto "${item.productName}" ya no está disponible.`,
         };
       }
+      const promise =
+        promiseByLine.get(`${item.productId}:${item.quantity}`) ??
+        promiseByLine.get(item.productId);
+      if (!promise || promise.promise === "UNAVAILABLE") {
+        return {
+          success: false,
+          message: `El producto "${item.productName}" no tiene entrega disponible en este momento.`,
+        };
+      }
+
       const catalogPrice = Number.parseFloat(product.price.toString());
 
       let smm: ReturnType<typeof smmPayloadToDb> | null = null;
@@ -531,6 +553,9 @@ export async function checkoutFromCartAction(
         unitPrice,
         quantity: item.quantity,
         deliveryMethod: product.deliveryMethod,
+        deliveryPromise: promise.promise,
+        estimatedCostAmount: promise.estimatedCostAmount,
+        estimatedCostCurrency: promise.estimatedCostCurrency,
         smm,
       });
     }
@@ -552,6 +577,9 @@ export async function checkoutFromCartAction(
               unitPrice: line.unitPrice,
               quantity: line.quantity,
               deliveryMethod: line.deliveryMethod,
+              deliveryPromise: line.deliveryPromise,
+              estimatedCostAmount: line.estimatedCostAmount,
+              estimatedCostCurrency: line.estimatedCostCurrency,
               ...(line.smm
                 ? {
                     smm: {
@@ -573,6 +601,7 @@ export async function checkoutFromCartAction(
 
     revalidatePath("/cart");
     revalidatePath("/checkout");
+    revalidatePath(`/checkout/${order.id}`);
     revalidatePath("/admin/orders");
 
     return {

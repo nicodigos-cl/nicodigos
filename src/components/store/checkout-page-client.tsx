@@ -67,6 +67,7 @@ type CheckoutLine = {
   imageUrl: string | null;
   href?: string;
   deliveryMethod?: string;
+  deliveryPromise?: "INSTANT" | "DELAYED_12_24H" | "UNAVAILABLE" | null;
   smmSummary?: string | null;
   smmComplete?: boolean;
   cartLine?: CartLineDto;
@@ -118,6 +119,11 @@ function OrderSummaryList({
                 {formatMoney(product.price, currency)}
               </p>
               <p className="text-muted-foreground">Cant. {product.quantity}</p>
+              {product.deliveryPromise === "DELAYED_12_24H" ? (
+                <p className="text-xs font-normal text-amber-700 dark:text-amber-400">
+                  Entrega en 12–24 horas
+                </p>
+              ) : null}
               {product.deliveryMethod === "SMM" ? (
                 <div className="space-y-1 pt-1">
                   <p className="truncate text-xs font-normal text-muted-foreground">
@@ -206,6 +212,8 @@ export function CheckoutPageClient({
           price: item.unitPrice,
           quantity: item.quantity,
           imageUrl: item.coverImageUrl,
+          deliveryMethod: item.deliveryMethod,
+          deliveryPromise: item.deliveryPromise,
         }))
       : (cart?.items ?? []).map((item) => ({
           id: item.id,
@@ -214,10 +222,15 @@ export function CheckoutPageClient({
           quantity: item.quantity,
           imageUrl: item.coverImageUrl,
           deliveryMethod: item.deliveryMethod,
+          deliveryPromise: item.deliveryPromise,
           smmSummary: smmSummaryLabel(item.smm ?? undefined),
           smmComplete: item.smmComplete,
           cartLine: item,
         }));
+
+  const hasDelayedPromise = lines.some(
+    (line) => line.deliveryPromise === "DELAYED_12_24H",
+  );
 
   const currency = order?.currency ?? cart?.currency ?? "CLP";
   const subtotal = order?.subtotal ?? cart?.subtotal ?? "0";
@@ -699,6 +712,13 @@ export function CheckoutPageClient({
             </FieldGroup>
 
             <Separator className="my-8" />
+
+            {hasDelayedPromise ? (
+              <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                Algunos productos se entregarán en 12–24 horas. Al continuar
+                aceptas ese plazo.
+              </p>
+            ) : null}
 
             <Button
               type="submit"

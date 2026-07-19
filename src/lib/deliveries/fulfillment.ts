@@ -8,12 +8,20 @@ import {
   ProductKeyStatus,
   type Prisma,
 } from "@/generated/prisma/client";
+import { sendAdminManualReviewEmail } from "@/lib/deliveries/admin-manual-review-email";
+import { recalculateOrderStatus } from "@/lib/deliveries/order-status";
 import { KinguinClient } from "@/lib/kinguin-client";
 import { createLogger } from "@/lib/logger";
+import { MANUAL_REVIEW_CUSTOMER_MESSAGE } from "@/lib/order-live/events";
+import { publishOrderLiveStatus } from "@/lib/order-live/publish";
 import prisma from "@/lib/prisma";
+import {
+  refreshBalancesAfterInsufficientFunds,
+  refreshBalancesAfterPurchase,
+} from "@/lib/providers/balance";
+import { getOperationalSettings } from "@/lib/settings/runtime";
 import { SmmApiError, SmmService } from "@/lib/smm-service";
 import type { SmmOrderPayload } from "@/types/smm";
-import { recalculateOrderStatus } from "@/lib/deliveries/order-status";
 
 const log = createLogger({ module: "delivery-fulfillment" });
 
@@ -90,7 +98,7 @@ async function fulfillManual(deliveryId: string): Promise<FulfillmentResult> {
         data: { status: ProductKeyStatus.SOLD, orderItemId: delivery.orderItem.id },
       });
       if (claimed.count !== 1) {
-        throw new Error("Una key fue asignada por otro proceso; el job se reintentará.");
+        throw new Error("Una key fue asignada por otro proceso; el job se reintentar?.");
       }
       await tx.deliveryKey.create({
         data: {
@@ -119,6 +127,9 @@ async function fulfillManual(deliveryId: string): Promise<FulfillmentResult> {
     await appendSystemEvent(tx, deliveryId, DeliveryStatus.DELIVERED, "Keys asignadas automáticamente");
     await recalculateOrderStatus(tx, delivery.orderItem.orderId);
     return { deliveryId, orderId: delivery.orderItem.orderId, status: DeliveryStatus.DELIVERED };
+  }).then(async (result) => {
+    await publishOrderLiveStatus(result.orderId);
+    return result;
   });
 }
 
@@ -225,8 +236,44 @@ async function fulfillSmm(deliveryId: string): Promise<FulfillmentResult> {
       await appendSystemEvent(tx, deliveryId, DeliveryStatus.PROCESSING, `Pedido enviado al panel SMM (#${remoteId})`);
       await recalculateOrderStatus(tx, delivery.orderItem.orderId);
     });
+
+    const product = await prisma.product.findUnique({
+      where: { id: delivery.orderItem.productId },
+      select: { smmApiUrl: true },
+    });
+    const provider = product?.smmApiUrl
+      ? await prisma.smmProvider.findFirst({
+          where: { apiUrl: product.smmApiUrl, status: "ACTIVE" },
+          select: { id: true },
+        })
+      : null;
+    await Promise.all([
+      refreshBalancesAfterPurchase({
+        provider: "SMM",
+        accountId: provider?.id,
+      }),
+      publishOrderLiveStatus(delivery.orderItem.orderId),
+    ]);
     return { deliveryId, orderId: delivery.orderItem.orderId, status: DeliveryStatus.PROCESSING };
   } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (/insufficient|not enough|low balance|no funds|fondos/i.test(message)) {
+      const product = await prisma.product.findUnique({
+        where: { id: delivery.orderItem.productId },
+        select: { smmApiUrl: true },
+      });
+      const provider = product?.smmApiUrl
+        ? await prisma.smmProvider.findFirst({
+            where: { apiUrl: product.smmApiUrl, status: "ACTIVE" },
+            select: { id: true },
+          })
+        : null;
+      await refreshBalancesAfterInsufficientFunds({
+        provider: "SMM",
+        accountId: provider?.id,
+        message,
+      });
+    }
     if (error instanceof SmmApiError && (!error.status || (error.status >= 200 && error.status < 500 && error.status !== 429))) {
       throw new FulfillmentManualReviewError(
         error.status ? error.message : `Resultado SMM incierto; conciliar antes de repetir. ${error.message}`,
@@ -238,7 +285,7 @@ async function fulfillSmm(deliveryId: string): Promise<FulfillmentResult> {
 
 async function persistKinguinOrder(deliveryId: string, orderId: string, order: Awaited<ReturnType<KinguinClient["placeOrderV1"]>>) {
   const remoteId = order.orderId || order.kinguinOrderId || "";
-  if (!remoteId) throw new Error("Kinguin no devolvió un identificador de orden.");
+  if (!remoteId) throw new Error("Kinguin no devolvi? un identificador de orden.");
   await prisma.$transaction(async (tx) => {
     await tx.delivery.update({
       where: { id: deliveryId },
@@ -320,17 +367,32 @@ async function fulfillKinguin(deliveryId: string): Promise<FulfillmentResult> {
   const price = Number.parseFloat(
     (delivery.orderItem.product.sourceCostPrice ?? delivery.orderItem.unitPrice).toString(),
   );
-  const order = await client.placeOrderV1({
-    orderExternalId,
-    products: [{
-      kinguinId: delivery.orderItem.product.kinguinId,
-      qty: delivery.orderItem.quantity,
-      price,
-      offerId: delivery.orderItem.product.kinguinOfferId ?? undefined,
-    }],
-  });
-  await persistKinguinOrder(deliveryId, delivery.orderItem.orderId, order);
-  return { deliveryId, orderId: delivery.orderItem.orderId, status: DeliveryStatus.PROCESSING };
+  try {
+    const order = await client.placeOrderV1({
+      orderExternalId,
+      products: [{
+        kinguinId: delivery.orderItem.product.kinguinId,
+        qty: delivery.orderItem.quantity,
+        price,
+        offerId: delivery.orderItem.product.kinguinOfferId ?? undefined,
+      }],
+    });
+    await persistKinguinOrder(deliveryId, delivery.orderItem.orderId, order);
+    await Promise.all([
+      refreshBalancesAfterPurchase({ provider: "KINGUIN" }),
+      publishOrderLiveStatus(delivery.orderItem.orderId),
+    ]);
+    return { deliveryId, orderId: delivery.orderItem.orderId, status: DeliveryStatus.PROCESSING };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (/insufficient|not enough|low balance|no funds|fondos|credit/i.test(message)) {
+      await refreshBalancesAfterInsufficientFunds({
+        provider: "KINGUIN",
+        message,
+      });
+    }
+    throw error;
+  }
 }
 
 export async function fulfillDelivery(deliveryId: string): Promise<FulfillmentResult> {
@@ -338,6 +400,7 @@ export async function fulfillDelivery(deliveryId: string): Promise<FulfillmentRe
     where: { id: deliveryId },
     select: {
       deliveryMethod: true,
+      effectiveDeliveryMethod: true,
       status: true,
       orderItem: {
         select: {
@@ -364,9 +427,10 @@ export async function fulfillDelivery(deliveryId: string): Promise<FulfillmentRe
     throw new FulfillmentManualReviewError("El pedido no tiene un pago confirmado.");
   }
 
-  log.info({ deliveryId, method: delivery.deliveryMethod }, "Starting delivery fulfillment");
-  if (delivery.deliveryMethod === DeliveryMethod.MANUAL) return fulfillManual(deliveryId);
-  if (delivery.deliveryMethod === DeliveryMethod.SMM) return fulfillSmm(deliveryId);
+  const method = delivery.effectiveDeliveryMethod ?? delivery.deliveryMethod;
+  log.info({ deliveryId, method, historicalMethod: delivery.deliveryMethod }, "Starting delivery fulfillment");
+  if (method === DeliveryMethod.MANUAL) return fulfillManual(deliveryId);
+  if (method === DeliveryMethod.SMM) return fulfillSmm(deliveryId);
   return fulfillKinguin(deliveryId);
 }
 
@@ -383,11 +447,13 @@ async function reconcileSmm(deliveryId: string): Promise<FulfillmentResult> {
   if (!delivery.externalOrderId) {
     throw new FulfillmentManualReviewError("La entrega SMM no tiene referencia remota para conciliar.");
   }
-  const { client } = await resolveSmmClient(delivery.orderItem.productId);
+  const [{ client }, settings] = await Promise.all([
+    resolveSmmClient(delivery.orderItem.productId),
+    getOperationalSettings(),
+  ]);
   const remote = await client.status(delivery.externalOrderId);
   const remoteStatus = String(remote.status);
   const normalized = remoteStatus.toLowerCase();
-  const settings = await (await import("@/lib/settings/runtime")).getOperationalSettings();
   const completed = normalized === "completed" || (normalized === "partial" && settings.smmAllowPartials);
   if (["canceled", "cancelled", "error"].some((value) => normalized.includes(value))) {
     throw new FulfillmentManualReviewError(`El panel SMM informó estado ${remoteStatus}.`);
@@ -415,6 +481,7 @@ async function reconcileSmm(deliveryId: string): Promise<FulfillmentResult> {
     }
     await recalculateOrderStatus(tx, delivery.orderItem.orderId);
   });
+  await publishOrderLiveStatus(delivery.orderItem.orderId);
   return { deliveryId, orderId: delivery.orderItem.orderId, status: nextStatus };
 }
 
@@ -489,24 +556,31 @@ async function reconcileKinguin(deliveryId: string): Promise<FulfillmentResult> 
         tx,
         deliveryId,
         nextStatus,
-        `Conciliado Kinguin: ${remoteStatus}${imported ? ` · +${imported} keys` : ""}`,
+        `Conciliado Kinguin: ${remoteStatus}${imported ? ` ? +${imported} keys` : ""}`,
       );
     }
     await recalculateOrderStatus(tx, delivery.orderItem.orderId);
   });
+  await publishOrderLiveStatus(delivery.orderItem.orderId);
   return { deliveryId, orderId: delivery.orderItem.orderId, status: nextStatus };
 }
 
 export async function reconcileDelivery(deliveryId: string): Promise<FulfillmentResult> {
   const delivery = await prisma.delivery.findUniqueOrThrow({
     where: { id: deliveryId },
-    select: { deliveryMethod: true, status: true, orderItem: { select: { orderId: true } } },
+    select: {
+      deliveryMethod: true,
+      effectiveDeliveryMethod: true,
+      status: true,
+      orderItem: { select: { orderId: true } },
+    },
   });
   if (delivery.status === DeliveryStatus.DELIVERED || delivery.status === DeliveryStatus.CANCELED) {
     return { deliveryId, orderId: delivery.orderItem.orderId, status: delivery.status };
   }
-  if (delivery.deliveryMethod === DeliveryMethod.SMM) return reconcileSmm(deliveryId);
-  if (delivery.deliveryMethod === DeliveryMethod.KINGUIN) return reconcileKinguin(deliveryId);
+  const method = delivery.effectiveDeliveryMethod ?? delivery.deliveryMethod;
+  if (method === DeliveryMethod.SMM) return reconcileSmm(deliveryId);
+  if (method === DeliveryMethod.KINGUIN) return reconcileKinguin(deliveryId);
   throw new FulfillmentManualReviewError("Una entrega MANUAL no requiere conciliación remota.");
 }
 
@@ -516,13 +590,27 @@ export async function recordFulfillmentFailure(
   manualReview: boolean,
 ) {
   const message = error instanceof Error ? error.message : "Error desconocido de fulfillment";
+  let orderId: string | null = null;
+
   await prisma.$transaction(async (tx) => {
     const delivery = await tx.delivery.findUnique({
       where: { id: deliveryId },
-      select: { status: true, orderItem: { select: { orderId: true } } },
+      select: {
+        status: true,
+        deliveryMethod: true,
+        orderItem: { select: { orderId: true } },
+      },
     });
-    if (!delivery || delivery.status === DeliveryStatus.DELIVERED || delivery.status === DeliveryStatus.CANCELED) return;
+    if (!delivery || delivery.status === DeliveryStatus.DELIVERED || delivery.status === DeliveryStatus.CANCELED) {
+      return;
+    }
+    orderId = delivery.orderItem.orderId;
     const status = manualReview ? DeliveryStatus.MANUAL_REVIEW : DeliveryStatus.FAILED;
+    const switchToManual =
+      manualReview &&
+      (delivery.deliveryMethod === DeliveryMethod.SMM ||
+        delivery.deliveryMethod === DeliveryMethod.KINGUIN);
+
     await tx.delivery.update({
       where: { id: deliveryId },
       data: {
@@ -530,9 +618,31 @@ export async function recordFulfillmentFailure(
         errorMessage: message.slice(0, 2_000),
         lastError: message.slice(0, 2_000),
         failedAt: new Date(),
+        ...(switchToManual
+          ? {
+              effectiveDeliveryMethod: DeliveryMethod.MANUAL,
+              customerMessage: MANUAL_REVIEW_CUSTOMER_MESSAGE,
+            }
+          : {}),
       },
     });
-    await appendSystemEvent(tx, deliveryId, status, manualReview ? `Requiere revisión manual: ${message}` : `Intento de fulfillment fallido: ${message}`);
+    await appendSystemEvent(
+      tx,
+      deliveryId,
+      status,
+      manualReview
+        ? `Requiere revisión manual: ${message}`
+        : `Intento de fulfillment fallido: ${message}`,
+    );
     await recalculateOrderStatus(tx, delivery.orderItem.orderId);
   });
+
+  if (!orderId) return;
+
+  // Side effects after PostgreSQL commit: notify in parallel, never block each other.
+  const tasks: Array<Promise<unknown>> = [publishOrderLiveStatus(orderId)];
+  if (manualReview) {
+    tasks.push(sendAdminManualReviewEmail(deliveryId));
+  }
+  await Promise.allSettled(tasks);
 }

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { DeliveryMethod } from "@/generated/prisma/client";
+import { resolveDeliveryPromisesForLines } from "@/lib/delivery-promise/resolve";
 import prisma from "@/lib/prisma";
 import { decimalToString } from "@/lib/products/format";
 import {
@@ -146,6 +147,7 @@ function toCartLine(item: {
     lineTotal,
     inStock,
     deliveryMethod: item.product.deliveryMethod,
+    deliveryPromise: null,
     smmServiceType: item.product.smmServiceType,
     smmMin: item.product.smmMin,
     smmMax: item.product.smmMax,
@@ -218,17 +220,34 @@ export async function getCartForUser(userId: string): Promise<CartDto | null> {
   }
 
   const items = cart.items.map(toCartLine);
-  const currency = items[0]?.currency ?? "CLP";
-  const subtotal = items
+  const promises = await resolveDeliveryPromisesForLines(
+    items.map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+    })),
+  );
+
+  const enriched = items.map((item) => {
+    const estimate =
+      promises.get(`${item.productId}:${item.quantity}`) ??
+      promises.get(item.productId);
+    return {
+      ...item,
+      deliveryPromise: estimate?.promise ?? null,
+    };
+  });
+
+  const currency = enriched[0]?.currency ?? "CLP";
+  const subtotal = enriched
     .reduce((sum, item) => sum + Number.parseFloat(item.lineTotal), 0)
     .toFixed(2);
 
   return {
     id: cart.id,
-    items,
+    items: enriched,
     subtotal,
     currency,
-    itemsCount: items.reduce((sum, item) => sum + item.quantity, 0),
+    itemsCount: enriched.reduce((sum, item) => sum + item.quantity, 0),
   };
 }
 

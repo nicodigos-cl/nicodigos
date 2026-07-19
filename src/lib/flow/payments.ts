@@ -154,7 +154,7 @@ export async function createFlowPaymentForOrder(orderId: string): Promise<FlowPa
     token: created.token,
     flowOrder: created.flowOrder,
     redirectUrl: created.redirectUrl,
-    checkoutUrl: `${baseUrl}/checkout?orderId=${encodeURIComponent(order.id)}`,
+    checkoutUrl: `${baseUrl}/checkout/${encodeURIComponent(order.id)}`,
   };
 }
 
