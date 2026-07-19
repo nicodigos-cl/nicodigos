@@ -50,10 +50,11 @@ ENV CI=$CI
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Prefer DATABASE_PUBLIC_URL for prerender; keep the value out of the RUN argv.
+# Prefer DATABASE_PUBLIC_URL for migrate + prerender; keep values out of RUN argv.
 RUN sh -ec '\
   if [ -n "${DATABASE_PUBLIC_URL:-}" ]; then export DATABASE_URL="$DATABASE_PUBLIC_URL"; fi; \
   bunx --bun prisma generate; \
+  bunx --bun prisma migrate deploy; \
   bun run build \
   '
 
