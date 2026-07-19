@@ -12,9 +12,10 @@ Store digital (CLP, Chile): keys, SMM panels, Kinguin ESA, Flow.cl, Better Auth,
 
 | Doc | When |
 | --- | --- |
-| [docs/architecture.md](docs/architecture.md) | Domain flows, folder layout, integrations |
+| [docs/architecture.md](docs/architecture.md) | Domain flows, Kinguin stock, Railway, folder layout |
 | [docs/patterns.md](docs/patterns.md) | How to write actions, queries, events, crons |
 | [docs/prisma.md](docs/prisma.md) | Schema map, migrations, client usage |
+| [docs/env.md](docs/env.md) | Env catalog (mirrors `.env.example`) + Railway services |
 | [README.md](README.md) | Setup, env, scripts |
 | `.env.example` | Required env vars |
 

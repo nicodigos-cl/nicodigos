@@ -13,7 +13,8 @@
   <a href="docs/README.md">Documentación</a> ·
   <a href="docs/architecture.md">Arquitectura</a> ·
   <a href="docs/patterns.md">Patrones</a> ·
-  <a href="docs/prisma.md">Prisma</a>
+  <a href="docs/prisma.md">Prisma</a> ·
+  <a href="docs/env.md">Env</a>
 </p>
 
 ---
@@ -153,6 +154,7 @@ Para web push, configura el origen HTTPS en OneSignal y usa el worker público `
 - [Arquitectura y flujos](docs/architecture.md)
 - [Patrones de código](docs/patterns.md)
 - [Modelo Prisma](docs/prisma.md)
+- [Variables de entorno](docs/env.md) (detalle de [`.env.example`](.env.example))
 
 ## Licencia
 
