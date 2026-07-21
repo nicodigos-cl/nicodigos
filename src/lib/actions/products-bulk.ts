@@ -22,6 +22,7 @@ import { PRODUCT_PROCESS_LIMIT } from "@/lib/smm-services/constants";
 import type { ImportProductItem } from "@/lib/validations/product-import";
 import {
   bulkUpdateProductStatusSchema,
+  bulkUpdateProductCoverSchema,
   checkProductsChileCompatibilitySchema,
   exportProductsSchema,
   selectProductsForQuerySchema,
@@ -296,4 +297,77 @@ export async function syncKinguinProductAction(
   revalidatePath("/admin/products");
 
   return { success: true, data: result };
+}
+
+export async function bulkUpdateProductCoverAction(
+  rawInput: unknown,
+): Promise<ActionResult<{ updated: number }>> {
+  const session = await requireSession();
+  if (!session) {
+    return unauthorized();
+  }
+
+  const parsed = bulkUpdateProductCoverSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return validationError(parsed.error);
+  }
+
+  const {
+    productIds,
+    coverImageUrl,
+    objectKey,
+    mimeType,
+    fileName,
+    sizeBytes,
+  } = parsed.data;
+
+  const existing = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true },
+  });
+  if (existing.length === 0) {
+    return { success: false, message: "No se encontraron productos." };
+  }
+
+  const ids = existing.map((item) => item.id);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.product.updateMany({
+      where: { id: { in: ids } },
+      data: { coverImageUrl },
+    });
+
+    await tx.asset.updateMany({
+      where: { productId: { in: ids }, type: "IMAGE", isCover: true },
+      data: { isCover: false },
+    });
+
+    for (const productId of ids) {
+      const maxSort = await tx.asset.aggregate({
+        where: { productId },
+        _max: { sortOrder: true },
+      });
+
+      await tx.asset.create({
+        data: {
+          productId,
+          type: "IMAGE",
+          url: coverImageUrl,
+          objectKey: objectKey ?? null,
+          mimeType: mimeType ?? null,
+          fileName: fileName ?? null,
+          sizeBytes: sizeBytes != null ? BigInt(sizeBytes) : null,
+          sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
+          isCover: true,
+        },
+      });
+    }
+  });
+
+  for (const productId of ids) {
+    revalidatePath(`/admin/products/${productId}`);
+  }
+  revalidatePath("/admin/products");
+
+  return { success: true, data: { updated: ids.length } };
 }

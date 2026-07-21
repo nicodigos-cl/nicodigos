@@ -329,6 +329,34 @@ export type CheckProductsChileCompatibilityInput = z.infer<
   typeof checkProductsChileCompatibilitySchema
 >;
 
+export const bulkUpdateProductCoverSchema = z.object({
+  productIds: z
+    .array(z.string().cuid())
+    .min(1)
+    .max(PRODUCT_PROCESS_LIMIT),
+  coverImageUrl: z.string().url("URL inválida").max(2000),
+  objectKey: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .regex(
+        /^products\/[0-9]{4}-[0-9]{2}-[0-9]{2}\/[a-f0-9-]+\.[a-z0-9]+$/,
+        "objectKey inválido",
+      )
+      .optional(),
+  ),
+  mimeType: z.preprocess(emptyToUndefined, z.string().max(120).optional()),
+  fileName: z.preprocess(emptyToUndefined, z.string().max(255).optional()),
+  sizeBytes: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().nonnegative().optional(),
+  ),
+});
+
+export type BulkUpdateProductCoverInput = z.infer<
+  typeof bulkUpdateProductCoverSchema
+>;
+
 export const selectProductsForQuerySchema = z.object({
   query: productsListQuerySchema,
   limit: z.coerce

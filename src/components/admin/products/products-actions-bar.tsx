@@ -1,20 +1,30 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   HiOutlineArchive,
   HiOutlineCheckCircle,
+  HiOutlineChevronDown,
   HiOutlineDocument,
   HiOutlineDocumentDownload,
   HiOutlineExclamation,
+  HiOutlinePhotograph,
   HiOutlineRefresh,
   HiOutlineViewGrid,
   HiOutlineX,
 } from "react-icons/hi";
 import { toast } from "sonner";
 
+import { BulkCoverImageDialog } from "@/components/admin/products/bulk-cover-image-dialog";
 import { SelectionLimitControl } from "@/components/admin/selection-limit-control";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   bulkUpdateProductStatusAction,
   checkProductsChileCompatibilityAction,
@@ -63,6 +73,7 @@ export function ProductsActionsBar({
   onRefresh,
 }: ProductsActionsBarProps) {
   const [isPending, startTransition] = useTransition();
+  const [coverOpen, setCoverOpen] = useState(false);
   const selectedCount = selected.length;
   const canExport =
     selectedCount >= 1 && selectedCount <= BULK_EXPORT_SELECTION_LIMIT;
@@ -165,7 +176,10 @@ export function ProductsActionsBar({
 
         const preview = incompatible
           .slice(0, 5)
-          .map((item) => `• ${item.name}${item.warning ? ` — ${item.warning}` : ""}`)
+          .map(
+            (item) =>
+              `• ${item.name}${item.warning ? ` — ${item.warning}` : ""}`,
+          )
           .join("\n");
         const more =
           incompatible.length > 5
@@ -215,133 +229,127 @@ export function ProductsActionsBar({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="tabular-nums text-muted-foreground">
-          {selectedCount} / {selectionLimit} seleccionados
-        </span>
-        <SelectionLimitControl
-          value={selectionLimit}
-          onChange={onSelectionLimitChange}
-          disabled={isPending}
-        />
-        {selectedCount > 0 ? (
-          <Button type="button" variant="ghost" size="sm" onClick={onClear}>
-            <HiOutlineX className="size-4" />
-            Limpiar
-          </Button>
-        ) : null}
-        {selectedCount > PRODUCT_PROCESS_LIMIT ? (
-          <span className="text-xs text-muted-foreground">
-            Procesar (publicar/archivar/sync): máx. {PRODUCT_PROCESS_LIMIT}
+    <>
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="tabular-nums text-muted-foreground">
+            {selectedCount} / {selectionLimit} seleccionados
           </span>
-        ) : null}
+          <SelectionLimitControl
+            value={selectionLimit}
+            onChange={onSelectionLimitChange}
+            disabled={isPending}
+          />
+          {selectedCount > 0 ? (
+            <Button type="button" variant="ghost" size="sm" onClick={onClear}>
+              <HiOutlineX className="size-4" />
+              Limpiar
+            </Button>
+          ) : null}
+          {selectedCount > PRODUCT_PROCESS_LIMIT ? (
+            <span className="text-xs text-muted-foreground">
+              Procesar: máx. {PRODUCT_PROCESS_LIMIT}
+            </span>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isPending || undefined}
+            onClick={handleSelectAll}
+          >
+            <HiOutlineViewGrid className="size-4" />
+            {isPending ? "Seleccionando..." : "Seleccionar todos"}
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isPending || selectedCount === 0 || undefined}
+                />
+              }
+            >
+              Acciones
+              <HiOutlineChevronDown className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-56">
+              <DropdownMenuItem
+                disabled={!canProcess}
+                onClick={() => handleStatus("ACTIVE")}
+              >
+                <HiOutlineCheckCircle className="size-4" />
+                Publicar
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!canProcess}
+                onClick={() => handleStatus("DRAFT")}
+              >
+                <HiOutlineDocument className="size-4" />
+                Pasar a borrador
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!canProcess}
+                onClick={() => handleStatus("ARCHIVED")}
+              >
+                <HiOutlineArchive className="size-4" />
+                Archivar
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={!canProcess}
+                onClick={() => {
+                  if (!canProcess) return;
+                  setCoverOpen(true);
+                }}
+              >
+                <HiOutlinePhotograph className="size-4" />
+                Cambiar foto
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!canProcess}
+                onClick={handleCheckChile}
+              >
+                <HiOutlineExclamation className="size-4" />
+                Verificar Chile
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!canSyncKinguin}
+                onClick={handleSyncKinguin}
+              >
+                <HiOutlineRefresh className="size-4" />
+                Sync Kinguin
+                {kinguinSelected.length > 0
+                  ? ` (${kinguinSelected.length})`
+                  : ""}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={!canExport}
+                onClick={handleExportSelected}
+              >
+                <HiOutlineDocumentDownload className="size-4" />
+                Exportar JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={isPending || undefined}
-          onClick={handleSelectAll}
-        >
-          <HiOutlineViewGrid className="size-4" />
-          {isPending ? "Seleccionando..." : "Seleccionar todos"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          aria-disabled={!canProcess}
-          className={!canProcess ? "pointer-events-none opacity-50" : undefined}
-          disabled={isPending || undefined}
-          onClick={() => {
-            if (!canProcess) return;
-            handleStatus("ACTIVE");
-          }}
-        >
-          <HiOutlineCheckCircle className="size-4" />
-          Publicar
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          aria-disabled={!canProcess}
-          className={!canProcess ? "pointer-events-none opacity-50" : undefined}
-          disabled={isPending || undefined}
-          onClick={() => {
-            if (!canProcess) return;
-            handleStatus("DRAFT");
-          }}
-        >
-          <HiOutlineDocument className="size-4" />
-          Borrador
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          aria-disabled={!canProcess}
-          className={!canProcess ? "pointer-events-none opacity-50" : undefined}
-          disabled={isPending || undefined}
-          onClick={() => {
-            if (!canProcess) return;
-            handleStatus("ARCHIVED");
-          }}
-        >
-          <HiOutlineArchive className="size-4" />
-          Archivar
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          aria-disabled={!canProcess}
-          className={!canProcess ? "pointer-events-none opacity-50" : undefined}
-          disabled={isPending || undefined}
-          onClick={() => {
-            if (!canProcess) return;
-            handleCheckChile();
-          }}
-        >
-          <HiOutlineExclamation className="size-4" />
-          Verificar Chile
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          aria-disabled={!canSyncKinguin}
-          className={
-            !canSyncKinguin ? "pointer-events-none opacity-50" : undefined
-          }
-          disabled={isPending || undefined}
-          onClick={() => {
-            if (!canSyncKinguin) return;
-            handleSyncKinguin();
-          }}
-        >
-          <HiOutlineRefresh className="size-4" />
-          Sync Kinguin
-          {kinguinSelected.length > 0 ? ` (${kinguinSelected.length})` : ""}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          aria-disabled={!canExport}
-          className={!canExport ? "pointer-events-none opacity-50" : undefined}
-          disabled={isPending || undefined}
-          onClick={() => {
-            if (!canExport) return;
-            handleExportSelected();
-          }}
-        >
-          <HiOutlineDocumentDownload className="size-4" />
-          Exportar
-        </Button>
-      </div>
-    </div>
+
+      <BulkCoverImageDialog
+        open={coverOpen}
+        onOpenChange={setCoverOpen}
+        productIds={selected.map((item) => item.id)}
+        onDone={() => {
+          onClear();
+          onRefresh();
+        }}
+      />
+    </>
   );
 }
 
