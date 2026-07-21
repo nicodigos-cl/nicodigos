@@ -242,15 +242,16 @@ export function BulkConvertServicesDialog({
         <DialogHeader>
           <DialogTitle>Convertir {services.length} servicios</DialogTitle>
           <DialogDescription>
-            IA solo traduce títulos. Markup aleatorio, costo CLP desde rate USD,
-            qty = máx. del servicio, textQty = mín. Status DRAFT.
+            IA solo traduce títulos. Markup aleatorio, costo CLP desde rate USD.
+            Stock ilimitado; min/max del servicio limitan el pedido. Status
+            DRAFT.
             {usdClpHint != null ? ` USD/CLP ≈ ${Math.round(usdClpHint)}` : null}
           </DialogDescription>
         </DialogHeader>
 
         <div className="rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          Se guardan tipo, categoría panel, min/max, refill y cancel de cada
-          servicio SMM. No hay campo dripfeed/dropfill en el schema actual.
+          Se guardan tipo, categoría panel, min/max, refill y cancel. El stock
+          SMM es ilimitado; min/max solo acotan la cantidad del pedido.
         </div>
 
         <div className="grid gap-4">

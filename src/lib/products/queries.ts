@@ -113,6 +113,8 @@ function toListItemDto(product: {
   currency: string;
   qty: number;
   textQty: number | null;
+  smmMin?: number | null;
+  smmMax?: number | null;
   isFeatured: boolean;
   isOffer: boolean;
   isPreorder: boolean;
@@ -135,6 +137,8 @@ function toListItemDto(product: {
     availableAccountsCount: product.availableAccountsCount ?? 0,
     totalKeysCount: product._count.keys,
     defaultOfferAvailableQty: product.defaultOfferAvailableQty,
+    smmMin: product.smmMin,
+    smmMax: product.smmMax,
   });
 
   const price = decimalToString(product.price) ?? "0";
@@ -206,6 +210,8 @@ export async function getProductsPage(
         currency: true,
         qty: true,
         textQty: true,
+        smmMin: true,
+        smmMax: true,
         isFeatured: true,
         isOffer: true,
         isPreorder: true,
@@ -310,6 +316,8 @@ export async function getProductById(
       currency: true,
       qty: true,
       textQty: true,
+      smmMin: true,
+      smmMax: true,
       isFeatured: true,
       isOffer: true,
       isPreorder: true,
@@ -394,6 +402,8 @@ export async function getProductById(
     defaultOfferAvailableQty: defaultOffer
       ? resolvePersistedOfferQty(defaultOffer)
       : null,
+    smmMin: product.smmMin,
+    smmMax: product.smmMax,
   });
 
   const price = decimalToString(product.price) ?? "0";
@@ -622,7 +632,8 @@ function toStoreProductCard(product: {
     categoryName: product.categories[0]?.category.name ?? null,
     deliveryMethod: product.deliveryMethod,
     deliveryPromise,
-    deliveryDelayed: product.deliveryDelayed ?? deliveryPromise === "DELAYED_12_24H",
+    deliveryDelayed:
+      product.deliveryDelayed ?? deliveryPromise === "DELAYED_12_24H",
   };
 }
 
@@ -642,6 +653,8 @@ const storeProductCardSelect = {
   smmRate: true,
   smmServiceType: true,
   smmApiUrl: true,
+  smmMin: true,
+  smmMax: true,
   categories: {
     take: 1,
     orderBy: { createdAt: "asc" as const },
@@ -678,6 +691,8 @@ async function enrichStoreProductCards(
     smmRate: { toString(): string } | null;
     smmServiceType: string | null;
     smmApiUrl: string | null;
+    smmMin: number | null;
+    smmMax: number | null;
     categories: { category: { name: string } }[];
     assets: Array<{ url: string; thumbnailUrl: string | null }>;
     offers: Array<{
@@ -739,6 +754,8 @@ async function enrichStoreProductCards(
       defaultOfferAvailableQty: defaultOffer
         ? resolvePersistedOfferQty(defaultOffer)
         : null,
+      smmMin: product.smmMin,
+      smmMax: product.smmMax,
     });
 
     const estimate = calculateDeliveryPromise({
@@ -756,9 +773,7 @@ async function enrichStoreProductCards(
         smmApiUrl: product.smmApiUrl,
       },
       kinguinBalance,
-      smmBalance: product.smmApiUrl
-        ? smmByUrl.get(product.smmApiUrl)
-        : null,
+      smmBalance: product.smmApiUrl ? smmByUrl.get(product.smmApiUrl) : null,
     });
 
     return toStoreProductCard({
@@ -997,9 +1012,7 @@ function buildStoreDetailSections(product: {
     regionItems.push(product.regionalLimitations);
   }
   if (product.countryLimitation.length > 0) {
-    regionItems.push(
-      `Países: ${product.countryLimitation.join(", ")}`,
-    );
+    regionItems.push(`Países: ${product.countryLimitation.join(", ")}`);
   }
   if (regionItems.length > 0) {
     sections.push({ name: "Región", items: regionItems });
@@ -1021,20 +1034,19 @@ function toStoreProductImages(product: {
     isCover: boolean;
   }>;
 }): StoreProductImageDto[] {
-  const images = product.assets
-    .map((asset, index) => {
-      let label = "Imagen";
-      if (asset.type === "VIDEO") label = "Video";
-      if (asset.type === "YOUTUBE") label = "YouTube";
-      return {
-        id: asset.id,
-        name: asset.altText ?? `${label} ${index + 1}`,
-        src: asset.url,
-        alt: asset.altText ?? product.name,
-        type: asset.type,
-        thumbnailUrl: asset.thumbnailUrl,
-      };
-    });
+  const images = product.assets.map((asset, index) => {
+    let label = "Imagen";
+    if (asset.type === "VIDEO") label = "Video";
+    if (asset.type === "YOUTUBE") label = "YouTube";
+    return {
+      id: asset.id,
+      name: asset.altText ?? `${label} ${index + 1}`,
+      src: asset.url,
+      alt: asset.altText ?? product.name,
+      type: asset.type,
+      thumbnailUrl: asset.thumbnailUrl,
+    };
+  });
 
   if (images.length > 0) {
     return images;
@@ -1155,6 +1167,8 @@ export async function getStoreProductBySlug(
     defaultOfferAvailableQty: defaultOffer
       ? resolvePersistedOfferQty(defaultOffer)
       : null,
+    smmMin: product.smmMin,
+    smmMax: product.smmMax,
   });
 
   const isKinguin = product.deliveryMethod === "KINGUIN";
@@ -1278,7 +1292,9 @@ export async function getStoreProductBySlug(
 function buildStoreCatalogOrderBy(
   sort: StoreCatalogSortField,
   order: "asc" | "desc",
-): Prisma.ProductOrderByWithRelationInput | Prisma.ProductOrderByWithRelationInput[] {
+):
+  | Prisma.ProductOrderByWithRelationInput
+  | Prisma.ProductOrderByWithRelationInput[] {
   switch (sort) {
     case "name":
       return { name: order };
@@ -1309,7 +1325,6 @@ function buildInStockWhere(): Prisma.ProductWhereInput {
       },
       {
         deliveryMethod: "SMM",
-        qty: { gt: 0 },
       },
       {
         deliveryMethod: "KINGUIN",
@@ -1490,7 +1505,11 @@ export async function getRelatedStoreProducts(
         some: { categoryId: { in: categoryIds } },
       },
     },
-    orderBy: [{ isOffer: "desc" }, { isFeatured: "desc" }, { updatedAt: "desc" }],
+    orderBy: [
+      { isOffer: "desc" },
+      { isFeatured: "desc" },
+      { updatedAt: "desc" },
+    ],
     take: limit,
     select: storeProductCardSelect,
   });

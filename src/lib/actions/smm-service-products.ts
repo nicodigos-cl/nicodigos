@@ -280,8 +280,6 @@ export async function convertSmmServicesToProductsAction(
           item.slug ?? (await uniqueSlug(tx, item.name || service.name));
         const rateUsd = Number.parseFloat(service.rate) || 0;
         const baseClp = Math.round(rateUsd * usdClpRate);
-        const qty = Math.max(1, service.max);
-        const textQty = item.textQty ?? service.min;
         const description =
           item.description?.trim() ||
           [
@@ -303,8 +301,9 @@ export async function convertSmmServicesToProductsAction(
             deliveryMethod: DeliveryMethod.SMM,
             price: item.price,
             currency: "CLP",
-            qty,
-            textQty,
+            // SMM stock is unlimited; order bounds are smmMin/smmMax.
+            qty: 0,
+            textQty: item.textQty ?? null,
             sourceCostPrice: baseClp,
             smmApiUrl: service.providerApiUrl,
             smmServiceId: service.remoteServiceId,

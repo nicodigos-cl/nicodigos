@@ -132,7 +132,6 @@ export function ConvertServiceDialog({
               description,
               price,
               markupPct: markupPct ? Number(markupPct) : undefined,
-              textQty: service.min,
             },
           ],
           categoryIds,
@@ -181,8 +180,8 @@ export function ConvertServiceDialog({
               Cancel: {service.cancel ? "sí" : "no"}
             </p>
             <p className="mt-1">
-              Al crear: costo CLP desde rate USD, qty = máx. del servicio,
-              textQty = mín.
+              Stock ilimitado. El pedido se limita con min/max del servicio.
+              Costo CLP se calcula desde rate USD.
             </p>
           </div>
         ) : null}

@@ -1,5 +1,8 @@
 import type { DeliveryMethod } from "@/generated/prisma/client";
 
+/** Sentinel for SMM “always available”; order qty is gated by smmMin/smmMax. */
+export const SMM_UNLIMITED_STOCK = 1_000_000_000;
+
 export type ProductStockInput = {
   deliveryMethod: DeliveryMethod;
   qty: number;
@@ -8,6 +11,8 @@ export type ProductStockInput = {
   availableAccountsCount?: number;
   totalKeysCount: number;
   defaultOfferAvailableQty: number | null;
+  smmMin?: number | null;
+  smmMax?: number | null;
 };
 
 export type ProductStockInfo = {
@@ -18,8 +23,8 @@ export type ProductStockInfo = {
 };
 
 /**
- * Domain stock visible in admin UI.
- * Does not invent an "unlimited" rule when qty is zero.
+ * Domain stock visible in admin / store UI.
+ * SMM is always in stock; order limits live on smmMin/smmMax.
  */
 export function getProductStock(input: ProductStockInput): ProductStockInfo {
   switch (input.deliveryMethod) {
@@ -66,32 +71,22 @@ export function getProductStock(input: ProductStockInput): ProductStockInfo {
       };
     }
     case "SMM": {
-      const available = input.qty;
-      const textQty = input.textQty;
-
-      if (available <= 0 && (textQty == null || textQty <= 0)) {
-        return {
-          available: 0,
-          totalKeys: null,
-          label: "Agotado",
-          isOutOfStock: true,
-        };
-      }
-
-      if (textQty != null) {
-        return {
-          available,
-          totalKeys: null,
-          label: `${available} · texto ${textQty}`,
-          isOutOfStock: available <= 0,
-        };
-      }
+      const min = input.smmMin;
+      const max = input.smmMax;
+      const range =
+        min != null && max != null
+          ? ` · pedido ${min.toLocaleString("es-CL")}–${max.toLocaleString("es-CL")}`
+          : min != null
+            ? ` · mín. ${min.toLocaleString("es-CL")}`
+            : max != null
+              ? ` · máx. ${max.toLocaleString("es-CL")}`
+              : "";
 
       return {
-        available,
+        available: SMM_UNLIMITED_STOCK,
         totalKeys: null,
-        label: String(available),
-        isOutOfStock: available <= 0,
+        label: `Ilimitado${range}`,
+        isOutOfStock: false,
       };
     }
   }

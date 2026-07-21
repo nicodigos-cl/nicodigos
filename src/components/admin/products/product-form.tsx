@@ -238,8 +238,8 @@ export function ProductForm({
       deliveryMethod: "SMM",
       name: prev.name.trim() ? prev.name : service.name,
       slug: slugTouched ? prev.slug : slugify(service.name),
-      qty: String(Math.max(1, service.max)),
-      textQty: String(service.min),
+      qty: "0",
+      textQty: "",
       price: String(priceClp),
       sourceCostPrice: String(baseClp),
     }));
@@ -917,7 +917,15 @@ export function ProductForm({
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
-              {form.deliveryMethod !== "MANUAL" ? (
+              {form.deliveryMethod === "SMM" ? (
+                <p className="text-sm text-muted-foreground">
+                  Stock ilimitado. El pedido se limita con el mínimo y máximo
+                  del servicio SMM vinculado (panel).
+                  {product?.stockLabel
+                    ? ` Actualmente: ${product.stockLabel}.`
+                    : null}
+                </p>
+              ) : form.deliveryMethod !== "MANUAL" ? (
                 <div className="space-y-2">
                   <Label htmlFor="qty">Cantidad (qty)</Label>
                   <Input
@@ -936,20 +944,6 @@ export function ProductForm({
                     : " Agrega keys después de crear el producto."}
                 </p>
               )}
-
-              {form.deliveryMethod === "SMM" ? (
-                <div className="space-y-2">
-                  <Label htmlFor="textQty">Cantidad de texto (textQty)</Label>
-                  <Input
-                    id="textQty"
-                    inputMode="numeric"
-                    value={form.textQty}
-                    onChange={(event) =>
-                      updateField("textQty", event.target.value)
-                    }
-                  />
-                </div>
-              ) : null}
 
               {form.deliveryMethod === "KINGUIN" && product ? (
                 <p className="text-sm text-muted-foreground">

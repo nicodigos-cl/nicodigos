@@ -193,8 +193,7 @@ async function resolveSmmLinkFields(input: {
     smmCancel: service.cancel,
     smmServiceName: service.name,
     smmSyncedAt: new Date(),
-    qty: Math.max(1, service.max),
-    textQty: input.textQty ?? service.min,
+    textQty: input.textQty ?? null,
     sourceCostClp,
   };
 }
@@ -272,9 +271,7 @@ export async function createProductAction(
           price: pricing.price,
           compareAtPrice: pricing.compareAtPrice,
           currency: data.currency.toUpperCase(),
-          qty:
-            kinguinLink?.availableQty ??
-            (smmFields && data.qty <= 0 ? smmFields.qty : data.qty),
+          qty: kinguinLink?.availableQty ?? data.qty,
           textQty:
             smmFields?.textQty ??
             (kinguinLink

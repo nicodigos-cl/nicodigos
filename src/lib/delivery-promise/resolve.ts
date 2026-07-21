@@ -1,6 +1,9 @@
 import "server-only";
 
-import { ProductKeyStatus, type DeliveryMethod } from "@/generated/prisma/client";
+import {
+  ProductKeyStatus,
+  type DeliveryMethod,
+} from "@/generated/prisma/client";
 
 import {
   calculateDeliveryPromise,
@@ -31,6 +34,8 @@ export async function resolveDeliveryPromiseForProduct(
       smmRate: true,
       smmServiceType: true,
       smmApiUrl: true,
+      smmMin: true,
+      smmMax: true,
       offers: {
         where: { isDefault: true },
         take: 1,
@@ -79,6 +84,8 @@ export async function resolveDeliveryPromiseForProduct(
     defaultOfferAvailableQty: defaultOffer
       ? resolvePersistedOfferQty(defaultOffer)
       : null,
+    smmMin: product.smmMin,
+    smmMax: product.smmMax,
   });
 
   const [kinguinBalance, smmBalance] = await Promise.all([

@@ -80,13 +80,13 @@ await emitDomainEvent("smm.service.rate_changed", payload);
 - `runtime = "nodejs"`, `dynamic = "force-dynamic"`, `maxDuration` alto para syncs largos.
 - En local: `bun scripts/dev-crons.ts` (incluido en `bun run dev`) o scripts por job.
 
-| Ruta | Rol |
-| --- | --- |
-| `sync-smm-services` | Cache panel + eventos de rate |
-| `sync-kinguin-products` | Ofertas/stock/precio de productos importados |
-| `cleanup-price-change-events` | Retención de auditoría de precios |
-| `publish-outbox` | `OutboxEvent` → BullMQ |
-| `process-communications` | Cola email/push y métricas |
+| Ruta                          | Rol                                          |
+| ----------------------------- | -------------------------------------------- |
+| `sync-smm-services`           | Cache panel + eventos de rate                |
+| `sync-kinguin-products`       | Ofertas/stock/precio de productos importados |
+| `cleanup-price-change-events` | Retención de auditoría de precios            |
+| `publish-outbox`              | `OutboxEvent` → BullMQ                       |
+| `process-communications`      | Cola email/push y métricas                   |
 
 ## 7. Precio y FX
 
@@ -99,11 +99,11 @@ await emitDomainEvent("smm.service.rate_changed", payload);
 
 Centralizar en `getProductStock` (`src/lib/products/stock.ts`):
 
-| Método | Fuente |
-| --- | --- |
-| `MANUAL` | Keys con status `AVAILABLE` |
-| `SMM` | `Product.qty` (+ `textQty` en label) |
-| `KINGUIN` | Oferta default + `Product.qty` / `textQty` |
+| Método    | Fuente                                          |
+| --------- | ----------------------------------------------- |
+| `MANUAL`  | Keys con status `AVAILABLE`                     |
+| `SMM`     | Ilimitado (`smmMin`/`smmMax` limitan el pedido) |
+| `KINGUIN` | Oferta default + `Product.qty` / `textQty`      |
 
 Helpers Kinguin (`src/lib/kinguin/offers.ts`):
 
