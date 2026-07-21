@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import pLimit from "p-limit";
 import { flattenError } from "zod";
 
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/actions/types";
 import { requireSession } from "@/lib/auth/session";
+import { chunkArray } from "@/lib/concurrency";
 import { applyMarkupPct, getUsdToClpRate } from "@/lib/fx/usd-clp";
 import { createStructuredResponse } from "@/lib/openai/client";
 import prisma from "@/lib/prisma";
@@ -18,7 +20,11 @@ import {
   getSmmServiceIdsForQuery,
   getSmmServicesByIds,
 } from "@/lib/smm-providers/queries";
-import { SMM_SERVICE_PROCESS_LIMIT } from "@/lib/smm-services/constants";
+import {
+  AI_TRANSLATE_CHUNK_SIZE,
+  AI_TRANSLATE_CONCURRENCY,
+  SMM_SERVICE_PROCESS_LIMIT,
+} from "@/lib/smm-services/constants";
 import {
   convertSmmServicesToProductsSchema,
   exportSmmServicesAsProductsSchema,
@@ -115,61 +121,76 @@ export async function prefillSmmServicesWithAiAction(
   }
 
   try {
-    type AiPayload = {
-      items: Array<{
-        serviceId: string;
-        nameEs: string;
-      }>;
+    type AiItem = {
+      serviceId: string;
+      nameEs: string;
     };
+    type AiPayload = { items: AiItem[] };
 
     const toTranslate = services.filter(
       (service) => !looksAlreadySpanish(service.name),
     );
 
-    const [ai, usdClpRate] = await Promise.all([
-      toTranslate.length === 0
-        ? Promise.resolve({ items: [] as AiPayload["items"] })
-        : createStructuredResponse<AiPayload>({
-            schemaName: "smm_service_title_translate",
-            instructions: [
-              "Traduce nombres de servicios SMM al español (neutro latinoamericano).",
-              "Mantén marcas/plataformas (Instagram, TikTok, YouTube, etc.) cuando aplique.",
-              "No inventes IDs: usa exactamente los serviceId recibidos.",
-              "Responde solo con el JSON estructurado solicitado.",
-            ].join(" "),
-            input: JSON.stringify({
-              services: toTranslate.map((service) => ({
-                serviceId: service.id,
-                name: service.name,
-                type: service.type,
-                category: service.category,
-              })),
-            }),
-            schema: {
-              type: "object",
-              additionalProperties: false,
-              required: ["items"],
-              properties: {
-                items: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    additionalProperties: false,
-                    required: ["serviceId", "nameEs"],
-                    properties: {
-                      serviceId: { type: "string" },
-                      nameEs: { type: "string" },
-                    },
-                  },
-                },
-              },
+    const translateInstructions = [
+      "Traduce nombres de servicios SMM al español (neutro latinoamericano).",
+      "Mantén marcas/plataformas (Instagram, TikTok, YouTube, etc.) cuando aplique.",
+      "No inventes IDs: usa exactamente los serviceId recibidos.",
+      "Responde solo con el JSON estructurado solicitado.",
+    ].join(" ");
+
+    const translateSchema = {
+      type: "object" as const,
+      additionalProperties: false as const,
+      required: ["items"],
+      properties: {
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["serviceId", "nameEs"],
+            properties: {
+              serviceId: { type: "string" },
+              nameEs: { type: "string" },
             },
-          }),
+          },
+        },
+      },
+    };
+
+    const [aiItems, usdClpRate] = await Promise.all([
+      (async (): Promise<AiItem[]> => {
+        if (toTranslate.length === 0) return [];
+
+        const chunks = chunkArray(toTranslate, AI_TRANSLATE_CHUNK_SIZE);
+        const translateLimit = pLimit(AI_TRANSLATE_CONCURRENCY);
+        const chunkResults = await Promise.all(
+          chunks.map((chunk) =>
+            translateLimit(() =>
+              createStructuredResponse<AiPayload>({
+                schemaName: "smm_service_title_translate",
+                instructions: translateInstructions,
+                input: JSON.stringify({
+                  services: chunk.map((service) => ({
+                    serviceId: service.id,
+                    name: service.name,
+                    type: service.type,
+                    category: service.category,
+                  })),
+                }),
+                schema: translateSchema,
+              }),
+            ),
+          ),
+        );
+
+        return chunkResults.flatMap((result) => result.items);
+      })(),
       getUsdToClpRate(),
     ]);
 
     const nameById = new Map(
-      ai.items.map((row) => [row.serviceId, row.nameEs.trim()] as const),
+      aiItems.map((row) => [row.serviceId, row.nameEs.trim()] as const),
     );
 
     const items: PrefillServiceItem[] = services.map((service) => {

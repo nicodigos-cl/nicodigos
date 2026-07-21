@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import pLimit from "p-limit";
 import { flattenError } from "zod";
 
 import {
@@ -12,6 +13,7 @@ import type { ActionResult } from "@/lib/actions/types";
 import { requireSession } from "@/lib/auth/session";
 import prisma from "@/lib/prisma";
 import { slugify, decimalToString } from "@/lib/products/format";
+import { IMPORT_CONCURRENCY } from "@/lib/smm-services/constants";
 import {
   importProductsSchema,
   resolveExportedSmmServicesSchema,
@@ -270,12 +272,18 @@ export async function resolveExportedSmmServicesAction(
     return validationError(parsed.error);
   }
 
+  const resolveLimit = pLimit(IMPORT_CONCURRENCY);
+  const resolvedRows = await Promise.all(
+    parsed.data.services.map((row) =>
+      resolveLimit(() => resolveOneExportedService(row)),
+    ),
+  );
+
   const items: SmmServiceListItemDto[] = [];
   const seen = new Set<string>();
   let missing = 0;
 
-  for (const row of parsed.data.services) {
-    const resolved = await resolveOneExportedService(row);
+  for (const resolved of resolvedRows) {
     if (!resolved) {
       missing += 1;
       continue;
