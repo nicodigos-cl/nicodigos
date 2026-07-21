@@ -200,16 +200,23 @@ export async function importProductsAction(
 
       for (const item of items) {
         const slug = item.slug ?? (await uniqueSlug(tx, item.name));
+        const assets = item.assets ?? [];
+        const coverFromAssets =
+          assets.find((asset) => asset.type === "IMAGE" && asset.isCover)?.url ??
+          assets.find((asset) => asset.type === "IMAGE")?.url ??
+          null;
 
         const product = await tx.product.create({
           data: {
             name: item.name,
             slug,
             description: item.description ?? null,
+            coverImageUrl: item.coverImageUrl ?? coverFromAssets,
             status: item.status as ProductStatus,
             deliveryMethod: item.deliveryMethod as DeliveryMethod,
             price: item.price,
             compareAtPrice: item.compareAtPrice ?? null,
+            sourceCostPrice: item.sourceCostPrice ?? null,
             currency: item.currency,
             qty: item.qty,
             textQty: item.textQty ?? null,
@@ -224,6 +231,26 @@ export async function importProductsAction(
           },
           select: { id: true },
         });
+
+        if (assets.length > 0) {
+          await tx.asset.createMany({
+            data: assets.map((asset) => ({
+              productId: product.id,
+              type: asset.type,
+              url: asset.url,
+              objectKey: asset.objectKey ?? null,
+              youtubeId: asset.youtubeId ?? null,
+              mimeType: asset.mimeType ?? null,
+              fileName: asset.fileName ?? null,
+              sizeBytes:
+                asset.sizeBytes != null ? BigInt(asset.sizeBytes) : null,
+              thumbnailUrl: asset.thumbnailUrl ?? null,
+              altText: asset.altText ?? null,
+              sortOrder: asset.sortOrder,
+              isCover: asset.type === "IMAGE" && asset.isCover,
+            })),
+          });
+        }
 
         ids.push(product.id);
       }

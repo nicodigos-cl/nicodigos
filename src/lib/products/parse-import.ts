@@ -77,6 +77,11 @@ const CSV_HEADER_ALIASES: Record<string, keyof ImportProductItem | "skip"> = {
   moneda: "currency",
   compareatprice: "compareAtPrice",
   compare_at_price: "compareAtPrice",
+  sourcecostprice: "sourceCostPrice",
+  source_cost_price: "sourceCostPrice",
+  costo: "sourceCostPrice",
+  coverimageurl: "coverImageUrl",
+  cover_image_url: "coverImageUrl",
   textqty: "textQty",
   text_qty: "textQty",
 };

@@ -286,10 +286,12 @@ export async function exportSmmServicesAsProductsAction(
         slug: `${baseSlug.slice(0, 100)}-${service.remoteServiceId}`,
         description: buildServiceDescription(service),
         price: String(priceClp),
+        sourceCostPrice: String(baseClp),
         deliveryMethod: "SMM",
         status: "DRAFT",
         qty: 0,
         currency: "CLP",
+        assets: [],
       };
     });
 

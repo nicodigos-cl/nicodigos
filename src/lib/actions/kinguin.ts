@@ -11,6 +11,11 @@ import {
   getKinguinProductPreview,
   importKinguinProduct,
 } from "@/lib/kinguin/import";
+import {
+  kinguinVideosToAssetInputs,
+  mirroredImagesToAssetInputs,
+  mirrorKinguinProductImages,
+} from "@/lib/kinguin/mirror-images";
 import { applyMarkupPct, eurToClp, getEurToClpRate } from "@/lib/fx/eur-clp";
 import { createStructuredResponse } from "@/lib/openai/client";
 import {
@@ -248,6 +253,7 @@ function buildKinguinExportDescription(input: {
 /**
  * Maps selected Kinguin hits → product-import JSON items (admin/products).
  * Prices use random markup between min/max and EUR→CLP FX.
+ * Mirrors cover/screenshots to R2 and includes YouTube videos + source cost.
  */
 export async function exportKinguinAsProductsAction(
   rawInput: unknown,
@@ -284,50 +290,82 @@ export async function exportKinguinAsProductsAction(
       ),
     );
 
-    const items: ImportProductItem[] = remotes.map(({ hit, product }) => {
-      const priceEur =
-        hit.priceEur ??
-        (typeof product?.price === "number" && Number.isFinite(product.price)
-          ? product.price
-          : null);
-      const costClp =
-        priceEur != null && Number.isFinite(priceEur)
-          ? Math.round(priceEur * eurClpRate)
-          : 0;
-      const markupPct = randomMarkupPct(minMarkupPct, maxMarkupPct);
-      const priceClp = applyMarkupPct(costClp, markupPct);
-      const name = (product?.name || hit.name).slice(0, 200);
-      const baseSlug = slugify(name) || "juego-kinguin";
-      const qty =
-        typeof product?.qty === "number" && Number.isFinite(product.qty)
-          ? Math.max(0, Math.floor(product.qty))
-          : 0;
+    const mirrorLimit = pLimit(Math.min(4, KINGUIN_FETCH_CONCURRENCY));
+    const items: ImportProductItem[] = await Promise.all(
+      remotes.map(({ hit, product }) =>
+        mirrorLimit(async () => {
+          const priceEur =
+            hit.priceEur ??
+            (typeof product?.price === "number" && Number.isFinite(product.price)
+              ? product.price
+              : null);
+          const costClp =
+            priceEur != null && Number.isFinite(priceEur)
+              ? Math.round(priceEur * eurClpRate)
+              : 0;
+          const markupPct = randomMarkupPct(minMarkupPct, maxMarkupPct);
+          const priceClp = applyMarkupPct(costClp, markupPct);
+          const name = (product?.name || hit.name).slice(0, 200);
+          const baseSlug = slugify(name) || "juego-kinguin";
+          const qty =
+            typeof product?.qty === "number" && Number.isFinite(product.qty)
+              ? Math.max(0, Math.floor(product.qty))
+              : 0;
 
-      return {
-        name,
-        slug: `${baseSlug.slice(0, 100)}-${hit.kinguinId}`,
-        description: buildKinguinExportDescription({
-          name,
-          platform: product?.platform ?? null,
-          description: product?.description ?? null,
-          priceEur,
-          kinguinId: hit.kinguinId,
+          let coverImageUrl: string | undefined;
+          let assets: ImportProductItem["assets"] = [];
+
+          if (product) {
+            const mirrored = await mirrorKinguinProductImages(product);
+            const imageAssets = mirroredImagesToAssetInputs(mirrored);
+            const videoAssets = kinguinVideosToAssetInputs(
+              product,
+              imageAssets.length,
+            );
+            assets = [...imageAssets, ...videoAssets];
+            coverImageUrl = mirrored.coverImageUrl ?? undefined;
+          }
+
+          return {
+            name,
+            slug: `${baseSlug.slice(0, 100)}-${hit.kinguinId}`,
+            description: buildKinguinExportDescription({
+              name,
+              platform: product?.platform ?? null,
+              description: product?.description ?? null,
+              priceEur,
+              kinguinId: hit.kinguinId,
+            }),
+            price: String(priceClp),
+            sourceCostPrice: String(costClp),
+            deliveryMethod: "KINGUIN" as const,
+            status: "DRAFT" as const,
+            qty,
+            currency: "CLP",
+            coverImageUrl,
+            textQty:
+              typeof product?.textQty === "number" &&
+              Number.isFinite(product.textQty)
+                ? Math.max(0, Math.floor(product.textQty))
+                : undefined,
+            assets,
+          };
         }),
-        price: String(priceClp),
-        deliveryMethod: "KINGUIN",
-        status: "DRAFT",
-        qty,
-        currency: "CLP",
-        textQty:
-          typeof product?.textQty === "number" &&
-          Number.isFinite(product.textQty)
-            ? Math.max(0, Math.floor(product.textQty))
-            : undefined,
-      };
-    });
+      ),
+    );
 
     return { success: true, data: { items, eurClpRate } };
   } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.startsWith("R2_CONFIG_MISSING:")
+    ) {
+      return {
+        success: false,
+        message:
+          "R2 no está configurado. Configura el almacenamiento para exportar imágenes de Kinguin.",
+      };
+    }
     return {
       success: false,
       message:
@@ -338,7 +376,7 @@ export async function exportKinguinAsProductsAction(
   }
 }
 
-/** AI translation of product text fields. Does not touch prices. */
+/** AI translation of short product text fields (name + short meta). Skips long descriptions. */
 export async function translateKinguinProductsAction(
   rawInput: unknown,
 ): Promise<ActionResult<{ items: TranslatedKinguinItem[] }>> {
@@ -350,6 +388,14 @@ export async function translateKinguinProductsAction(
   const parsed = translateKinguinProductsSchema.safeParse(rawInput);
   if (!parsed.success) {
     return validationError(parsed.error);
+  }
+
+  const SHORT_FIELD_MAX = 800;
+
+  function clipShort(value: string | null | undefined): string {
+    const text = value?.trim() ?? "";
+    if (text.length <= SHORT_FIELD_MAX) return text;
+    return `${text.slice(0, SHORT_FIELD_MAX)}…`;
   }
 
   try {
@@ -367,7 +413,6 @@ export async function translateKinguinProductsAction(
     type AiItem = {
       kinguinId: number;
       nameEs: string;
-      descriptionEs: string;
       activationDetailsEs: string;
       regionalLimitationsEs: string;
     };
@@ -376,18 +421,17 @@ export async function translateKinguinProductsAction(
     const toTranslate = remotes.filter(({ product }) =>
       [
         product.name,
-        product.description,
         product.activationDetails,
         product.regionalLimitations,
       ].some((field) => needsTranslation(field)),
     );
 
     const translateInstructions = [
-      "Traduce al español (neutro latinoamericano) todo el texto posible de productos digitales Kinguin.",
-      "Campos: nameEs (título), descriptionEs (descripción HTML o texto), activationDetailsEs, regionalLimitationsEs.",
+      "Traduce al español (neutro latinoamericano) solo campos cortos de productos digitales Kinguin.",
+      "Campos: nameEs (título), activationDetailsEs, regionalLimitationsEs.",
+      "NO traduzcas descripciones largas: no se envían en este request.",
       "Mantén marcas, ediciones y plataformas (Steam, Xbox, PlayStation, Epic, etc.).",
       "Si el título es un nombre propio de juego, usa el nombre comercial habitual en Latam o déjalo en inglés si no hay traducción establecida.",
-      "Preserva HTML/markdown de la descripción si existe; traduce solo el contenido visible.",
       "Si un campo viene vacío, devuélvelo como string vacío.",
       "No inventes IDs: usa exactamente los kinguinId recibidos (números).",
       "Responde solo con el JSON estructurado solicitado.",
@@ -406,14 +450,12 @@ export async function translateKinguinProductsAction(
             required: [
               "kinguinId",
               "nameEs",
-              "descriptionEs",
               "activationDetailsEs",
               "regionalLimitationsEs",
             ],
             properties: {
               kinguinId: { type: "integer" },
               nameEs: { type: "string" },
-              descriptionEs: { type: "string" },
               activationDetailsEs: { type: "string" },
               regionalLimitationsEs: { type: "string" },
             },
@@ -430,15 +472,14 @@ export async function translateKinguinProductsAction(
         chunks.map((chunk) =>
           translateLimit(() =>
             createStructuredResponse<AiPayload>({
-              schemaName: "kinguin_product_translate",
+              schemaName: "kinguin_product_translate_short",
               instructions: translateInstructions,
               input: JSON.stringify({
                 products: chunk.map(({ kinguinId, product }) => ({
                   kinguinId,
                   name: product.name,
-                  description: product.description ?? "",
-                  activationDetails: product.activationDetails ?? "",
-                  regionalLimitations: product.regionalLimitations ?? "",
+                  activationDetails: clipShort(product.activationDetails),
+                  regionalLimitations: clipShort(product.regionalLimitations),
                 })),
               }),
               schema: translateSchema,
@@ -459,8 +500,8 @@ export async function translateKinguinProductsAction(
         return {
           kinguinId,
           nameEs: translated?.nameEs.trim() || product.name,
-          descriptionEs:
-            translated?.descriptionEs.trim() || product.description || "",
+          // Keep original long description — never AI-translated.
+          descriptionEs: product.description || "",
           activationDetailsEs:
             translated?.activationDetailsEs.trim() ||
             product.activationDetails ||

@@ -50,6 +50,7 @@ function toImportItem(product: ProductListItemDto): ImportProductItem {
     currency: product.currency,
     compareAtPrice: product.compareAtPrice ?? undefined,
     textQty: product.textQty ?? undefined,
+    assets: [],
   };
 }
 

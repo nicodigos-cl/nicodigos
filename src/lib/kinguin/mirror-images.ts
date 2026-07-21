@@ -2,6 +2,7 @@ import "server-only";
 
 import { createLogger } from "@/lib/logger";
 import { uploadRemoteImageToR2 } from "@/lib/r2";
+import type { AssetInput } from "@/lib/validations/assets";
 import type { KinguinProduct } from "@/types/kinguin";
 
 const log = createLogger({ module: "kinguin-mirror-images" });
@@ -57,9 +58,48 @@ export async function mirrorKinguinProductImages(
   }
 
   return {
-    coverImageUrl: assets.find((asset) => asset.isCover)?.url ?? assets[0]?.url ?? null,
+    coverImageUrl:
+      assets.find((asset) => asset.isCover)?.url ?? assets[0]?.url ?? null,
     assets,
   };
+}
+
+/** Map mirrored R2 images into product-import asset payloads. */
+export function mirroredImagesToAssetInputs(
+  mirrored: MirroredKinguinImages,
+): AssetInput[] {
+  return mirrored.assets.map((asset) => ({
+    type: "IMAGE" as const,
+    url: asset.url,
+    objectKey: asset.objectKey,
+    thumbnailUrl: asset.thumbnailUrl,
+    mimeType: asset.mimeType,
+    fileName: asset.fileName,
+    sizeBytes: asset.sizeBytes != null ? Number(asset.sizeBytes) : null,
+    sortOrder: asset.sortOrder,
+    isCover: asset.isCover,
+  }));
+}
+
+/** YouTube trailers from Kinguin (no R2 upload). */
+export function kinguinVideosToAssetInputs(
+  remote: KinguinProduct,
+  startSortOrder = 0,
+): AssetInput[] {
+  return (remote.videos ?? [])
+    .filter((video) => Boolean(video.video_id))
+    .slice(0, 8)
+    .map((video, index) => {
+      const youtubeId = video.video_id as string;
+      return {
+        type: "YOUTUBE" as const,
+        youtubeId,
+        url: `https://www.youtube.com/watch?v=${youtubeId}`,
+        thumbnailUrl: `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`,
+        sortOrder: startSortOrder + index,
+        isCover: false,
+      };
+    });
 }
 
 async function mirrorOne(

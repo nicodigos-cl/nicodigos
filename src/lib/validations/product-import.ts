@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { SMM_SERVICE_PROCESS_LIMIT } from "@/lib/smm-services/constants";
+import { assetsInputSchema } from "@/lib/validations/assets";
 
 export const PRODUCT_IMPORT_LIMIT = 100;
 
@@ -60,10 +61,16 @@ export const importProductItemSchema = z.object({
       .default("CLP"),
   ),
   compareAtPrice: z.preprocess(emptyToUndefined, priceSchema.optional()),
+  sourceCostPrice: z.preprocess(emptyToUndefined, priceSchema.optional()),
+  coverImageUrl: z.preprocess(
+    emptyToUndefined,
+    z.string().url().max(2000).optional(),
+  ),
   textQty: z.preprocess(
     emptyToUndefined,
     z.coerce.number().int().min(0).optional(),
   ),
+  assets: assetsInputSchema.optional().default([]),
 });
 
 export type ImportProductItem = z.infer<typeof importProductItemSchema>;

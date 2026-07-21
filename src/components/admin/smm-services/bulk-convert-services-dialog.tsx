@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { HiOutlineSparkles } from "react-icons/hi";
@@ -53,7 +53,7 @@ export function BulkConvertServicesDialog({
   categories,
 }: BulkConvertServicesDialogProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [busy, setBusy] = useState<"prefill" | "creating" | null>(null);
   const [minMarkupPct, setMinMarkupPct] = useState(
     String(DEFAULT_MARKUP_MIN_PCT),
   );
@@ -63,6 +63,7 @@ export function BulkConvertServicesDialog({
   const [categoryId, setCategoryId] = useState<string>("");
   const [rows, setRows] = useState<DraftRow[]>([]);
   const [usdClpHint, setUsdClpHint] = useState<number | null>(null);
+  const anyBusy = busy != null;
 
   useEffect(() => {
     if (!open) return;
@@ -113,27 +114,37 @@ export function BulkConvertServicesDialog({
   }
 
   function handlePrefill() {
-    startTransition(() => {
-      void (async () => {
+    if (anyBusy) return;
+    const toastId = toast.loading("Traduciendo y calculando precios…");
+    setBusy("prefill");
+    void (async () => {
+      try {
         const result = await prefillSmmServicesWithAiAction({
           serviceIds: services.map((service) => service.id),
           minMarkupPct,
           maxMarkupPct,
         });
         if (!result.success) {
-          toast.error(result.message);
+          toast.error(result.message, { id: toastId });
           return;
         }
         applyPrefill(result.data.items);
         setUsdClpHint(result.data.usdClpRate);
-        toast.success(`Prefill de ${result.data.items.length} servicios`);
-      })();
-    });
+        toast.success(`Prefill de ${result.data.items.length} servicios`, {
+          id: toastId,
+        });
+      } finally {
+        setBusy(null);
+      }
+    })();
   }
 
   function handleSubmit() {
-    startTransition(() => {
-      void (async () => {
+    if (anyBusy) return;
+    const toastId = toast.loading("Creando productos…");
+    setBusy("creating");
+    void (async () => {
+      try {
         const result = await convertSmmServicesToProductsAction({
           items: rows.map((row) => ({
             serviceId: row.serviceId,
@@ -145,16 +156,19 @@ export function BulkConvertServicesDialog({
           categoryIds: categoryId ? [categoryId] : [],
         });
         if (!result.success) {
-          toast.error(result.message);
+          toast.error(result.message, { id: toastId });
           return;
         }
         toast.success(
           `Creados ${result.data.created.length} productos (DRAFT)`,
+          { id: toastId },
         );
         onOpenChange(false);
         router.refresh();
-      })();
-    });
+      } finally {
+        setBusy(null);
+      }
+    })();
   }
 
   const columns: ColumnDef<DraftRow>[] = [
@@ -296,11 +310,13 @@ export function BulkConvertServicesDialog({
           <Button
             type="button"
             variant="outline"
-            disabled={isPending || services.length === 0}
+            disabled={anyBusy || services.length === 0 || undefined}
             onClick={handlePrefill}
           >
             <HiOutlineSparkles className="size-4" />
-            {isPending ? "Generando..." : "Traducir / generar precios con IA"}
+            {busy === "prefill"
+              ? "Generando..."
+              : "Traducir / generar precios con IA"}
           </Button>
 
           <DataTable
@@ -318,7 +334,7 @@ export function BulkConvertServicesDialog({
           <Button
             type="button"
             variant="outline"
-            disabled={isPending}
+            disabled={anyBusy || undefined}
             onClick={() => onOpenChange(false)}
           >
             Cancelar
@@ -326,11 +342,15 @@ export function BulkConvertServicesDialog({
           <Button
             type="button"
             disabled={
-              isPending || rows.some((row) => !row.name.trim() || !row.price)
+              anyBusy ||
+              rows.some((row) => !row.name.trim() || !row.price) ||
+              undefined
             }
             onClick={handleSubmit}
           >
-            {isPending ? "Creando..." : `Crear ${rows.length} productos`}
+            {busy === "creating"
+              ? "Creando..."
+              : `Crear ${rows.length} productos`}
           </Button>
         </DialogFooter>
       </DialogContent>

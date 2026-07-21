@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { HiOutlineSparkles } from "react-icons/hi";
 import { toast } from "sonner";
@@ -43,7 +43,7 @@ export function ConvertServiceDialog({
   categories,
 }: ConvertServiceDialogProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [busy, setBusy] = useState<"prefill" | "creating" | null>(null);
   const [minMarkupPct, setMinMarkupPct] = useState(
     String(DEFAULT_MARKUP_MIN_PCT),
   );
@@ -57,6 +57,7 @@ export function ConvertServiceDialog({
   const [price, setPrice] = useState("0");
   const [markupPct, setMarkupPct] = useState("");
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  const anyBusy = busy != null;
 
   const categoryOptions = useMemo(
     () =>
@@ -88,21 +89,23 @@ export function ConvertServiceDialog({
   }
 
   function handlePrefill() {
-    if (!service) return;
-    startTransition(() => {
-      void (async () => {
+    if (!service || anyBusy) return;
+    const toastId = toast.loading("Traduciendo y calculando precios…");
+    setBusy("prefill");
+    void (async () => {
+      try {
         const result = await prefillSmmServicesWithAiAction({
           serviceIds: [service.id],
           minMarkupPct,
           maxMarkupPct,
         });
         if (!result.success) {
-          toast.error(result.message);
+          toast.error(result.message, { id: toastId });
           return;
         }
         const item = result.data.items[0];
         if (!item) {
-          toast.error("Sin resultado de IA");
+          toast.error("Sin resultado de IA", { id: toastId });
           return;
         }
         setName(item.nameEs);
@@ -114,15 +117,20 @@ export function ConvertServiceDialog({
         setMarkupPct(String(item.markupPct));
         toast.success(
           `Prefill listo (USD/CLP ≈ ${Math.round(result.data.usdClpRate)})`,
+          { id: toastId },
         );
-      })();
-    });
+      } finally {
+        setBusy(null);
+      }
+    })();
   }
 
   function handleSubmit() {
-    if (!service) return;
-    startTransition(() => {
-      void (async () => {
+    if (!service || anyBusy) return;
+    const toastId = toast.loading("Creando producto…");
+    setBusy("creating");
+    void (async () => {
+      try {
         const result = await convertSmmServicesToProductsAction({
           items: [
             {
@@ -137,14 +145,16 @@ export function ConvertServiceDialog({
           categoryIds,
         });
         if (!result.success) {
-          toast.error(result.message);
+          toast.error(result.message, { id: toastId });
           return;
         }
-        toast.success("Producto creado en borrador");
+        toast.success("Producto creado en borrador", { id: toastId });
         onOpenChange(false);
         router.refresh();
-      })();
-    });
+      } finally {
+        setBusy(null);
+      }
+    })();
   }
 
   return (
@@ -213,11 +223,11 @@ export function ConvertServiceDialog({
           <Button
             type="button"
             variant="outline"
-            disabled={isPending || !service}
+            disabled={anyBusy || !service || undefined}
             onClick={handlePrefill}
           >
             <HiOutlineSparkles className="size-4" />
-            {isPending ? "Generando..." : "Traducir / prellenar con IA"}
+            {busy === "prefill" ? "Generando..." : "Traducir / prellenar con IA"}
           </Button>
 
           <div className="space-y-2">
@@ -317,17 +327,17 @@ export function ConvertServiceDialog({
           <Button
             type="button"
             variant="outline"
-            disabled={isPending}
+            disabled={anyBusy || undefined}
             onClick={() => onOpenChange(false)}
           >
             Cancelar
           </Button>
           <Button
             type="button"
-            disabled={isPending || !name.trim() || !price}
+            disabled={anyBusy || !name.trim() || !price || undefined}
             onClick={handleSubmit}
           >
-            {isPending ? "Creando..." : "Crear producto"}
+            {busy === "creating" ? "Creando..." : "Crear producto"}
           </Button>
         </DialogFooter>
       </DialogContent>

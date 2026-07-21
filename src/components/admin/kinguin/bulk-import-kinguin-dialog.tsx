@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { HiOutlineSparkles } from "react-icons/hi";
@@ -52,6 +52,8 @@ type DraftRow = {
   priceEur: number | null;
 };
 
+type BusyAction = "pricing" | "translating" | "importing" | null;
+
 export function BulkImportKinguinDialog({
   open,
   onOpenChange,
@@ -60,7 +62,7 @@ export function BulkImportKinguinDialog({
   onImported,
 }: BulkImportKinguinDialogProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [busy, setBusy] = useState<BusyAction>(null);
   const [minMarkupPct, setMinMarkupPct] = useState(
     String(DEFAULT_MARKUP_MIN_PCT),
   );
@@ -71,13 +73,23 @@ export function BulkImportKinguinDialog({
   const [rows, setRows] = useState<DraftRow[]>([]);
   const [eurClpHint, setEurClpHint] = useState<number | null>(null);
 
+  const anyBusy = busy != null;
+
   function applyPrices(
     nextHits: KinguinSearchHitDto[],
     minMarkup: string,
     maxMarkup: string,
+    opts?: { silent?: boolean },
   ) {
-    startTransition(() => {
-      void (async () => {
+    if (busy && busy !== "pricing") return;
+
+    const toastId = opts?.silent
+      ? null
+      : toast.loading("Calculando precios…");
+    setBusy("pricing");
+
+    void (async () => {
+      try {
         const result = await priceKinguinProductsAction({
           items: nextHits.map((hit) => ({
             kinguinId: hit.kinguinId,
@@ -88,7 +100,11 @@ export function BulkImportKinguinDialog({
           maxMarkupPct: maxMarkup,
         });
         if (!result.success) {
-          toast.error(result.message);
+          if (toastId != null) {
+            toast.error(result.message, { id: toastId });
+          } else {
+            toast.error(result.message);
+          }
           return;
         }
         const byId = new Map(
@@ -107,8 +123,18 @@ export function BulkImportKinguinDialog({
           }),
         );
         setEurClpHint(result.data.eurClpRate);
-      })();
-    });
+        if (toastId != null) {
+          toast.success(
+            `Precios listos (${result.data.items.length})`,
+            { id: toastId },
+          );
+        } else {
+          toast.success(`Precios listos (${result.data.items.length})`);
+        }
+      } finally {
+        setBusy(null);
+      }
+    })();
   }
 
   useEffect(() => {
@@ -153,13 +179,16 @@ export function BulkImportKinguinDialog({
   );
 
   function handleTranslate() {
-    startTransition(() => {
-      void (async () => {
+    if (anyBusy) return;
+    const toastId = toast.loading("Traduciendo…");
+    setBusy("translating");
+    void (async () => {
+      try {
         const result = await translateKinguinProductsAction({
           kinguinIds: hits.map((hit) => hit.kinguinId),
         });
         if (!result.success) {
-          toast.error(result.message);
+          toast.error(result.message, { id: toastId });
           return;
         }
         const byId = new Map(
@@ -172,20 +201,29 @@ export function BulkImportKinguinDialog({
             return {
               ...row,
               name: translated.nameEs,
-              description: translated.descriptionEs,
               activationDetails: translated.activationDetailsEs,
               regionalLimitations: translated.regionalLimitationsEs,
             };
           }),
         );
-        toast.success(`Traducidos ${result.data.items.length} productos`);
-      })();
-    });
+        toast.success(
+          `Traducidos ${result.data.items.length} (nombre y campos cortos)`,
+          {
+            id: toastId,
+          },
+        );
+      } finally {
+        setBusy(null);
+      }
+    })();
   }
 
   function handleSubmit() {
-    startTransition(() => {
-      void (async () => {
+    if (anyBusy) return;
+    const toastId = toast.loading("Importando productos…");
+    setBusy("importing");
+    void (async () => {
+      try {
         const result = await importKinguinProductsBulkAction({
           items: rows.map((row) => ({
             kinguinId: row.kinguinId,
@@ -200,11 +238,13 @@ export function BulkImportKinguinDialog({
           categoryIds: categoryId ? [categoryId] : [],
         });
         if (!result.success) {
-          toast.error(result.message);
+          toast.error(result.message, { id: toastId });
           return;
         }
         const { created, failed } = result.data;
-        toast.success(`Creados ${created.length} productos (DRAFT)`);
+        toast.success(`Creados ${created.length} productos (DRAFT)`, {
+          id: toastId,
+        });
         if (failed.length > 0) {
           toast.error(
             `${failed.length} fallaron: ${failed
@@ -216,8 +256,10 @@ export function BulkImportKinguinDialog({
         onOpenChange(false);
         onImported?.();
         router.refresh();
-      })();
-    });
+      } finally {
+        setBusy(null);
+      }
+    })();
   }
 
   const columns: ColumnDef<DraftRow>[] = [
@@ -319,8 +361,9 @@ export function BulkImportKinguinDialog({
         <DialogHeader>
           <DialogTitle>Importar {hits.length} productos Kinguin</DialogTitle>
           <DialogDescription>
-            Markup y precios CLP se calculan por código (EUR × FX). La IA solo
-            traduce textos. Status DRAFT.
+            Markup y precios CLP se calculan por código (EUR × FX). La IA
+            traduce solo nombre y campos cortos (no la descripción). Status
+            DRAFT.
             {eurClpHint != null
               ? ` EUR/CLP ≈ ${Math.round(eurClpHint)}`
               : null}
@@ -357,7 +400,11 @@ export function BulkImportKinguinDialog({
                 onChange={(event) => setCategoryId(event.target.value)}
               >
                 {categoryItems.map((item) => (
-                  <NativeSelectOption key={item.value || "none"} value={item.value} data-slot="native-select-option">
+                  <NativeSelectOption
+                    key={item.value || "none"}
+                    value={item.value}
+                    data-slot="native-select-option"
+                  >
                     {item.label}
                   </NativeSelectOption>
                 ))}
@@ -369,19 +416,19 @@ export function BulkImportKinguinDialog({
             <Button
               type="button"
               variant="outline"
-              disabled={isPending || rows.length === 0}
+              disabled={anyBusy || rows.length === 0 || undefined}
               onClick={() => applyPrices(hits, minMarkupPct, maxMarkupPct)}
             >
-              {isPending ? "Calculando…" : "Recalcular precios"}
+              {busy === "pricing" ? "Calculando…" : "Recalcular precios"}
             </Button>
             <Button
               type="button"
               variant="outline"
-              disabled={isPending || rows.length === 0}
+              disabled={anyBusy || rows.length === 0 || undefined}
               onClick={handleTranslate}
             >
               <HiOutlineSparkles className="size-4" />
-              {isPending ? "Traduciendo…" : "Traducir"}
+              {busy === "translating" ? "Traduciendo…" : "Traducir"}
             </Button>
           </div>
 
@@ -400,7 +447,7 @@ export function BulkImportKinguinDialog({
           <Button
             type="button"
             variant="outline"
-            disabled={isPending}
+            disabled={anyBusy || undefined}
             onClick={() => onOpenChange(false)}
           >
             Cancelar
@@ -408,18 +455,21 @@ export function BulkImportKinguinDialog({
           <Button
             type="button"
             disabled={
-              isPending ||
+              anyBusy ||
               rows.some(
                 (row) =>
                   !row.name.trim() ||
                   !row.price ||
                   !row.sourceCostPrice ||
                   !row.markupPct,
-              )
+              ) ||
+              undefined
             }
             onClick={handleSubmit}
           >
-            {isPending ? "Importando..." : `Importar ${rows.length} productos`}
+            {busy === "importing"
+              ? "Importando..."
+              : `Importar ${rows.length} productos`}
           </Button>
         </DialogFooter>
       </DialogContent>

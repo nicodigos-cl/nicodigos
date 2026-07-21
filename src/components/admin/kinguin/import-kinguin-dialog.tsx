@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { HiOutlineSparkles } from "react-icons/hi";
 import { toast } from "sonner";
@@ -47,6 +47,8 @@ type ImportKinguinDialogProps = {
   onImported?: () => void;
 };
 
+type BusyAction = "preview" | "pricing" | "translating" | "importing" | null;
+
 export function ImportKinguinDialog({
   open,
   onOpenChange,
@@ -55,7 +57,7 @@ export function ImportKinguinDialog({
   onImported,
 }: ImportKinguinDialogProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [busy, setBusy] = useState<BusyAction>(null);
   const [minMarkupPct, setMinMarkupPct] = useState(
     String(DEFAULT_MARKUP_MIN_PCT),
   );
@@ -73,9 +75,12 @@ export function ImportKinguinDialog({
   const [preview, setPreview] = useState<KinguinProductPreviewDto | null>(null);
   const [eurClpRate, setEurClpRate] = useState<number | null>(null);
 
+  const anyBusy = busy != null;
+
   useEffect(() => {
     if (!open || !hit) {
       setPreview(null);
+      setBusy(null);
       return;
     }
 
@@ -91,8 +96,11 @@ export function ImportKinguinDialog({
     setMaxMarkupPct(String(DEFAULT_MARKUP_MAX_PCT));
     setEurClpRate(null);
 
-    startTransition(() => {
-      void (async () => {
+    const toastId = toast.loading("Cargando producto…");
+    setBusy("preview");
+
+    void (async () => {
+      try {
         const [previewResult, priceResult] = await Promise.all([
           getKinguinProductPreviewAction({
             kinguinId: hit.kinguinId,
@@ -112,14 +120,14 @@ export function ImportKinguinDialog({
         ]);
 
         if (!previewResult.success) {
-          toast.error(previewResult.message);
+          toast.error(previewResult.message, { id: toastId });
           return;
         }
         setPreview(previewResult.data.preview);
         setDescription(previewResult.data.preview.description ?? "");
 
         if (!priceResult.success) {
-          toast.error(priceResult.message);
+          toast.error(priceResult.message, { id: toastId });
           setEurClpRate(previewResult.data.eurClpRate);
           if (previewResult.data.costClp != null) {
             setSourceCostPrice(String(previewResult.data.costClp));
@@ -137,8 +145,11 @@ export function ImportKinguinDialog({
           setSourceCostPrice(String(priced.costClp));
           setPrice(String(priced.priceClp));
         }
-      })();
-    });
+        toast.success("Producto listo para editar", { id: toastId });
+      } finally {
+        setBusy(null);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, hit?.kinguinId]);
 
@@ -151,9 +162,11 @@ export function ImportKinguinDialog({
   }
 
   function handleRecalculatePrices() {
-    if (!hit) return;
-    startTransition(() => {
-      void (async () => {
+    if (!hit || anyBusy) return;
+    const toastId = toast.loading("Calculando precios…");
+    setBusy("pricing");
+    void (async () => {
+      try {
         const result = await priceKinguinProductsAction({
           items: [
             {
@@ -166,48 +179,61 @@ export function ImportKinguinDialog({
           maxMarkupPct,
         });
         if (!result.success) {
-          toast.error(result.message);
+          toast.error(result.message, { id: toastId });
           return;
         }
         const priced = result.data.items[0];
-        if (!priced) return;
+        if (!priced) {
+          toast.error("Sin precios calculados", { id: toastId });
+          return;
+        }
         setMarkupPct(String(priced.markupPct));
         setSourceCostPrice(String(priced.costClp));
         setPrice(String(priced.priceClp));
         setEurClpRate(result.data.eurClpRate);
-      })();
-    });
+        toast.success("Precios actualizados", { id: toastId });
+      } finally {
+        setBusy(null);
+      }
+    })();
   }
 
   function handleTranslate() {
-    if (!hit) return;
-    startTransition(() => {
-      void (async () => {
+    if (!hit || anyBusy) return;
+    const toastId = toast.loading("Traduciendo…");
+    setBusy("translating");
+    void (async () => {
+      try {
         const result = await translateKinguinProductsAction({
           kinguinIds: [hit.kinguinId],
         });
         if (!result.success) {
-          toast.error(result.message);
+          toast.error(result.message, { id: toastId });
           return;
         }
         const item = result.data.items[0];
         if (!item) {
-          toast.error("Sin resultado de traducción");
+          toast.error("Sin resultado de traducción", { id: toastId });
           return;
         }
         setName(item.nameEs);
-        setDescription(item.descriptionEs);
         setActivationDetails(item.activationDetailsEs);
         setRegionalLimitations(item.regionalLimitationsEs);
-        toast.success("Traducción lista");
-      })();
-    });
+        toast.success("Traducción lista (nombre y campos cortos)", {
+          id: toastId,
+        });
+      } finally {
+        setBusy(null);
+      }
+    })();
   }
 
   function handleImport() {
-    if (!hit) return;
-    startTransition(() => {
-      void (async () => {
+    if (!hit || anyBusy) return;
+    const toastId = toast.loading("Importando producto…");
+    setBusy("importing");
+    void (async () => {
+      try {
         const result = await importKinguinProductAction({
           kinguinId: hit.kinguinId,
           markupPct: Number.parseFloat(markupPct) || DEFAULT_KINGUIN_MARKUP_PCT,
@@ -220,16 +246,18 @@ export function ImportKinguinDialog({
           sourceCostPrice: sourceCostPrice || undefined,
         });
         if (!result.success) {
-          toast.error(result.message);
+          toast.error(result.message, { id: toastId });
           return;
         }
-        toast.success("Producto importado (DRAFT)");
+        toast.success("Producto importado (DRAFT)", { id: toastId });
         onOpenChange(false);
         onImported?.();
         router.push(`/admin/products/${result.data.productId}`);
         router.refresh();
-      })();
-    });
+      } finally {
+        setBusy(null);
+      }
+    })();
   }
 
   return (
@@ -239,7 +267,8 @@ export function ImportKinguinDialog({
           <DialogTitle>Importar desde Kinguin</DialogTitle>
           <DialogDescription>
             {hit?.name ?? "Producto"} · markup y precios CLP por código; la IA
-            solo traduce. Se crean todas las ofertas (la más barata es default).
+            traduce solo nombre y campos cortos (no la descripción). Se crean
+            todas las ofertas (la más barata es default).
           </DialogDescription>
         </DialogHeader>
 
@@ -271,19 +300,19 @@ export function ImportKinguinDialog({
             <Button
               type="button"
               variant="outline"
-              disabled={isPending || !hit}
+              disabled={anyBusy || !hit || undefined}
               onClick={handleRecalculatePrices}
             >
-              {isPending ? "Calculando…" : "Recalcular precios"}
+              {busy === "pricing" ? "Calculando…" : "Recalcular precios"}
             </Button>
             <Button
               type="button"
               variant="outline"
-              disabled={isPending || !hit}
+              disabled={anyBusy || !hit || undefined}
               onClick={handleTranslate}
             >
               <HiOutlineSparkles className="size-4" />
-              {isPending ? "Traduciendo…" : "Traducir"}
+              {busy === "translating" ? "Traduciendo…" : "Traducir"}
             </Button>
           </div>
 
@@ -396,7 +425,7 @@ export function ImportKinguinDialog({
                 <Empty className="rounded-none border-0 p-6">
                   <EmptyHeader>
                     <EmptyDescription>
-                      {isPending ? "Cargando ofertas…" : "Sin ofertas"}
+                      {busy === "preview" ? "Cargando ofertas…" : "Sin ofertas"}
                     </EmptyDescription>
                   </EmptyHeader>
                 </Empty>
@@ -435,6 +464,7 @@ export function ImportKinguinDialog({
           <Button
             type="button"
             variant="outline"
+            disabled={anyBusy || undefined}
             onClick={() => onOpenChange(false)}
           >
             Cancelar
@@ -442,16 +472,17 @@ export function ImportKinguinDialog({
           <Button
             type="button"
             disabled={
-              isPending ||
+              anyBusy ||
               !hit ||
               preview?.alreadyImported ||
               !name.trim() ||
               !price ||
-              !sourceCostPrice
+              !sourceCostPrice ||
+              undefined
             }
             onClick={handleImport}
           >
-            {isPending ? "Importando…" : "Importar producto"}
+            {busy === "importing" ? "Importando…" : "Importar producto"}
           </Button>
         </DialogFooter>
       </DialogContent>
