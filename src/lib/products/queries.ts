@@ -100,6 +100,123 @@ function buildProductsWhere(
   return where;
 }
 
+/** Products matching list filters, capped for bulk select/export. */
+export async function getProductsForBulkQuery(
+  input: ProductsListQuery,
+  limit: number,
+): Promise<ProductListItemDto[]> {
+  const where = buildProductsWhere(input);
+  const orderBy = buildOrderBy(input.sort, input.order);
+  const take = Math.min(Math.max(1, limit), 100);
+
+  const products = await prisma.product.findMany({
+    where,
+    orderBy,
+    take,
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      coverImageUrl: true,
+      status: true,
+      deliveryMethod: true,
+      price: true,
+      compareAtPrice: true,
+      currency: true,
+      qty: true,
+      textQty: true,
+      smmMin: true,
+      smmMax: true,
+      isFeatured: true,
+      isOffer: true,
+      isPreorder: true,
+      createdAt: true,
+      updatedAt: true,
+      categories: {
+        select: {
+          category: { select: { id: true, name: true, slug: true } },
+        },
+      },
+      assets: {
+        where: { type: "IMAGE" },
+        orderBy: { sortOrder: "asc" },
+        take: 1,
+        select: { url: true, thumbnailUrl: true, sortOrder: true },
+      },
+      _count: { select: { keys: true } },
+    },
+  });
+
+  return products.map((product) =>
+    toListItemDto({
+      ...product,
+      availableKeysCount: 0,
+      availableAccountsCount: 0,
+      defaultOfferAvailableQty: null,
+    }),
+  );
+}
+
+export async function getProductsByIdsForBulk(
+  productIds: string[],
+): Promise<ProductListItemDto[]> {
+  if (productIds.length === 0) return [];
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      coverImageUrl: true,
+      status: true,
+      deliveryMethod: true,
+      price: true,
+      compareAtPrice: true,
+      currency: true,
+      qty: true,
+      textQty: true,
+      smmMin: true,
+      smmMax: true,
+      isFeatured: true,
+      isOffer: true,
+      isPreorder: true,
+      createdAt: true,
+      updatedAt: true,
+      categories: {
+        select: {
+          category: { select: { id: true, name: true, slug: true } },
+        },
+      },
+      assets: {
+        where: { type: "IMAGE" },
+        orderBy: { sortOrder: "asc" },
+        take: 1,
+        select: { url: true, thumbnailUrl: true, sortOrder: true },
+      },
+      _count: { select: { keys: true } },
+    },
+  });
+
+  const byId = new Map(
+    products.map((product) => [
+      product.id,
+      toListItemDto({
+        ...product,
+        availableKeysCount: 0,
+        availableAccountsCount: 0,
+        defaultOfferAvailableQty: null,
+      }),
+    ]),
+  );
+
+  return productIds
+    .map((id) => byId.get(id))
+    .filter((item): item is ProductListItemDto => item != null);
+}
+
 function toListItemDto(product: {
   id: string;
   name: string;

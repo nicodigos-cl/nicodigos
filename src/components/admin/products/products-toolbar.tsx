@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -9,6 +9,7 @@ import {
   HiOutlineCheckCircle,
   HiOutlineCollection,
   HiOutlineDocument,
+  HiOutlineDocumentDownload,
   HiOutlineFilter,
   HiOutlineKey,
   HiOutlineLightningBolt,
@@ -20,6 +21,7 @@ import {
   HiOutlineX,
 } from "react-icons/hi";
 
+import { exportFilteredProductsAsJson } from "@/components/admin/products/products-actions-bar";
 import { ImportProductsMenu } from "@/components/admin/products/import-products-menu";
 import { SsrSearchInput } from "@/components/admin/ssr-search-input";
 import { Badge } from "@/components/ui/badge";
@@ -174,6 +176,7 @@ function FilterOptionButton({
 export function ProductsToolbar({ query, categories }: ProductsToolbarProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [isExporting, startExport] = useTransition();
 
   const activeFilterCount = [
     query.category,
@@ -220,6 +223,20 @@ export function ProductsToolbar({ query, categories }: ProductsToolbarProps) {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="shrink-0"
+            disabled={isExporting || undefined}
+            onClick={() => {
+              startExport(() => {
+                void exportFilteredProductsAsJson(query)();
+              });
+            }}
+          >
+            <HiOutlineDocumentDownload className="size-4" />
+            {isExporting ? "Exportando..." : "Exportar"}
+          </Button>
           <ImportProductsMenu categories={categories} />
           <Button
             render={<Link href="/admin/products/new" />}

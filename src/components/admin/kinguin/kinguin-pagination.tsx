@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import {
   Pagination,
   PaginationContent,
@@ -69,54 +71,78 @@ export function KinguinPagination({
         de <span className="font-medium text-foreground">{total}</span>{" "}
         resultados
       </p>
-      <Pagination className="mx-0 w-auto justify-start sm:justify-end">
-        <PaginationContent>
-          <PaginationItem>
-            <PaginationPrevious
-              href={
-                page > 1
-                  ? buildHref(query, { page: page - 1 })
-                  : buildHref(query, { page: 1 })
-              }
-              text="Anterior"
-              aria-disabled={page <= 1}
-              className={
-                page <= 1 ? "pointer-events-none opacity-50" : undefined
-              }
-            />
-          </PaginationItem>
-          {getPageNumbers(page, totalPages).map((item, index) =>
-            item === "ellipsis" ? (
-              <PaginationItem key={`e-${index}`}>
-                <PaginationEllipsis />
-              </PaginationItem>
-            ) : (
-              <PaginationItem key={item}>
-                <PaginationLink
-                  href={buildHref(query, { page: item })}
-                  isActive={item === page}
-                >
-                  {item}
-                </PaginationLink>
-              </PaginationItem>
-            ),
-          )}
-          <PaginationItem>
-            <PaginationNext
-              href={
-                page < totalPages
-                  ? buildHref(query, { page: page + 1 })
-                  : buildHref(query, { page: totalPages })
-              }
-              text="Siguiente"
-              aria-disabled={page >= totalPages}
-              className={
-                page >= totalPages ? "pointer-events-none opacity-50" : undefined
-              }
-            />
-          </PaginationItem>
-        </PaginationContent>
-      </Pagination>
+
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="whitespace-nowrap">Por página</span>
+          <div className="flex gap-1">
+            {([10, 20, 50] as const).map((size) => (
+              <Link
+                key={size}
+                href={buildHref(query, { page: 1, pageSize: size })}
+                className={
+                  pageSize === size
+                    ? "rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground"
+                    : "rounded-full px-2.5 py-1 text-xs font-medium hover:bg-muted"
+                }
+              >
+                {size}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <Pagination className="mx-0 w-auto justify-start sm:justify-end">
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                href={
+                  page > 1
+                    ? buildHref(query, { page: page - 1 })
+                    : buildHref(query, { page: 1 })
+                }
+                text="Anterior"
+                aria-disabled={page <= 1}
+                className={
+                  page <= 1 ? "pointer-events-none opacity-50" : undefined
+                }
+              />
+            </PaginationItem>
+            {getPageNumbers(page, totalPages).map((item, index) =>
+              item === "ellipsis" ? (
+                <PaginationItem key={`e-${index}`}>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              ) : (
+                <PaginationItem key={item}>
+                  <PaginationLink
+                    href={buildHref(query, { page: item })}
+                    isActive={item === page}
+                  >
+                    {item}
+                  </PaginationLink>
+                </PaginationItem>
+              ),
+            )}
+            <PaginationItem>
+              <PaginationNext
+                href={
+                  page < totalPages
+                    ? buildHref(query, { page: page + 1 })
+                    : buildHref(query, { page: totalPages })
+                }
+                text="Siguiente"
+                aria-disabled={page >= totalPages}
+                className={
+                  page >= totalPages
+                    ? "pointer-events-none opacity-50"
+                    : undefined
+                }
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      </div>
     </div>
   );
 }

@@ -5,7 +5,9 @@ import {
   ProductKeyStatus,
   ProductStatus,
 } from "@/generated/prisma/client";
+import { PRODUCT_SELECTION_LIMIT } from "@/lib/smm-services/constants";
 import { assetsInputSchema } from "@/lib/validations/assets";
+import { PRODUCT_IMPORT_LIMIT } from "@/lib/validations/product-import";
 
 const productStatusValues = [
   ProductStatus.DRAFT,
@@ -290,6 +292,51 @@ export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 
 export const archiveProductSchema = z.object({
   id: z.string().cuid(),
+});
+
+export const bulkUpdateProductStatusSchema = z.object({
+  productIds: z
+    .array(z.string().cuid())
+    .min(1)
+    .max(PRODUCT_SELECTION_LIMIT),
+  status: z.enum(productStatusValues),
+});
+
+export type BulkUpdateProductStatusInput = z.infer<
+  typeof bulkUpdateProductStatusSchema
+>;
+
+export const selectProductsForQuerySchema = z.object({
+  query: productsListQuerySchema,
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(PRODUCT_SELECTION_LIMIT)
+    .default(PRODUCT_SELECTION_LIMIT),
+});
+
+export const exportProductsSchema = z.object({
+  productIds: z
+    .array(z.string().cuid())
+    .min(1)
+    .max(PRODUCT_IMPORT_LIMIT)
+    .optional(),
+  query: productsListQuerySchema.optional(),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(PRODUCT_IMPORT_LIMIT)
+    .default(PRODUCT_IMPORT_LIMIT),
+}).superRefine((data, ctx) => {
+  if (!data.productIds?.length && !data.query) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Indica productIds o query",
+      path: ["productIds"],
+    });
+  }
 });
 
 export const addProductKeysSchema = z.object({

@@ -4,6 +4,9 @@ export const SMM_SERVICE_SELECTION_LIMIT = 25;
 /** Max selectable Kinguin hits for bulk import. */
 export const KINGUIN_SELECTION_LIMIT = 25;
 
+/** Max selectable products for bulk admin actions. */
+export const PRODUCT_SELECTION_LIMIT = 50;
+
 export const DEFAULT_MARKUP_MIN_PCT = 50;
 export const DEFAULT_MARKUP_MAX_PCT = 100;
 

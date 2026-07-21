@@ -2,11 +2,21 @@
 
 import { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import type { OnChangeFn, SortingState } from "@tanstack/react-table";
+import type {
+  ColumnDef,
+  OnChangeFn,
+  RowSelectionState,
+  SortingState,
+} from "@tanstack/react-table";
 
 import { productsColumns } from "@/components/admin/products/products-columns";
 import { DataTable } from "@/components/data-table";
-import type { ProductsListQuery, ProductsSortField } from "@/lib/validations/products";
+import { Checkbox } from "@/components/ui/checkbox";
+import { PRODUCT_SELECTION_LIMIT } from "@/lib/smm-services/constants";
+import type {
+  ProductsListQuery,
+  ProductsSortField,
+} from "@/lib/validations/products";
 import type { ProductListItemDto } from "@/types/products";
 
 const SORTABLE_COLUMNS = new Set<ProductsSortField>([
@@ -39,10 +49,18 @@ function buildProductsHref(
 type ProductsTableProps = {
   data: ProductListItemDto[];
   query: ProductsListQuery;
+  rowSelection: RowSelectionState;
+  onRowSelectionChange: OnChangeFn<RowSelectionState>;
 };
 
-export function ProductsTable({ data, query }: ProductsTableProps) {
+export function ProductsTable({
+  data,
+  query,
+  rowSelection,
+  onRowSelectionChange,
+}: ProductsTableProps) {
   const router = useRouter();
+  const selectedCount = Object.values(rowSelection).filter(Boolean).length;
 
   const sorting = useMemo<SortingState>(() => {
     if (!SORTABLE_COLUMNS.has(query.sort)) {
@@ -72,15 +90,69 @@ export function ProductsTable({ data, query }: ProductsTableProps) {
     [query, router, sorting],
   );
 
+  const columns = useMemo<ColumnDef<ProductListItemDto>[]>(
+    () => [
+      {
+        id: "select",
+        header: ({ table }) => (
+          <Checkbox
+            checked={table.getIsAllPageRowsSelected()}
+            indeterminate={
+              table.getIsSomePageRowsSelected() &&
+              !table.getIsAllPageRowsSelected()
+            }
+            onCheckedChange={(value) => {
+              if (value) {
+                const next: RowSelectionState = { ...rowSelection };
+                for (const row of table.getRowModel().rows) {
+                  if (
+                    Object.values(next).filter(Boolean).length >=
+                    PRODUCT_SELECTION_LIMIT
+                  ) {
+                    break;
+                  }
+                  next[row.id] = true;
+                }
+                onRowSelectionChange(next);
+                return;
+              }
+              table.toggleAllPageRowsSelected(false);
+            }}
+            aria-label="Seleccionar página"
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            disabled={
+              !row.getIsSelected() &&
+              selectedCount >= PRODUCT_SELECTION_LIMIT
+            }
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Seleccionar fila"
+          />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+      },
+      ...productsColumns,
+    ],
+    [onRowSelectionChange, rowSelection, selectedCount],
+  );
+
   return (
     <DataTable
-      columns={productsColumns}
+      columns={columns}
       data={data}
       manual
       hideToolbar
       hidePagination
+      enableRowSelection
+      rowSelection={rowSelection}
+      onRowSelectionChange={onRowSelectionChange}
       sorting={sorting}
       onSortingChange={onSortingChange}
+      getRowId={(row) => row.id}
       emptyMessage="No hay productos para mostrar."
     />
   );

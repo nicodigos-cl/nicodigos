@@ -2,9 +2,7 @@ import { redirect } from "next/navigation";
 import { HiOutlineCube } from "react-icons/hi";
 import Link from "next/link";
 
-import { ProductsMobileList } from "@/components/admin/products/products-mobile-list";
-import { ProductsPagination } from "@/components/admin/products/products-pagination";
-import { ProductsTable } from "@/components/admin/products/products-table";
+import { ProductsPageClient } from "@/components/admin/products/products-page-client";
 import { ProductsToolbar } from "@/components/admin/products/products-toolbar";
 import { Button } from "@/components/ui/button";
 import {
@@ -89,21 +87,14 @@ export default async function ProductsPage({
           </EmptyContent>
         </Empty>
       ) : (
-        <>
-          <div className="hidden md:block">
-            <ProductsTable data={result.items} query={query} />
-          </div>
-          <div className="md:hidden">
-            <ProductsMobileList data={result.items} />
-          </div>
-          <ProductsPagination
-            page={result.page}
-            pageSize={result.pageSize}
-            total={result.total}
-            totalPages={result.totalPages}
-            query={query}
-          />
-        </>
+        <ProductsPageClient
+          query={query}
+          items={result.items}
+          page={result.page}
+          pageSize={result.pageSize}
+          total={result.total}
+          totalPages={result.totalPages}
+        />
       )}
     </div>
   );
