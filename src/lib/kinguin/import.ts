@@ -7,6 +7,7 @@ import {
 } from "@/generated/prisma/client";
 
 import { applyMarkupPct, eurToClp } from "@/lib/fx/eur-clp";
+import { evaluateChileCompatibility } from "@/lib/kinguin/chile-compatibility";
 import {
   offerAvailableQty,
   offerPersistAvailableQty,
@@ -60,6 +61,11 @@ export async function getKinguinProductPreview(
 
   const cheapest = pickCheapestOffer(product);
   const cheapestId = cheapest?.offerId ?? product.cheapestOfferId?.[0] ?? null;
+  const chile = evaluateChileCompatibility({
+    name: product.name,
+    regionalLimitations: product.regionalLimitations,
+    countryLimitation: product.countryLimitation,
+  });
 
   return {
     kinguinId: product.kinguinId,
@@ -75,6 +81,11 @@ export async function getKinguinProductPreview(
         : (cheapest?.price ?? null),
     alreadyImported: existing != null,
     localProductId: existing?.id ?? null,
+    chileCompatible: chile.compatible,
+    chileWarning: chile.warning,
+    regionalLimitations: product.regionalLimitations ?? null,
+    countryLimitation: product.countryLimitation ?? [],
+    activationDetails: product.activationDetails ?? null,
     offers: (product.offers ?? []).map((offer) => ({
       offerId: offer.offerId,
       name: offer.name ?? null,

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { HiOutlineSparkles } from "react-icons/hi";
+import { HiOutlineExclamation, HiOutlineSparkles } from "react-icons/hi";
 import { toast } from "sonner";
 
 import {
@@ -16,6 +16,7 @@ import {
   DEFAULT_MARKUP_MAX_PCT,
   DEFAULT_MARKUP_MIN_PCT,
 } from "@/lib/smm-services/constants";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -273,6 +274,18 @@ export function ImportKinguinDialog({
         </DialogHeader>
 
         <div className="grid gap-4">
+          {(preview && !preview.chileCompatible && preview.chileWarning) ||
+          (hit && !hit.chileCompatible && hit.chileWarning) ? (
+            <Alert variant="destructive">
+              <HiOutlineExclamation />
+              <AlertTitle>No compatible con Chile</AlertTitle>
+              <AlertDescription>
+                {preview?.chileWarning ?? hit?.chileWarning}. Solo acepta
+                productos activables en Chile.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="kinguinMinMarkup">Markup mín. %</Label>

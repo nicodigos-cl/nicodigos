@@ -88,6 +88,10 @@ export type ProductDetailDto = {
   activationDetails: string | null;
   ageRating: string | null;
   sourceCostPrice: string | null;
+  kinguinId: number | null;
+  kinguinSyncedAt: string | null;
+  chileCompatible: boolean;
+  chileWarning: string | null;
   categoryIds: string[];
   categories: ProductCategoryDto[];
   images: ProductImageDto[];

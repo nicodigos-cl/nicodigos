@@ -6,6 +6,8 @@ import Link from "next/link";
 import {
   HiOutlineArrowLeft,
   HiOutlineChevronDown,
+  HiOutlineExclamation,
+  HiOutlineRefresh,
   HiOutlineSave,
   HiOutlineTrash,
 } from "react-icons/hi";
@@ -15,6 +17,7 @@ import { AssetField } from "@/components/admin/asset-field";
 import { ProductStatusBadge } from "@/components/admin/products/product-status-badge";
 import { KinguinProductPicker } from "@/components/admin/products/kinguin-product-picker";
 import { SmmServicePicker } from "@/components/admin/products/smm-service-picker";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -43,6 +46,7 @@ import {
   createProductAction,
   updateProductAction,
 } from "@/lib/actions/products";
+import { syncKinguinProductAction } from "@/lib/actions/products-bulk";
 import { applyMarkupPct } from "@/lib/fx/markup";
 import { calculateMarginPercent, slugify } from "@/lib/products/format";
 import type { CategoryOptionDto, ProductDetailDto } from "@/types/products";
@@ -366,6 +370,36 @@ export function ProductForm({
 
   const fieldError = (key: string) => fieldErrors[key]?.[0];
 
+  function handleSyncKinguin() {
+    if (!product || product.kinguinId == null || isPending) return;
+    const confirmed = window.confirm(
+      "¿Sincronizar desde Kinguin? Se actualizarán costo, ofertas, región y detalles (no el nombre ni la descripción).",
+    );
+    if (!confirmed) return;
+
+    startTransition(() => {
+      void (async () => {
+        const toastId = toast.loading("Sincronizando con Kinguin…");
+        const result = await syncKinguinProductAction({ productId: product.id });
+        if (!result.success) {
+          toast.error(result.message, { id: toastId });
+          return;
+        }
+        const statusLabel =
+          result.data.status === "archived"
+            ? "archivado (sin stock/ofertas)"
+            : "sincronizado";
+        toast.success(
+          `Producto ${statusLabel}. Ofertas: ${result.data.offersUpserted}${
+            result.data.repriced ? " · precio actualizado" : ""
+          }`,
+          { id: toastId },
+        );
+        router.refresh();
+      })();
+    });
+  }
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -389,6 +423,9 @@ export function ProductForm({
             {product ? (
               <p className="text-sm text-muted-foreground">
                 Código: {product.code}
+                {product.kinguinSyncedAt
+                  ? ` · Sync Kinguin: ${new Date(product.kinguinSyncedAt).toLocaleString("es-CL")}`
+                  : ""}
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">
@@ -399,6 +436,18 @@ export function ProductForm({
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {mode === "edit" && product?.kinguinId != null ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isPending}
+              className="w-full sm:w-auto"
+              onClick={handleSyncKinguin}
+            >
+              <HiOutlineRefresh className="size-4" />
+              {isPending ? "Sincronizando..." : "Sync Kinguin"}
+            </Button>
+          ) : null}
           {archiveSlot}
           <Button
             type="submit"
@@ -410,6 +459,17 @@ export function ProductForm({
           </Button>
         </div>
       </div>
+
+      {product && !product.chileCompatible && product.chileWarning ? (
+        <Alert variant="destructive">
+          <HiOutlineExclamation />
+          <AlertTitle>No compatible con Chile</AlertTitle>
+          <AlertDescription>
+            {product.chileWarning}. Revisa región / países restringidos antes de
+            publicar.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
         <div className="flex flex-col gap-6">

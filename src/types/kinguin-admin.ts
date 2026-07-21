@@ -10,6 +10,12 @@ export type KinguinSearchHitDto = {
   coverThumbnailUrl: string | null;
   alreadyImported: boolean;
   localProductId: string | null;
+  /** False when activation looks unsafe for Chile. */
+  chileCompatible: boolean;
+  /** Spanish warning when not Chile-compatible. */
+  chileWarning: string | null;
+  regionalLimitations: string | null;
+  countryLimitation: string[];
 };
 
 export type KinguinSearchPageResult = {
@@ -43,4 +49,9 @@ export type KinguinProductPreviewDto = {
   priceEur: number | null;
   alreadyImported: boolean;
   localProductId: string | null;
+  chileCompatible: boolean;
+  chileWarning: string | null;
+  regionalLimitations: string | null;
+  countryLimitation: string[];
+  activationDetails: string | null;
 };

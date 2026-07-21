@@ -12,6 +12,7 @@ import {
   getCachedKinguinBalance,
   getCachedKinguinRegionName,
 } from "@/lib/kinguin/balance";
+import { evaluateChileCompatibility } from "@/lib/kinguin/chile-compatibility";
 import { resolvePersistedOfferQty } from "@/lib/kinguin/offers";
 import {
   calculateDeliveryPromise,
@@ -453,6 +454,8 @@ export async function getProductById(
       activationDetails: true,
       ageRating: true,
       sourceCostPrice: true,
+      kinguinId: true,
+      kinguinSyncedAt: true,
       createdAt: true,
       updatedAt: true,
       categories: {
@@ -525,6 +528,11 @@ export async function getProductById(
   });
 
   const price = decimalToString(product.price) ?? "0";
+  const chile = evaluateChileCompatibility({
+    name: product.name,
+    regionalLimitations: product.regionalLimitations,
+    countryLimitation: product.countryLimitation,
+  });
 
   return {
     id: product.id,
@@ -558,6 +566,10 @@ export async function getProductById(
     activationDetails: product.activationDetails,
     ageRating: product.ageRating,
     sourceCostPrice: decimalToString(product.sourceCostPrice),
+    kinguinId: product.kinguinId,
+    kinguinSyncedAt: product.kinguinSyncedAt?.toISOString() ?? null,
+    chileCompatible: chile.compatible,
+    chileWarning: chile.warning,
     categoryIds: product.categories.map((item) => item.categoryId),
     categories: product.categories.map((item) => ({
       id: item.category.id,

@@ -309,6 +309,26 @@ export type BulkUpdateProductStatusInput = z.infer<
   typeof bulkUpdateProductStatusSchema
 >;
 
+export const syncKinguinProductsSchema = z.object({
+  productIds: z
+    .array(z.string().cuid())
+    .min(1)
+    .max(PRODUCT_PROCESS_LIMIT),
+});
+
+export type SyncKinguinProductsInput = z.infer<typeof syncKinguinProductsSchema>;
+
+export const checkProductsChileCompatibilitySchema = z.object({
+  productIds: z
+    .array(z.string().cuid())
+    .min(1)
+    .max(PRODUCT_PROCESS_LIMIT),
+});
+
+export type CheckProductsChileCompatibilityInput = z.infer<
+  typeof checkProductsChileCompatibilitySchema
+>;
+
 export const selectProductsForQuerySchema = z.object({
   query: productsListQuerySchema,
   limit: z.coerce

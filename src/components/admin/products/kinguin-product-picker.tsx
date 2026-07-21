@@ -108,6 +108,20 @@ export function KinguinProductPicker({
       ),
     },
     {
+      id: "chile",
+      header: "Chile",
+      cell: ({ row }) =>
+        row.original.chileCompatible ? (
+          <Badge variant="outline" className="text-[10px]">
+            OK
+          </Badge>
+        ) : (
+          <Badge variant="destructive" className="text-[10px]">
+            No
+          </Badge>
+        ),
+    },
+    {
       accessorKey: "priceEur",
       header: "EUR",
       cell: ({ row }) => (

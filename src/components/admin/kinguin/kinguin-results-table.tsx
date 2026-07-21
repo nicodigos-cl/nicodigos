@@ -108,10 +108,30 @@ export function KinguinResultsTable({
               <p className="truncate font-medium">{row.original.name}</p>
               <p className="text-xs text-muted-foreground">
                 #{row.original.kinguinId}
+                {row.original.regionalLimitations
+                  ? ` · ${row.original.regionalLimitations}`
+                  : ""}
               </p>
+              {!row.original.chileCompatible && row.original.chileWarning ? (
+                <Badge variant="destructive" className="mt-1">
+                  {row.original.chileWarning}
+                </Badge>
+              ) : null}
             </div>
           </div>
         ),
+      },
+      {
+        id: "region",
+        header: "Región",
+        cell: ({ row }) =>
+          row.original.chileCompatible ? (
+            <Badge variant="outline">OK Chile</Badge>
+          ) : (
+            <Badge variant="destructive">
+              {row.original.chileWarning ?? "No Chile"}
+            </Badge>
+          ),
       },
       {
         accessorKey: "platform",
@@ -258,6 +278,13 @@ export function KinguinResultsTable({
                       {item.offersCount} ofertas
                     </Badge>
                     <Badge variant="outline">Stock {item.qty}</Badge>
+                    {item.chileCompatible ? (
+                      <Badge variant="outline">OK Chile</Badge>
+                    ) : (
+                      <Badge variant="destructive">
+                        {item.chileWarning ?? "No Chile"}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>

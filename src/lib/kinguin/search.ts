@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 
+import { evaluateChileCompatibility } from "@/lib/kinguin/chile-compatibility";
 import { getKinguinClient } from "@/lib/kinguin-client";
 import { createLogger } from "@/lib/logger";
 import prisma from "@/lib/prisma";
@@ -32,6 +33,11 @@ function mapSearchHit(
   imported: Map<number, string>,
 ): KinguinSearchHitDto {
   const localProductId = imported.get(product.kinguinId) ?? null;
+  const chile = evaluateChileCompatibility({
+    name: product.name,
+    regionalLimitations: product.regionalLimitations,
+    countryLimitation: product.countryLimitation,
+  });
   return {
     kinguinId: product.kinguinId,
     productId: product.productId,
@@ -48,6 +54,10 @@ function mapSearchHit(
       product.images?.cover?.thumbnail ?? product.images?.cover?.url ?? null,
     alreadyImported: localProductId != null,
     localProductId,
+    chileCompatible: chile.compatible,
+    chileWarning: chile.warning,
+    regionalLimitations: product.regionalLimitations ?? null,
+    countryLimitation: product.countryLimitation ?? [],
   };
 }
 

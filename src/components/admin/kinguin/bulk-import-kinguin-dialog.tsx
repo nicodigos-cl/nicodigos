@@ -7,6 +7,7 @@ import { HiOutlineSparkles } from "react-icons/hi";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/data-table";
 import {
   Dialog,
@@ -50,6 +51,8 @@ type DraftRow = {
   price: string;
   sourceCostPrice: string;
   priceEur: number | null;
+  chileCompatible: boolean;
+  chileWarning: string | null;
 };
 
 type BusyAction = "pricing" | "translating" | "importing" | null;
@@ -147,11 +150,13 @@ export function BulkImportKinguinDialog({
           name: hit.name,
           description: "",
           activationDetails: "",
-          regionalLimitations: "",
+          regionalLimitations: hit.regionalLimitations ?? "",
           markupPct: "",
           price: "0",
           sourceCostPrice: "0",
           priceEur: hit.priceEur,
+          chileCompatible: hit.chileCompatible,
+          chileWarning: hit.chileWarning,
         })),
       );
       setEurClpHint(null);
@@ -277,6 +282,11 @@ export function BulkImportKinguinDialog({
               ? ` · €${row.original.priceEur.toFixed(2)}`
               : ""}
           </span>
+          {!row.original.chileCompatible && row.original.chileWarning ? (
+            <Badge variant="destructive" className="mt-1 text-[10px]">
+              {row.original.chileWarning}
+            </Badge>
+          ) : null}
         </div>
       ),
     },
