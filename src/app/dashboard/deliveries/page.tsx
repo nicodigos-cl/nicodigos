@@ -30,7 +30,6 @@ import { getCustomerDeliveriesPage } from "@/lib/customer-dashboard/queries";
 import {
   CUSTOMER_DELIVERIES_PATH,
   CUSTOMER_ORDERS_PATH,
-  customerDeliveriesPath,
 } from "@/lib/customer-dashboard/paths";
 import {
   customerDeliveriesListQuerySchema,

@@ -202,7 +202,9 @@ export function ProductForm({
   const [slugTouched, setSlugTouched] = useState(mode === "edit");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [form, setForm] = useState<FormState>(() => toFormState(product));
-  const [assets, setAssets] = useState<AssetDraft[]>(() => product?.assets ?? []);
+  const [assets, setAssets] = useState<AssetDraft[]>(
+    () => product?.assets ?? [],
+  );
   const [smmServiceDbId, setSmmServiceDbId] = useState<string | null>(null);
   const [kinguinId, setKinguinId] = useState<number | null>(null);
 
@@ -236,6 +238,7 @@ export function ProductForm({
       deliveryMethod: "SMM",
       name: prev.name.trim() ? prev.name : service.name,
       slug: slugTouched ? prev.slug : slugify(service.name),
+      qty: String(Math.max(1, service.max)),
       textQty: String(service.min),
       price: String(priceClp),
       sourceCostPrice: String(baseClp),
@@ -262,7 +265,10 @@ export function ProductForm({
       name: prev.name.trim() ? prev.name : hit.name,
       slug: slugTouched ? prev.slug : slugify(hit.name),
       coverImageUrl:
-        prev.coverImageUrl.trim() || hit.coverUrl || hit.coverThumbnailUrl || "",
+        prev.coverImageUrl.trim() ||
+        hit.coverUrl ||
+        hit.coverThumbnailUrl ||
+        "",
       platform: prev.platform.trim() || hit.platform || "",
       qty: String(hit.qty || 0),
       price: String(priceClp),
@@ -323,9 +329,13 @@ export function ProductForm({
       categoryIds: form.categoryIds,
       assets,
       smmServiceDbId:
-        form.deliveryMethod === "SMM" ? (smmServiceDbId ?? undefined) : undefined,
+        form.deliveryMethod === "SMM"
+          ? (smmServiceDbId ?? undefined)
+          : undefined,
       kinguinId:
-        form.deliveryMethod === "KINGUIN" ? (kinguinId ?? undefined) : undefined,
+        form.deliveryMethod === "KINGUIN"
+          ? (kinguinId ?? undefined)
+          : undefined,
       kinguinMarkupPct:
         form.deliveryMethod === "KINGUIN"
           ? (kinguinPicker?.defaultMarkupPct ?? undefined)
@@ -407,7 +417,8 @@ export function ProductForm({
             <CardHeader>
               <CardTitle>Fotos y videos</CardTitle>
               <CardDescription>
-                Agrega varias fotografías, videos manuales o enlaces de YouTube. Marca una foto como portada.
+                Agrega varias fotografías, videos manuales o enlaces de YouTube.
+                Marca una foto como portada.
               </CardDescription>
             </CardHeader>
             <CardContent>

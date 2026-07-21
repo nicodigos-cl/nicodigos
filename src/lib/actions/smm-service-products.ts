@@ -3,10 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { flattenError } from "zod";
 
-import { DeliveryMethod, Prisma, ProductStatus } from "@/generated/prisma/client";
+import {
+  DeliveryMethod,
+  Prisma,
+  ProductStatus,
+} from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/actions/types";
 import { requireSession } from "@/lib/auth/session";
-import { applyMarkupPct, getUsdToClpRate, usdToClp } from "@/lib/fx/usd-clp";
+import { applyMarkupPct, getUsdToClpRate } from "@/lib/fx/usd-clp";
 import { createStructuredResponse } from "@/lib/openai/client";
 import prisma from "@/lib/prisma";
 import { slugify } from "@/lib/products/format";
@@ -40,15 +44,21 @@ function validationError<T>(
   };
 }
 
-function clampMarkup(
-  value: number,
-  min: number,
-  max: number,
-): number {
-  if (!Number.isFinite(value)) {
-    return min;
-  }
-  return Math.min(max, Math.max(min, value));
+function randomMarkupPct(min: number, max: number): number {
+  const low = Math.min(min, max);
+  const high = Math.max(min, max);
+  return low + Math.floor(Math.random() * (high - low + 1));
+}
+
+/** Heuristic: skip AI when the title already looks Spanish. */
+function looksAlreadySpanish(name: string): boolean {
+  const text = name.trim();
+  if (!text) return false;
+  if (/[áéíóúüñÁÉÍÓÚÜÑ¿¡]/.test(text)) return true;
+
+  return /\b(seguidores|suscriptores|me\s*gustas?|comentarios|visualizaciones|reproducciones|visitas|compartidos|miembros|historias|garantizado|rápido|rapido|calidad)\b/i.test(
+    text,
+  );
 }
 
 export type PrefillServiceItem = {
@@ -107,85 +117,77 @@ export async function prefillSmmServicesWithAiAction(
       items: Array<{
         serviceId: string;
         nameEs: string;
-        descriptionEs: string;
-        markupPct: number;
       }>;
     };
 
-    const ai = await createStructuredResponse<AiPayload>({
-      schemaName: "smm_service_product_prefill",
-      instructions: [
-        "Eres un copywriter de ecommerce en Chile.",
-        "Traduce nombres de servicios SMM al español (neutro latinoamericano) y genera una descripción corta (1-2 frases) en español.",
-        `Para cada servicio elige un markupPct entero aleatorio entre ${minMarkupPct} y ${maxMarkupPct} (inclusive).`,
-        "No inventes IDs: usa exactamente los serviceId recibidos.",
-        "Responde solo con el JSON estructurado solicitado.",
-      ].join(" "),
-      input: JSON.stringify({
-        minMarkupPct,
-        maxMarkupPct,
-        services: services.map((service) => ({
-          serviceId: service.id,
-          name: service.name,
-          type: service.type,
-          category: service.category,
-          rateUsd: service.rate,
-          min: service.min,
-          max: service.max,
-        })),
-      }),
-      schema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["items"],
-        properties: {
-          items: {
-            type: "array",
-            items: {
+    const toTranslate = services.filter(
+      (service) => !looksAlreadySpanish(service.name),
+    );
+
+    const [ai, usdClpRate] = await Promise.all([
+      toTranslate.length === 0
+        ? Promise.resolve({ items: [] as AiPayload["items"] })
+        : createStructuredResponse<AiPayload>({
+            schemaName: "smm_service_title_translate",
+            instructions: [
+              "Traduce nombres de servicios SMM al español (neutro latinoamericano).",
+              "Mantén marcas/plataformas (Instagram, TikTok, YouTube, etc.) cuando aplique.",
+              "No inventes IDs: usa exactamente los serviceId recibidos.",
+              "Responde solo con el JSON estructurado solicitado.",
+            ].join(" "),
+            input: JSON.stringify({
+              services: toTranslate.map((service) => ({
+                serviceId: service.id,
+                name: service.name,
+                type: service.type,
+                category: service.category,
+              })),
+            }),
+            schema: {
               type: "object",
               additionalProperties: false,
-              required: ["serviceId", "nameEs", "descriptionEs", "markupPct"],
+              required: ["items"],
               properties: {
-                serviceId: { type: "string" },
-                nameEs: { type: "string" },
-                descriptionEs: { type: "string" },
-                markupPct: { type: "number" },
+                items: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["serviceId", "nameEs"],
+                    properties: {
+                      serviceId: { type: "string" },
+                      nameEs: { type: "string" },
+                    },
+                  },
+                },
               },
             },
-          },
-        },
-      },
-    });
+          }),
+      getUsdToClpRate(),
+    ]);
 
-    const byId = new Map(services.map((service) => [service.id, service]));
-    const usdClpRate = await getUsdToClpRate();
-    const items: PrefillServiceItem[] = [];
+    const nameById = new Map(
+      ai.items.map((row) => [row.serviceId, row.nameEs.trim()] as const),
+    );
 
-    for (const row of ai.items) {
-      const service = byId.get(row.serviceId);
-      if (!service) continue;
-
+    const items: PrefillServiceItem[] = services.map((service) => {
       const rateUsd = Number.parseFloat(service.rate) || 0;
-      const baseClp = await usdToClp(rateUsd);
-      const markupPct = clampMarkup(row.markupPct, minMarkupPct, maxMarkupPct);
+      const baseClp = Math.round(rateUsd * usdClpRate);
+      const markupPct = randomMarkupPct(minMarkupPct, maxMarkupPct);
+      const alreadySpanish = looksAlreadySpanish(service.name);
 
-      items.push({
+      return {
         serviceId: service.id,
-        nameEs: row.nameEs.trim() || service.name,
-        descriptionEs: row.descriptionEs.trim(),
+        nameEs: alreadySpanish
+          ? service.name
+          : nameById.get(service.id) || service.name,
+        descriptionEs: "",
         markupPct,
         priceClp: applyMarkupPct(baseClp, markupPct),
         rateUsd,
         baseClp,
-      });
-    }
-
-    if (items.length === 0) {
-      return {
-        success: false,
-        message: "La IA no devolvió items utilizables.",
       };
-    }
+    });
 
     return { success: true, data: { items, usdClpRate } };
   } catch (error) {
@@ -264,6 +266,7 @@ export async function convertSmmServicesToProductsAction(
   }
 
   try {
+    const usdClpRate = await getUsdToClpRate();
     const created = await prisma.$transaction(async (tx) => {
       const results: Array<{ serviceId: string; productId: string }> = [];
 
@@ -275,18 +278,34 @@ export async function convertSmmServicesToProductsAction(
 
         const slug =
           item.slug ?? (await uniqueSlug(tx, item.name || service.name));
+        const rateUsd = Number.parseFloat(service.rate) || 0;
+        const baseClp = Math.round(rateUsd * usdClpRate);
+        const qty = Math.max(1, service.max);
+        const textQty = item.textQty ?? service.min;
+        const description =
+          item.description?.trim() ||
+          [
+            `Tipo: ${service.type}`,
+            `Categoría panel: ${service.category}`,
+            `Cantidad permitida: ${service.min.toLocaleString("es-CL")} – ${service.max.toLocaleString("es-CL")}`,
+            `Refill: ${service.refill ? "sí" : "no"}`,
+            `Cancel: ${service.cancel ? "sí" : "no"}`,
+            `Rate proveedor: USD ${service.rate}`,
+          ].join("\n");
 
         const product = await tx.product.create({
           data: {
             name: item.name,
             slug,
-            description: item.description ?? null,
+            description,
+            originalName: service.name,
             status: ProductStatus.DRAFT,
             deliveryMethod: DeliveryMethod.SMM,
             price: item.price,
             currency: "CLP",
-            qty: 0,
-            textQty: item.textQty ?? service.min,
+            qty,
+            textQty,
+            sourceCostPrice: baseClp,
             smmApiUrl: service.providerApiUrl,
             smmServiceId: service.remoteServiceId,
             smmServiceType: service.type,

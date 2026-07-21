@@ -44,8 +44,12 @@ export function ConvertServiceDialog({
 }: ConvertServiceDialogProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [minMarkupPct, setMinMarkupPct] = useState(String(DEFAULT_MARKUP_MIN_PCT));
-  const [maxMarkupPct, setMaxMarkupPct] = useState(String(DEFAULT_MARKUP_MAX_PCT));
+  const [minMarkupPct, setMinMarkupPct] = useState(
+    String(DEFAULT_MARKUP_MIN_PCT),
+  );
+  const [maxMarkupPct, setMaxMarkupPct] = useState(
+    String(DEFAULT_MARKUP_MAX_PCT),
+  );
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
@@ -155,6 +159,33 @@ export function ConvertServiceDialog({
               : "Selecciona un servicio"}
           </DialogDescription>
         </DialogHeader>
+
+        {service ? (
+          <div className="rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            <p>
+              <span className="font-medium text-foreground">Tipo:</span>{" "}
+              {service.type}
+              {" · "}
+              <span className="font-medium text-foreground">
+                Categoría:
+              </span>{" "}
+              {service.category}
+            </p>
+            <p className="mt-1">
+              <span className="font-medium text-foreground">Cantidad:</span>{" "}
+              {service.min.toLocaleString("es-CL")} –{" "}
+              {service.max.toLocaleString("es-CL")}
+              {" · "}
+              Refill: {service.refill ? "sí" : "no"}
+              {" · "}
+              Cancel: {service.cancel ? "sí" : "no"}
+            </p>
+            <p className="mt-1">
+              Al crear: costo CLP desde rate USD, qty = máx. del servicio,
+              textQty = mín.
+            </p>
+          </div>
+        ) : null}
 
         <div className="grid gap-4">
           <div className="grid grid-cols-2 gap-3">

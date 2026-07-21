@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { flattenError } from "zod";
 
-import { Prisma, ProductKeyStatus, DeliveryMethod, DeliveryContentType } from "@/generated/prisma/client";
+import {
+  Prisma,
+  ProductKeyStatus,
+  DeliveryMethod,
+  DeliveryContentType,
+} from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/actions/types";
 import { requireSession } from "@/lib/auth/session";
 import { encryptSecret } from "@/lib/crypto/secrets";
@@ -12,9 +17,13 @@ import {
   writeKinguinRelatedRecords,
 } from "@/lib/kinguin/import";
 import { mirrorKinguinProductImages } from "@/lib/kinguin/mirror-images";
+import { usdToClp } from "@/lib/fx/usd-clp";
 import prisma from "@/lib/prisma";
 import { deleteImageFromR2 } from "@/lib/r2";
-import { DEFAULT_KINGUIN_MARKUP_PCT, DEFAULT_MARKUP_MIN_PCT } from "@/lib/smm-services/constants";
+import {
+  DEFAULT_KINGUIN_MARKUP_PCT,
+  DEFAULT_MARKUP_MIN_PCT,
+} from "@/lib/smm-services/constants";
 import {
   addProductImageSchema,
   addProductAccountsSchema,
@@ -63,7 +72,10 @@ function parseSubmission(rawInput: unknown): unknown {
   return typeof payload === "string" ? JSON.parse(payload) : null;
 }
 
-function assetCreateData(asset: AssetInput, owner: { productId?: string; categoryId?: string }) {
+function assetCreateData(
+  asset: AssetInput,
+  owner: { productId?: string; categoryId?: string },
+) {
   return {
     type: asset.type,
     url: asset.url,
@@ -81,8 +93,11 @@ function assetCreateData(asset: AssetInput, owner: { productId?: string; categor
 }
 
 function coverUrlFromAssets(assets: AssetInput[]): string | null {
-  return assets.find((asset) => asset.type === "IMAGE" && asset.isCover)?.url ??
-    assets.find((asset) => asset.type === "IMAGE")?.url ?? null;
+  return (
+    assets.find((asset) => asset.type === "IMAGE" && asset.isCover)?.url ??
+    assets.find((asset) => asset.type === "IMAGE")?.url ??
+    null
+  );
 }
 
 function normalizeOfferFields(input: {
@@ -162,6 +177,9 @@ async function resolveSmmLinkFields(input: {
     throw new Error("SMM_SERVICE_NOT_FOUND");
   }
 
+  const rateUsd = Number.parseFloat(service.rate.toString());
+  const sourceCostClp = Number.isFinite(rateUsd) ? await usdToClp(rateUsd) : 0;
+
   return {
     smmApiUrl: service.provider.apiUrl,
     smmServiceId: service.remoteServiceId,
@@ -175,7 +193,9 @@ async function resolveSmmLinkFields(input: {
     smmCancel: service.cancel,
     smmServiceName: service.name,
     smmSyncedAt: new Date(),
+    qty: Math.max(1, service.max),
     textQty: input.textQty ?? service.min,
+    sourceCostClp,
   };
 }
 
@@ -191,7 +211,10 @@ export async function createProductAction(
   try {
     submission = parseSubmission(rawInput);
   } catch {
-    return { success: false, message: "Los datos del formulario son inválidos." };
+    return {
+      success: false,
+      message: "Los datos del formulario son inválidos.",
+    };
   }
 
   const parsed = createProductSchema.safeParse(submission);
@@ -249,14 +272,16 @@ export async function createProductAction(
           price: pricing.price,
           compareAtPrice: pricing.compareAtPrice,
           currency: data.currency.toUpperCase(),
-          qty: kinguinLink?.availableQty ?? data.qty,
+          qty:
+            kinguinLink?.availableQty ??
+            (smmFields && data.qty <= 0 ? smmFields.qty : data.qty),
           textQty:
             smmFields?.textQty ??
             (kinguinLink
               ? (kinguinLink.cheapest.textQty ??
                 kinguinLink.cheapest.availableTextQty ??
                 null)
-              : data.textQty ?? null),
+              : (data.textQty ?? null)),
           isFeatured: data.isFeatured,
           isOffer: pricing.isOffer,
           isPreorder: data.isPreorder || Boolean(kinguinLink?.meta.isPreorder),
@@ -265,10 +290,9 @@ export async function createProductAction(
             data.regionalLimitations ??
             kinguinLink?.meta.regionalLimitations ??
             null,
-          countryLimitation:
-            data.countryLimitation?.length
-              ? data.countryLimitation
-              : (kinguinLink?.meta.countryLimitation ?? []),
+          countryLimitation: data.countryLimitation?.length
+            ? data.countryLimitation
+            : (kinguinLink?.meta.countryLimitation ?? []),
           activationDetails:
             data.activationDetails ??
             kinguinLink?.meta.activationDetails ??
@@ -292,11 +316,16 @@ export async function createProductAction(
             ? data.publishers
             : (kinguinLink?.meta.publishers ?? []),
           tags: data.tags?.length ? data.tags : (kinguinLink?.meta.tags ?? []),
-          originalName: kinguinLink?.meta.originalName ?? null,
+          originalName:
+            kinguinLink?.meta.originalName ?? smmFields?.smmServiceName ?? null,
           metacriticScore: kinguinLink?.meta.metacriticScore ?? null,
           sourceCostPrice:
             data.sourceCostPrice ??
-            (kinguinLink ? String(kinguinLink.costClp) : null),
+            (kinguinLink
+              ? String(kinguinLink.costClp)
+              : smmFields
+                ? String(smmFields.sourceCostClp)
+                : null),
           ...(smmFields
             ? {
                 smmApiUrl: smmFields.smmApiUrl,
@@ -330,7 +359,9 @@ export async function createProductAction(
 
       if (data.assets.length > 0) {
         await tx.asset.createMany({
-          data: data.assets.map((asset) => assetCreateData(asset, { productId: created.id })),
+          data: data.assets.map((asset) =>
+            assetCreateData(asset, { productId: created.id }),
+          ),
         });
       }
 
@@ -380,7 +411,10 @@ export async function createProductAction(
       };
     }
 
-    if (error instanceof Error && error.message === "KINGUIN_ALREADY_IMPORTED") {
+    if (
+      error instanceof Error &&
+      error.message === "KINGUIN_ALREADY_IMPORTED"
+    ) {
       return {
         success: false,
         message: "Este producto Kinguin ya está importado.",
@@ -388,7 +422,10 @@ export async function createProductAction(
       };
     }
 
-    if (error instanceof Error && error.message === "KINGUIN_PRODUCT_NOT_FOUND") {
+    if (
+      error instanceof Error &&
+      error.message === "KINGUIN_PRODUCT_NOT_FOUND"
+    ) {
       return {
         success: false,
         message: "Producto no encontrado en Kinguin.",
@@ -404,7 +441,10 @@ export async function createProductAction(
       };
     }
 
-    if (error instanceof Error && error.message.startsWith("R2_CONFIG_MISSING:")) {
+    if (
+      error instanceof Error &&
+      error.message.startsWith("R2_CONFIG_MISSING:")
+    ) {
       return {
         success: false,
         message:
@@ -431,7 +471,10 @@ export async function updateProductAction(
   try {
     submission = parseSubmission(rawInput);
   } catch {
-    return { success: false, message: "Los datos del formulario son inválidos." };
+    return {
+      success: false,
+      message: "Los datos del formulario son inválidos.",
+    };
   }
 
   const parsed = updateProductSchema.safeParse(submission);
@@ -449,9 +492,15 @@ export async function updateProductAction(
         where: { productId: data.id },
         select: { objectKey: true },
       });
-      const retainedKeys = new Set(data.assets.flatMap((asset) => asset.objectKey ? [asset.objectKey] : []));
+      const retainedKeys = new Set(
+        data.assets.flatMap((asset) =>
+          asset.objectKey ? [asset.objectKey] : [],
+        ),
+      );
       removedObjectKeys = existingAssets.flatMap((asset) =>
-        asset.objectKey && !retainedKeys.has(asset.objectKey) ? [asset.objectKey] : [],
+        asset.objectKey && !retainedKeys.has(asset.objectKey)
+          ? [asset.objectKey]
+          : [],
       );
 
       await tx.product.update({
@@ -460,7 +509,8 @@ export async function updateProductAction(
           name: data.name,
           slug: data.slug,
           description: data.description ?? null,
-          coverImageUrl: coverUrlFromAssets(data.assets) ?? data.coverImageUrl ?? null,
+          coverImageUrl:
+            coverUrlFromAssets(data.assets) ?? data.coverImageUrl ?? null,
           status: data.status,
           deliveryMethod: data.deliveryMethod,
           price: pricing.price,
@@ -492,12 +542,18 @@ export async function updateProductAction(
       await tx.asset.deleteMany({ where: { productId: data.id } });
       if (data.assets.length > 0) {
         await tx.asset.createMany({
-          data: data.assets.map((asset) => assetCreateData(asset, { productId: data.id })),
+          data: data.assets.map((asset) =>
+            assetCreateData(asset, { productId: data.id }),
+          ),
         });
       }
     });
 
-    await Promise.all(removedObjectKeys.map((key) => deleteImageFromR2(key).catch(() => undefined)));
+    await Promise.all(
+      removedObjectKeys.map((key) =>
+        deleteImageFromR2(key).catch(() => undefined),
+      ),
+    );
 
     revalidatePath("/admin/products");
     revalidatePath(`/admin/products/${data.id}`);
@@ -1004,7 +1060,8 @@ export async function addProductAccountsAction(
   if (valid.length === 0) {
     return {
       success: false,
-      message: "Cada cuenta necesita al menos un dato (usuario, email, password, token o URL).",
+      message:
+        "Cada cuenta necesita al menos un dato (usuario, email, password, token o URL).",
     };
   }
 
@@ -1069,4 +1126,3 @@ export async function revokeProductAccountAction(
   revalidatePath(`/admin/products/${parsed.data.productId}`);
   return { success: true, data: { id: account.id } };
 }
-

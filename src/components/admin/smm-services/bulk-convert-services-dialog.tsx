@@ -66,20 +66,22 @@ export function BulkConvertServicesDialog({
 
   useEffect(() => {
     if (!open) return;
-    setRows(
-      services.map((service) => ({
-        serviceId: service.id,
-        originalName: service.name,
-        name: service.name,
-        description: "",
-        markupPct: "",
-        price: "0",
-      })),
-    );
-    setUsdClpHint(null);
-    setCategoryId("");
-    setMinMarkupPct(String(DEFAULT_MARKUP_MIN_PCT));
-    setMaxMarkupPct(String(DEFAULT_MARKUP_MAX_PCT));
+    setTimeout(() => {
+      setRows(
+        services.map((service) => ({
+          serviceId: service.id,
+          originalName: service.name,
+          name: service.name,
+          description: "",
+          markupPct: "",
+          price: "0",
+        })),
+      );
+      setUsdClpHint(null);
+      setCategoryId("");
+      setMinMarkupPct(String(DEFAULT_MARKUP_MIN_PCT));
+      setMaxMarkupPct(String(DEFAULT_MARKUP_MAX_PCT));
+    }, 0);
   }, [open, services]);
 
   const categoryItems = useMemo(
@@ -159,11 +161,25 @@ export function BulkConvertServicesDialog({
     {
       accessorKey: "originalName",
       header: "Original",
-      cell: ({ row }) => (
-        <span className="block max-w-40 truncate text-muted-foreground">
-          {row.original.originalName}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const service = services.find(
+          (item) => item.id === row.original.serviceId,
+        );
+        return (
+          <div className="max-w-44 space-y-0.5">
+            <span className="block truncate text-muted-foreground">
+              {row.original.originalName}
+            </span>
+            {service ? (
+              <span className="block text-[11px] text-muted-foreground">
+                {service.type} · {service.min}–{service.max}
+                {service.refill ? " · refill" : ""}
+                {service.cancel ? " · cancel" : ""}
+              </span>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "name",
@@ -226,10 +242,16 @@ export function BulkConvertServicesDialog({
         <DialogHeader>
           <DialogTitle>Convertir {services.length} servicios</DialogTitle>
           <DialogDescription>
-            Define markup min/máx, genera con IA y confirma. Status DRAFT · CLP.
+            IA solo traduce títulos. Markup aleatorio, costo CLP desde rate USD,
+            qty = máx. del servicio, textQty = mín. Status DRAFT.
             {usdClpHint != null ? ` USD/CLP ≈ ${Math.round(usdClpHint)}` : null}
           </DialogDescription>
         </DialogHeader>
+
+        <div className="rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          Se guardan tipo, categoría panel, min/max, refill y cancel de cada
+          servicio SMM. No hay campo dripfeed/dropfill en el schema actual.
+        </div>
 
         <div className="grid gap-4">
           <div className="grid gap-3 sm:grid-cols-3">
