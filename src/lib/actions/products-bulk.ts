@@ -36,6 +36,7 @@ import {
   type ProductTranslateFields,
 } from "@/lib/products/translate-fields";
 import type { ProductListItemDto } from "@/types/products";
+import pLimit from "p-limit";
 
 function unauthorized<T>(): ActionResult<T> {
   return {
@@ -306,6 +307,7 @@ export async function syncKinguinProductAction(
   return { success: true, data: result };
 }
 
+
 export async function bulkUpdateProductCoverAction(
   rawInput: unknown,
 ): Promise<ActionResult<{ updated: number }>> {
@@ -338,6 +340,10 @@ export async function bulkUpdateProductCoverAction(
 
   const ids = existing.map((item) => item.id);
 
+  // Set up concurrency for per-product asset operations
+  const concurrency = 8;
+  const limit = pLimit(concurrency);
+
   await prisma.$transaction(async (tx) => {
     await tx.product.updateMany({
       where: { id: { in: ids } },
@@ -349,31 +355,38 @@ export async function bulkUpdateProductCoverAction(
       data: { isCover: false },
     });
 
-    for (const productId of ids) {
-      const maxSort = await tx.asset.aggregate({
-        where: { productId },
-        _max: { sortOrder: true },
-      });
+    await Promise.all(
+      ids.map((productId) =>
+        limit(async () => {
+          const maxSort = await tx.asset.aggregate({
+            where: { productId },
+            _max: { sortOrder: true },
+          });
 
-      await tx.asset.create({
-        data: {
-          productId,
-          type: "IMAGE",
-          url: coverImageUrl,
-          objectKey: objectKey ?? null,
-          mimeType: mimeType ?? null,
-          fileName: fileName ?? null,
-          sizeBytes: sizeBytes != null ? BigInt(sizeBytes) : null,
-          sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
-          isCover: true,
-        },
-      });
-    }
+          await tx.asset.create({
+            data: {
+              productId,
+              type: "IMAGE",
+              url: coverImageUrl,
+              objectKey: objectKey ?? null,
+              mimeType: mimeType ?? null,
+              fileName: fileName ?? null,
+              sizeBytes: sizeBytes != null ? BigInt(sizeBytes) : null,
+              sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
+              isCover: true,
+            },
+          });
+        }),
+      ),
+    );
   });
 
-  for (const productId of ids) {
-    revalidatePath(`/admin/products/${productId}`);
-  }
+  // Use concurrency when revalidating product paths, in case of many products
+  await Promise.all(
+    ids.map((productId) =>
+      limit(() => revalidatePath(`/admin/products/${productId}`)),
+    ),
+  );
   revalidatePath("/admin/products");
 
   return { success: true, data: { updated: ids.length } };
