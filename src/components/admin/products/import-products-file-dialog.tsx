@@ -24,6 +24,7 @@ import {
 import { PRODUCT_IMPORT_LIMIT } from "@/lib/validations/product-import";
 import type { ImportProductItem } from "@/lib/validations/product-import";
 import type { CategoryOptionDto } from "@/types/products";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
 type ImportMode = "json" | "csv";
 
@@ -93,6 +94,13 @@ export function ImportProductsFileDialog({
 
       setFileName(file.name);
       setItems(parsed.items);
+      if (parsed.categoryIds && parsed.categoryIds.length > 0) {
+        const first = parsed.categoryIds[0] ?? "";
+        const known = categories.some((category) => category.id === first);
+        setCategoryId(known ? first : "");
+      } else {
+        setCategoryId("");
+      }
       toast.success(`${parsed.items.length} producto(s) listos para importar`);
     });
   }
@@ -174,18 +182,17 @@ export function ImportProductsFileDialog({
             <Label htmlFor="product-import-category">
               Categoría (opcional)
             </Label>
-            <select
+            <NativeSelect
               id="product-import-category"
-              className="flex h-9 w-full rounded-2xl border border-input bg-transparent px-3 text-sm"
               value={categoryId}
               onChange={(event) => setCategoryId(event.target.value)}
             >
               {categoryItems.map((item) => (
-                <option key={item.value || "none"} value={item.value}>
+                <NativeSelectOption key={item.value || "none"} value={item.value} data-slot="native-select-option">
                   {item.label}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
+              </NativeSelect>
           </div>
 
           {items.length > 0 ? (

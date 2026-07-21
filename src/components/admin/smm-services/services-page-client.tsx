@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { BulkConvertServicesDialog } from "@/components/admin/smm-services/bulk-convert-services-dialog";
 import { ConvertServiceDialog } from "@/components/admin/smm-services/convert-service-dialog";
+import { ExportServicesAsProductsDialog } from "@/components/admin/smm-services/export-services-as-products-dialog";
 import {
   exportServicesAsJson,
   ServicesActionsBar,
@@ -42,6 +43,7 @@ export function ServicesPageClient({
     Record<string, SmmServiceListItemDto>
   >({});
   const [convertOpen, setConvertOpen] = useState(false);
+  const [exportProductsOpen, setExportProductsOpen] = useState(false);
 
   const selected = useMemo(
     () => Object.values(selectedById),
@@ -149,6 +151,10 @@ export function ServicesPageClient({
           exportServicesAsJson(selected);
           toast.success("JSON descargado");
         }}
+        onExportAsProducts={() => {
+          if (selected.length === 0) return;
+          setExportProductsOpen(true);
+        }}
         onConvert={handleConvert}
       />
 
@@ -193,6 +199,13 @@ export function ServicesPageClient({
           categories={categories}
         />
       ) : null}
+
+      <ExportServicesAsProductsDialog
+        open={exportProductsOpen}
+        onOpenChange={setExportProductsOpen}
+        services={selected}
+        categories={categories}
+      />
     </>
   );
 }

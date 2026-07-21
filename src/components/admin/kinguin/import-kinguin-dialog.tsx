@@ -2,13 +2,20 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { HiOutlineSparkles } from "react-icons/hi";
 import { toast } from "sonner";
 
 import {
   getKinguinProductPreviewAction,
   importKinguinProductAction,
+  priceKinguinProductsAction,
+  translateKinguinProductsAction,
 } from "@/lib/actions/kinguin";
-import { DEFAULT_KINGUIN_MARKUP_PCT } from "@/lib/smm-services/constants";
+import {
+  DEFAULT_KINGUIN_MARKUP_PCT,
+  DEFAULT_MARKUP_MAX_PCT,
+  DEFAULT_MARKUP_MIN_PCT,
+} from "@/lib/smm-services/constants";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,6 +32,7 @@ import {
 } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import type { CategoryOptionDto } from "@/types/products";
 import type {
   KinguinProductPreviewDto,
@@ -36,6 +44,7 @@ type ImportKinguinDialogProps = {
   onOpenChange: (open: boolean) => void;
   hit: KinguinSearchHitDto | null;
   categories: CategoryOptionDto[];
+  onImported?: () => void;
 };
 
 export function ImportKinguinDialog({
@@ -43,16 +52,26 @@ export function ImportKinguinDialog({
   onOpenChange,
   hit,
   categories,
+  onImported,
 }: ImportKinguinDialogProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [minMarkupPct, setMinMarkupPct] = useState(
+    String(DEFAULT_MARKUP_MIN_PCT),
+  );
+  const [maxMarkupPct, setMaxMarkupPct] = useState(
+    String(DEFAULT_MARKUP_MAX_PCT),
+  );
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [activationDetails, setActivationDetails] = useState("");
+  const [regionalLimitations, setRegionalLimitations] = useState("");
   const [markupPct, setMarkupPct] = useState(String(DEFAULT_KINGUIN_MARKUP_PCT));
+  const [price, setPrice] = useState("");
+  const [sourceCostPrice, setSourceCostPrice] = useState("");
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [preview, setPreview] = useState<KinguinProductPreviewDto | null>(null);
   const [eurClpRate, setEurClpRate] = useState<number | null>(null);
-  const [suggestedPriceClp, setSuggestedPriceClp] = useState<number | null>(
-    null,
-  );
 
   useEffect(() => {
     if (!open || !hit) {
@@ -60,23 +79,66 @@ export function ImportKinguinDialog({
       return;
     }
 
-    const markup = Number.parseFloat(markupPct) || DEFAULT_KINGUIN_MARKUP_PCT;
+    setName(hit.name);
+    setDescription("");
+    setActivationDetails("");
+    setRegionalLimitations("");
+    setMarkupPct(String(DEFAULT_KINGUIN_MARKUP_PCT));
+    setPrice("");
+    setSourceCostPrice("");
+    setCategoryIds([]);
+    setMinMarkupPct(String(DEFAULT_MARKUP_MIN_PCT));
+    setMaxMarkupPct(String(DEFAULT_MARKUP_MAX_PCT));
+    setEurClpRate(null);
+
     startTransition(() => {
       void (async () => {
-        const result = await getKinguinProductPreviewAction({
-          kinguinId: hit.kinguinId,
-          markupPct: markup,
-        });
-        if (!result.success) {
-          toast.error(result.message);
+        const [previewResult, priceResult] = await Promise.all([
+          getKinguinProductPreviewAction({
+            kinguinId: hit.kinguinId,
+            markupPct: DEFAULT_KINGUIN_MARKUP_PCT,
+          }),
+          priceKinguinProductsAction({
+            items: [
+              {
+                kinguinId: hit.kinguinId,
+                name: hit.name,
+                priceEur: hit.priceEur,
+              },
+            ],
+            minMarkupPct: DEFAULT_MARKUP_MIN_PCT,
+            maxMarkupPct: DEFAULT_MARKUP_MAX_PCT,
+          }),
+        ]);
+
+        if (!previewResult.success) {
+          toast.error(previewResult.message);
           return;
         }
-        setPreview(result.data.preview);
-        setEurClpRate(result.data.eurClpRate);
-        setSuggestedPriceClp(result.data.suggestedPriceClp);
+        setPreview(previewResult.data.preview);
+        setDescription(previewResult.data.preview.description ?? "");
+
+        if (!priceResult.success) {
+          toast.error(priceResult.message);
+          setEurClpRate(previewResult.data.eurClpRate);
+          if (previewResult.data.costClp != null) {
+            setSourceCostPrice(String(previewResult.data.costClp));
+          }
+          if (previewResult.data.suggestedPriceClp != null) {
+            setPrice(String(previewResult.data.suggestedPriceClp));
+          }
+          return;
+        }
+
+        const priced = priceResult.data.items[0];
+        setEurClpRate(priceResult.data.eurClpRate);
+        if (priced) {
+          setMarkupPct(String(priced.markupPct));
+          setSourceCostPrice(String(priced.costClp));
+          setPrice(String(priced.priceClp));
+        }
       })();
     });
-    // Only reload preview when dialog opens / hit changes — not on every markup keystroke.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, hit?.kinguinId]);
 
@@ -88,6 +150,60 @@ export function ImportKinguinDialog({
     );
   }
 
+  function handleRecalculatePrices() {
+    if (!hit) return;
+    startTransition(() => {
+      void (async () => {
+        const result = await priceKinguinProductsAction({
+          items: [
+            {
+              kinguinId: hit.kinguinId,
+              name: hit.name,
+              priceEur: hit.priceEur ?? preview?.priceEur ?? null,
+            },
+          ],
+          minMarkupPct,
+          maxMarkupPct,
+        });
+        if (!result.success) {
+          toast.error(result.message);
+          return;
+        }
+        const priced = result.data.items[0];
+        if (!priced) return;
+        setMarkupPct(String(priced.markupPct));
+        setSourceCostPrice(String(priced.costClp));
+        setPrice(String(priced.priceClp));
+        setEurClpRate(result.data.eurClpRate);
+      })();
+    });
+  }
+
+  function handleTranslate() {
+    if (!hit) return;
+    startTransition(() => {
+      void (async () => {
+        const result = await translateKinguinProductsAction({
+          kinguinIds: [hit.kinguinId],
+        });
+        if (!result.success) {
+          toast.error(result.message);
+          return;
+        }
+        const item = result.data.items[0];
+        if (!item) {
+          toast.error("Sin resultado de traducción");
+          return;
+        }
+        setName(item.nameEs);
+        setDescription(item.descriptionEs);
+        setActivationDetails(item.activationDetailsEs);
+        setRegionalLimitations(item.regionalLimitationsEs);
+        toast.success("Traducción lista");
+      })();
+    });
+  }
+
   function handleImport() {
     if (!hit) return;
     startTransition(() => {
@@ -96,6 +212,12 @@ export function ImportKinguinDialog({
           kinguinId: hit.kinguinId,
           markupPct: Number.parseFloat(markupPct) || DEFAULT_KINGUIN_MARKUP_PCT,
           categoryIds,
+          name: name.trim() || undefined,
+          description: description || undefined,
+          activationDetails: activationDetails || undefined,
+          regionalLimitations: regionalLimitations || undefined,
+          price: price || undefined,
+          sourceCostPrice: sourceCostPrice || undefined,
         });
         if (!result.success) {
           toast.error(result.message);
@@ -103,6 +225,7 @@ export function ImportKinguinDialog({
         }
         toast.success("Producto importado (DRAFT)");
         onOpenChange(false);
+        onImported?.();
         router.push(`/admin/products/${result.data.productId}`);
         router.refresh();
       })();
@@ -115,30 +238,129 @@ export function ImportKinguinDialog({
         <DialogHeader>
           <DialogTitle>Importar desde Kinguin</DialogTitle>
           <DialogDescription>
-            {hit?.name ?? "Producto"} · se crearán todas las ofertas; la más
-            barata queda como default.
+            {hit?.name ?? "Producto"} · markup y precios CLP por código; la IA
+            solo traduce. Se crean todas las ofertas (la más barata es default).
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="markupPct">Markup %</Label>
-            <Input
-              id="markupPct"
-              inputMode="decimal"
-              value={markupPct}
-              onChange={(event) => setMarkupPct(event.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Precio CLP ≈ EUR × FX × (1 + markup/100)
-              {eurClpRate != null
-                ? ` · EUR/CLP ≈ ${Math.round(eurClpRate)}`
-                : null}
-              {suggestedPriceClp != null
-                ? ` · sugerido $${suggestedPriceClp.toLocaleString("es-CL")}`
-                : null}
-            </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="kinguinMinMarkup">Markup mín. %</Label>
+              <Input
+                id="kinguinMinMarkup"
+                type="number"
+                min={0}
+                value={minMarkupPct}
+                onChange={(event) => setMinMarkupPct(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="kinguinMaxMarkup">Markup máx. %</Label>
+              <Input
+                id="kinguinMaxMarkup"
+                type="number"
+                min={0}
+                value={maxMarkupPct}
+                onChange={(event) => setMaxMarkupPct(event.target.value)}
+              />
+            </div>
           </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isPending || !hit}
+              onClick={handleRecalculatePrices}
+            >
+              {isPending ? "Calculando…" : "Recalcular precios"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isPending || !hit}
+              onClick={handleTranslate}
+            >
+              <HiOutlineSparkles className="size-4" />
+              {isPending ? "Traduciendo…" : "Traducir"}
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="kinguinName">Nombre</Label>
+            <Input
+              id="kinguinName"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="kinguinDescription">Descripción</Label>
+            <Textarea
+              id="kinguinDescription"
+              rows={5}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="kinguinActivation">Activación</Label>
+            <Textarea
+              id="kinguinActivation"
+              rows={2}
+              value={activationDetails}
+              onChange={(event) => setActivationDetails(event.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="kinguinRegional">Limitaciones regionales</Label>
+            <Input
+              id="kinguinRegional"
+              value={regionalLimitations}
+              onChange={(event) => setRegionalLimitations(event.target.value)}
+            />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="kinguinCostClp">Costo CLP</Label>
+              <Input
+                id="kinguinCostClp"
+                inputMode="decimal"
+                value={sourceCostPrice}
+                onChange={(event) => setSourceCostPrice(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="markupPct">Markup %</Label>
+              <Input
+                id="markupPct"
+                inputMode="decimal"
+                value={markupPct}
+                onChange={(event) => setMarkupPct(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="kinguinPriceClp">Precio CLP</Label>
+              <Input
+                id="kinguinPriceClp"
+                inputMode="decimal"
+                value={price}
+                onChange={(event) => setPrice(event.target.value)}
+              />
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Precio CLP ≈ costo × (1 + markup/100)
+            {eurClpRate != null
+              ? ` · EUR/CLP ≈ ${Math.round(eurClpRate)}`
+              : null}
+          </p>
 
           <div className="space-y-2">
             <Label>Categorías</Label>
@@ -219,7 +441,14 @@ export function ImportKinguinDialog({
           </Button>
           <Button
             type="button"
-            disabled={isPending || !hit || preview?.alreadyImported}
+            disabled={
+              isPending ||
+              !hit ||
+              preview?.alreadyImported ||
+              !name.trim() ||
+              !price ||
+              !sourceCostPrice
+            }
             onClick={handleImport}
           >
             {isPending ? "Importando…" : "Importar producto"}

@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import {
   HiOutlineCheckCircle,
   HiOutlineDownload,
+  HiOutlineDocumentDownload,
   HiOutlineTemplate,
   HiOutlineX,
 } from "react-icons/hi";
@@ -21,6 +22,7 @@ type ServicesActionsBarProps = {
   onSelectAll: (items: SmmServiceListItemDto[]) => void;
   onClear: () => void;
   onExport: () => void;
+  onExportAsProducts: () => void;
   onConvert: () => void;
 };
 
@@ -30,6 +32,7 @@ export function ServicesActionsBar({
   onSelectAll,
   onClear,
   onExport,
+  onExportAsProducts,
   onConvert,
 }: ServicesActionsBarProps) {
   const [isPending, startTransition] = useTransition();
@@ -94,6 +97,20 @@ export function ServicesActionsBar({
         >
           <HiOutlineDownload className="size-4" />
           Exportar JSON
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-disabled={!canAct}
+          className={!canAct ? "pointer-events-none opacity-50" : undefined}
+          onClick={() => {
+            if (!canAct) return;
+            onExportAsProducts();
+          }}
+        >
+          <HiOutlineDocumentDownload className="size-4" />
+          Exportar como producto
         </Button>
         <Button
           type="button"

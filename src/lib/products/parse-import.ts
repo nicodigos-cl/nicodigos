@@ -8,7 +8,12 @@ import {
 import { SMM_SERVICE_SELECTION_LIMIT } from "@/lib/smm-services/constants";
 
 export type ParseImportResult<T> =
-  | { success: true; items: T[]; warnings: string[] }
+  | {
+      success: true;
+      items: T[];
+      warnings: string[];
+      categoryIds?: string[];
+    }
   | { success: false; message: string };
 
 function splitCsvLine(line: string): string[] {
@@ -175,6 +180,16 @@ export function parseProductsJson(
     return { success: false, message: "El JSON no contiene productos." };
   }
 
+  const categoryIds =
+    data &&
+    typeof data === "object" &&
+    !Array.isArray(data) &&
+    Array.isArray((data as { categoryIds?: unknown }).categoryIds)
+      ? (data as { categoryIds: unknown[] }).categoryIds.filter(
+          (id): id is string => typeof id === "string" && id.length > 0,
+        )
+      : undefined;
+
   const items: ImportProductItem[] = [];
   const warnings: string[] = [];
   const limit = Math.min(rows.length, PRODUCT_IMPORT_LIMIT);
@@ -201,7 +216,7 @@ export function parseProductsJson(
     };
   }
 
-  return { success: true, items, warnings };
+  return { success: true, items, warnings, categoryIds };
 }
 
 export function parseServicesJson(

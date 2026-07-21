@@ -498,6 +498,7 @@ model Product {
   activationDetails   String?
   ageRating           String?
   metacriticScore     Int?
+  /// Acquisition cost in CLP (SMM USD→CLP or Kinguin EUR→CLP via FX).
   sourceCostPrice     Decimal?  @db.Decimal(12, 4)
 
   // Kinguin remote ids / sync

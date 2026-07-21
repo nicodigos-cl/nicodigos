@@ -21,9 +21,11 @@ import {
 import { SMM_SERVICE_SELECTION_LIMIT } from "@/lib/smm-services/constants";
 import {
   convertSmmServicesToProductsSchema,
+  exportSmmServicesAsProductsSchema,
   prefillSmmServicesSchema,
   selectSmmServicesForQuerySchema,
 } from "@/lib/validations/smm-service-products";
+import type { ImportProductItem } from "@/lib/validations/product-import";
 import type { SmmServiceListItemDto } from "@/types/smm-provider";
 
 function unauthorized<T>(): ActionResult<T> {
@@ -194,6 +196,91 @@ export async function prefillSmmServicesWithAiAction(
     const message =
       error instanceof Error ? error.message : "Error al llamar a OpenAI";
     return { success: false, message };
+  }
+}
+
+function buildServiceDescription(service: SmmServiceListItemDto): string {
+  return [
+    `Tipo: ${service.type}`,
+    `Categoría panel: ${service.category}`,
+    `Cantidad permitida: ${service.min.toLocaleString("es-CL")} – ${service.max.toLocaleString("es-CL")}`,
+    `Refill: ${service.refill ? "sí" : "no"}`,
+    `Cancel: ${service.cancel ? "sí" : "no"}`,
+    `Rate proveedor: USD ${service.rate}`,
+    `Provider: ${service.providerName}`,
+  ].join("\n");
+}
+
+/**
+ * Maps selected SMM services → product-import JSON items (admin/products).
+ * Prices use random markup between min/max and USD→CLP FX.
+ */
+export async function exportSmmServicesAsProductsAction(
+  rawInput: unknown,
+): Promise<
+  ActionResult<{ items: ImportProductItem[]; usdClpRate: number }>
+> {
+  const session = await requireSession();
+  if (!session) {
+    return unauthorized();
+  }
+
+  const parsed = exportSmmServicesAsProductsSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return validationError(parsed.error);
+  }
+
+  const { serviceIds, minMarkupPct, maxMarkupPct } = parsed.data;
+  const services = await getSmmServicesByIds(serviceIds);
+
+  if (services.length === 0) {
+    return { success: false, message: "No se encontraron servicios." };
+  }
+
+  if (services.length !== serviceIds.length) {
+    return {
+      success: false,
+      message: "Uno o más servicios no existen.",
+    };
+  }
+
+  try {
+    const usdClpRate = await getUsdToClpRate();
+    const byId = new Map(services.map((service) => [service.id, service]));
+
+    const items: ImportProductItem[] = serviceIds.map((serviceId) => {
+      const service = byId.get(serviceId);
+      if (!service) {
+        throw new Error("SERVICE_NOT_FOUND");
+      }
+
+      const rateUsd = Number.parseFloat(service.rate) || 0;
+      const baseClp = Math.round(rateUsd * usdClpRate);
+      const markupPct = randomMarkupPct(minMarkupPct, maxMarkupPct);
+      const priceClp = applyMarkupPct(baseClp, markupPct);
+      const baseSlug = slugify(service.name) || "servicio-smm";
+
+      return {
+        name: service.name.slice(0, 200),
+        slug: `${baseSlug.slice(0, 100)}-${service.remoteServiceId}`,
+        description: buildServiceDescription(service),
+        price: String(priceClp),
+        deliveryMethod: "SMM",
+        status: "DRAFT",
+        qty: 0,
+        currency: "CLP",
+      };
+    });
+
+    return { success: true, data: { items, usdClpRate } };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message.slice(0, 300)
+          : "No se pudo generar el JSON de productos.",
+    };
   }
 }
 

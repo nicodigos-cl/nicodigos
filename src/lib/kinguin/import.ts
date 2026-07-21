@@ -262,17 +262,38 @@ export async function importKinguinProduct(
 
   const { remote, cheapest, meta, costClp, availableQty } =
     await resolveKinguinLinkPayload(input.kinguinId);
-  const sellPrice = applyMarkupPct(costClp, input.markupPct);
+
+  const resolvedCostClp =
+    input.sourceCostPrice != null
+      ? Math.round(Number.parseFloat(input.sourceCostPrice))
+      : costClp;
+  const sellPrice =
+    input.price != null
+      ? Math.round(Number.parseFloat(input.price))
+      : applyMarkupPct(resolvedCostClp, input.markupPct);
+  const productName = input.name?.trim() || meta.name;
+  const productDescription =
+    input.description !== undefined
+      ? input.description.trim() || null
+      : meta.description;
+  const productActivationDetails =
+    input.activationDetails !== undefined
+      ? input.activationDetails.trim() || null
+      : meta.activationDetails;
+  const productRegionalLimitations =
+    input.regionalLimitations !== undefined
+      ? input.regionalLimitations.trim() || null
+      : meta.regionalLimitations;
   const mirroredImages = await mirrorKinguinProductImages(remote);
 
   const productId = await prisma.$transaction(async (tx) => {
-    const slug = await uniqueSlug(tx, remote.name);
+    const slug = await uniqueSlug(tx, productName);
 
     const created = await tx.product.create({
       data: {
-        name: meta.name,
+        name: productName,
         slug,
-        description: meta.description,
+        description: productDescription,
         coverImageUrl: mirroredImages.coverImageUrl,
         status: ProductStatus.DRAFT,
         deliveryMethod: DeliveryMethod.KINGUIN,
@@ -283,7 +304,7 @@ export async function importKinguinProduct(
         isFeatured: false,
         isOffer: false,
         isPreorder: meta.isPreorder,
-        originalName: meta.originalName,
+        originalName: meta.originalName ?? meta.name,
         platform: meta.platform,
         genres: meta.genres,
         languages: meta.languages,
@@ -291,13 +312,13 @@ export async function importKinguinProduct(
         publishers: meta.publishers,
         tags: meta.tags,
         regionId: meta.regionId,
-        regionalLimitations: meta.regionalLimitations,
+        regionalLimitations: productRegionalLimitations,
         countryLimitation: meta.countryLimitation,
-        activationDetails: meta.activationDetails,
+        activationDetails: productActivationDetails,
         ageRating: meta.ageRating,
         metacriticScore: meta.metacriticScore,
         releaseDate: meta.releaseDate,
-        sourceCostPrice: costClp,
+        sourceCostPrice: resolvedCostClp,
         kinguinId: remote.kinguinId,
         kinguinProductId: remote.productId,
         kinguinOfferId: cheapest.offerId,

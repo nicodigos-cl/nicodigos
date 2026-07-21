@@ -51,6 +51,18 @@ export const prefillSmmServicesSchema = z.object({
 
 export type PrefillSmmServicesInput = z.infer<typeof prefillSmmServicesSchema>;
 
+/** Markup range to price services for product-import JSON export. */
+export const exportSmmServicesAsProductsSchema = prefillSmmServicesSchema;
+
+export type ExportSmmServicesAsProductsInput = z.infer<
+  typeof exportSmmServicesAsProductsSchema
+>;
+
+/** Price/markup only for SMM → product export (no AI). */
+export const priceSmmServicesSchema = prefillSmmServicesSchema;
+
+export type PriceSmmServicesInput = z.infer<typeof priceSmmServicesSchema>;
+
 const productDraftItemSchema = z.object({
   serviceId: z.string().cuid(),
   name: z.string().trim().min(1).max(200),

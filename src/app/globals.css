@@ -143,4 +143,14 @@
   html {
     @apply font-sans;
   }
+  /* Native <select> dropdowns ignore most CSS; force a readable palette.
+     Dark-mode `color` on <select> otherwise paints white text on a light OS popup. */
+  select {
+    color-scheme: light;
+  }
+  select option,
+  select optgroup {
+    background-color: #ffffff;
+    color: #0a0a0a;
+  }
 }

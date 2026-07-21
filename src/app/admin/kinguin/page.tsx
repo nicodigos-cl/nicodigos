@@ -1,7 +1,7 @@
 import { HiOutlineSearch } from "react-icons/hi";
 
+import { KinguinPageClient } from "@/components/admin/kinguin/kinguin-page-client";
 import { KinguinPagination } from "@/components/admin/kinguin/kinguin-pagination";
-import { KinguinResultsTable } from "@/components/admin/kinguin/kinguin-results-table";
 import { KinguinToolbar } from "@/components/admin/kinguin/kinguin-toolbar";
 import {
   Empty,
@@ -83,7 +83,7 @@ export default async function KinguinPage({ searchParams }: KinguinPageProps) {
         </p>
       ) : (
         <>
-          <KinguinResultsTable
+          <KinguinPageClient
             items={result.items}
             categories={categories}
           />
