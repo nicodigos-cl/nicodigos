@@ -430,14 +430,24 @@ export async function getSmmServicesByIds(
     return [];
   }
 
-  const services = await prisma.smmService.findMany({
-    where: { id: { in: ids } },
-    select: smmServiceListSelect,
-  });
+  const BATCH_SIZE = 1000;
+  const result: SmmServiceListItemDto[] = [];
 
-  const byId = new Map(services.map((service) => [service.id, service]));
-  return ids
-    .map((id) => byId.get(id))
-    .filter((service): service is NonNullable<typeof service> => Boolean(service))
-    .map(mapServiceListItem);
+  for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+    const batchIds = ids.slice(i, i + BATCH_SIZE);
+    const services = await prisma.smmService.findMany({
+      where: { id: { in: batchIds } },
+      select: smmServiceListSelect,
+    });
+
+    const byId = new Map(services.map((service) => [service.id, service]));
+    result.push(
+      ...batchIds
+        .map((id) => byId.get(id))
+        .filter((service): service is NonNullable<typeof service> => Boolean(service))
+        .map(mapServiceListItem),
+    );
+  }
+
+  return result;
 }

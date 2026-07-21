@@ -97,6 +97,7 @@ Credenciales sandbox ≠ producción. Ver [arquitectura → stock Kinguin](./arc
 | Variable | Notas |
 | --- | --- |
 | `REDIS_URL` | Obligatorio para FX, BullMQ y live support |
+| `USD_CLP_RATE` / `EUR_CLP_RATE` | Opcional; fuerza el tipo de cambio y salta mindicador / open.er-api |
 | `BULLMQ_PREFIX` | Prefijo de colas (default interno) |
 | `DELIVERY_WORKER_CONCURRENCY` | Concurrencia fulfillment |
 | `EMAIL_WORKER_CONCURRENCY` | Concurrencia emails de delivery |

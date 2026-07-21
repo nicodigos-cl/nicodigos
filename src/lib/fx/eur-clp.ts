@@ -1,10 +1,14 @@
 import "server-only";
 
 import {
+  fetchJsonWithTimeout,
+  getCachedFxRate,
+  parsePositiveRate,
+} from "@/lib/fx/cached-rate";
+import {
   FX_EUR_CLP_CACHE_KEY,
   FX_EUR_CLP_TTL_SECONDS,
 } from "@/lib/smm-services/constants";
-import { getReadyRedis } from "@/lib/redis";
 
 export { applyMarkupPct } from "@/lib/fx/markup";
 
@@ -12,58 +16,58 @@ type MindicadorEuroResponse = {
   serie?: Array<{ valor?: number }>;
 };
 
+type OpenErApiResponse = {
+  result?: string;
+  rates?: { CLP?: number };
+};
+
 async function fetchEurClpFromMindicador(): Promise<number> {
-  const response = await fetch("https://mindicador.cl/api/euro", {
-    next: { revalidate: FX_EUR_CLP_TTL_SECONDS },
-  });
+  const response = await fetchJsonWithTimeout(
+    "https://mindicador.cl/api/euro",
+  );
 
   if (!response.ok) {
-    throw new Error(`No se pudo obtener EUR/CLP (${response.status})`);
+    throw new Error(`HTTP ${response.status}`);
   }
 
   const data = (await response.json()) as MindicadorEuroResponse;
-  const value = data.serie?.[0]?.valor;
+  const value = parsePositiveRate(data.serie?.[0]?.valor);
+  if (value == null) {
+    throw new Error("respuesta inválida");
+  }
+  return value;
+}
 
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-    throw new Error("Respuesta EUR/CLP inválida");
+async function fetchEurClpFromOpenErApi(): Promise<number> {
+  const response = await fetchJsonWithTimeout(
+    "https://open.er-api.com/v6/latest/EUR",
+  );
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
   }
 
+  const data = (await response.json()) as OpenErApiResponse;
+  if (data.result !== "success") {
+    throw new Error("API no success");
+  }
+  const value = parsePositiveRate(data.rates?.CLP);
+  if (value == null) {
+    throw new Error("CLP ausente");
+  }
   return value;
 }
 
 export async function getEurToClpRate(): Promise<number> {
-  const redis = await getReadyRedis();
-
-  if (redis) {
-    try {
-      const cached = await redis.get(FX_EUR_CLP_CACHE_KEY);
-      if (cached) {
-        const parsed = Number.parseFloat(cached);
-        if (Number.isFinite(parsed) && parsed > 0) {
-          return parsed;
-        }
-      }
-    } catch {
-      // Fall through to network fetch.
-    }
-  }
-
-  const rate = await fetchEurClpFromMindicador();
-
-  if (redis) {
-    try {
-      await redis.set(
-        FX_EUR_CLP_CACHE_KEY,
-        String(rate),
-        "EX",
-        FX_EUR_CLP_TTL_SECONDS,
-      );
-    } catch {
-      // Ignore cache write failures.
-    }
-  }
-
-  return rate;
+  return getCachedFxRate({
+    cacheKey: FX_EUR_CLP_CACHE_KEY,
+    ttlSeconds: FX_EUR_CLP_TTL_SECONDS,
+    envVar: "EUR_CLP_RATE",
+    sources: [
+      { name: "mindicador", fetch: fetchEurClpFromMindicador },
+      { name: "open-er-api", fetch: fetchEurClpFromOpenErApi },
+    ],
+  });
 }
 
 /** Convert EUR amount to CLP integer pesos. */
