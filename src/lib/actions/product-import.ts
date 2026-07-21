@@ -209,6 +209,7 @@ export async function importProductsAction(
   try {
     const createdIds = await prisma.$transaction(async (tx) => {
       const ids: string[] = [];
+      const claimedObjectKeys = new Set<string>();
 
       for (const item of items) {
         const slug = item.slug ?? (await uniqueSlug(tx, item.name));
@@ -266,12 +267,30 @@ export async function importProductsAction(
         });
 
         if (assets.length > 0) {
-          await tx.asset.createMany({
-            data: assets.map((asset) => ({
+          const assetRows = [];
+          for (const asset of assets) {
+            let nextObjectKey = asset.objectKey ?? null;
+            if (nextObjectKey) {
+              if (claimedObjectKeys.has(nextObjectKey)) {
+                nextObjectKey = null;
+              } else {
+                const taken = await tx.asset.findUnique({
+                  where: { objectKey: nextObjectKey },
+                  select: { id: true },
+                });
+                if (taken) {
+                  nextObjectKey = null;
+                } else {
+                  claimedObjectKeys.add(nextObjectKey);
+                }
+              }
+            }
+
+            assetRows.push({
               productId: product.id,
               type: asset.type,
               url: asset.url,
-              objectKey: asset.objectKey ?? null,
+              objectKey: nextObjectKey,
               youtubeId: asset.youtubeId ?? null,
               mimeType: asset.mimeType ?? null,
               fileName: asset.fileName ?? null,
@@ -281,8 +300,10 @@ export async function importProductsAction(
               altText: asset.altText ?? null,
               sortOrder: asset.sortOrder,
               isCover: asset.type === "IMAGE" && asset.isCover,
-            })),
-          });
+            });
+          }
+
+          await tx.asset.createMany({ data: assetRows });
         }
 
         ids.push(product.id);

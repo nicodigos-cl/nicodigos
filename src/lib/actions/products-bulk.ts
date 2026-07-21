@@ -340,46 +340,67 @@ export async function bulkUpdateProductCoverAction(
 
   const ids = existing.map((item) => item.id);
 
-  // Set up concurrency for per-product asset operations
-  const concurrency = 8;
-  const limit = pLimit(concurrency);
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.product.updateMany({
+        where: { id: { in: ids } },
+        data: { coverImageUrl },
+      });
 
-  await prisma.$transaction(async (tx) => {
-    await tx.product.updateMany({
-      where: { id: { in: ids } },
-      data: { coverImageUrl },
+      await tx.asset.updateMany({
+        where: { productId: { in: ids }, type: "IMAGE", isCover: true },
+        data: { isCover: false },
+      });
+
+      // objectKey is globally unique — only one Asset row may own the R2 key.
+      // Other products share the public URL without claiming ownership.
+      const keyAlreadyTaken = objectKey
+        ? Boolean(
+            await tx.asset.findUnique({
+              where: { objectKey },
+              select: { id: true },
+            }),
+          )
+        : false;
+      const ownerProductId =
+        objectKey && !keyAlreadyTaken ? ids[0] : undefined;
+
+      const limit = pLimit(8);
+
+      await Promise.all(
+        ids.map((productId) =>
+          limit(async () => {
+            const maxSort = await tx.asset.aggregate({
+              where: { productId },
+              _max: { sortOrder: true },
+            });
+
+            await tx.asset.create({
+              data: {
+                productId,
+                type: "IMAGE",
+                url: coverImageUrl,
+                objectKey:
+                  ownerProductId != null && productId === ownerProductId
+                    ? objectKey
+                    : null,
+                mimeType: mimeType ?? null,
+                fileName: fileName ?? null,
+                sizeBytes: sizeBytes != null ? BigInt(sizeBytes) : null,
+                sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
+                isCover: true,
+              },
+            });
+          }),
+        ),
+      );
     });
-
-    await tx.asset.updateMany({
-      where: { productId: { in: ids }, type: "IMAGE", isCover: true },
-      data: { isCover: false },
-    });
-
-    await Promise.all(
-      ids.map((productId) =>
-        limit(async () => {
-          const maxSort = await tx.asset.aggregate({
-            where: { productId },
-            _max: { sortOrder: true },
-          });
-
-          await tx.asset.create({
-            data: {
-              productId,
-              type: "IMAGE",
-              url: coverImageUrl,
-              objectKey: objectKey ?? null,
-              mimeType: mimeType ?? null,
-              fileName: fileName ?? null,
-              sizeBytes: sizeBytes != null ? BigInt(sizeBytes) : null,
-              sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
-              isCover: true,
-            },
-          });
-        }),
-      ),
-    );
-  });
+  } catch {
+    return {
+      success: false,
+      message: "No se pudo aplicar la portada a los productos.",
+    };
+  }
 
   // Use concurrency when revalidating product paths, in case of many products
   ids.forEach((productId) => revalidatePath(`/admin/products/${productId}`));
