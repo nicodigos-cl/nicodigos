@@ -15,7 +15,7 @@
     "cron:cleanup-price-events:once": "bun scripts/dev-cron-cleanup-price-events.ts --once",
     "worker:delivery": "bun --conditions=react-server scripts/delivery-worker.ts",
     "worker:support-ws": "bun scripts/support-ws.ts",
-    "build": "bun --bun next build",
+    "build": "bun --bun next build && bunx --bun prisma migrate deploy",
     "start": "bun --bun next start",
     "lint": "eslint",
     "test": "bun test tests",

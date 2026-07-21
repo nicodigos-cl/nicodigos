@@ -3,13 +3,14 @@
 
 [build]
 builder = "RAILPACK"
-# Private networking is unavailable during build — use the public DB URL for prerender.
+# Private networking is unavailable during build — use the public DB URL for prerender + migrate.
 # Real BETTER_AUTH_* / SENTRY_* come from Railway secrets (not logged / not baked into the image).
 # Standalone does not include public/ or .next/static — copy them next to server.js.
+# `bun run build` ends with `prisma migrate deploy` (needs DATABASE_URL = public URL here).
 buildCommand = "bunx --bun prisma generate && DATABASE_URL=$DATABASE_PUBLIC_URL bun --bun run build && cp -r public .next/standalone/public && cp -r .next/static .next/standalone/.next/static"
 
 [deploy]
-# Private networking IS available here — migrate with the private DATABASE_URL.
+# Fallback if a restart skips rebuild; private networking IS available here.
 preDeployCommand = ["bunx --bun prisma migrate deploy"]
 startCommand = "HOSTNAME=0.0.0.0 bun --bun .next/standalone/server.js"
 restartPolicyType = "ON_FAILURE"
