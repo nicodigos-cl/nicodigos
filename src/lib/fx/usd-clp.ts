@@ -62,7 +62,6 @@ export async function getUsdToClpRate(): Promise<number> {
   return getCachedFxRate({
     cacheKey: FX_USD_CLP_CACHE_KEY,
     ttlSeconds: FX_USD_CLP_TTL_SECONDS,
-    envVar: "USD_CLP_RATE",
     sources: [
       { name: "mindicador", fetch: fetchUsdClpFromMindicador },
       { name: "open-er-api", fetch: fetchUsdClpFromOpenErApi },

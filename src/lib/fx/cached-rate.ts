@@ -102,24 +102,15 @@ async function fetchFirstSuccessful(sources: RateSource[]): Promise<number> {
 }
 
 /**
- * Resolve a FX rate with: env override → Redis → memory → upstreams (single-flight)
+ * Resolve a FX rate with: Redis → memory → upstreams (single-flight)
  * → stale memory as last resort.
  */
 export async function getCachedFxRate(options: {
   cacheKey: string;
   ttlSeconds: number;
-  envVar?: string;
   sources: RateSource[];
 }): Promise<number> {
-  const { cacheKey, ttlSeconds, envVar, sources } = options;
-
-  if (envVar) {
-    const fromEnv = parsePositiveRate(process.env[envVar]);
-    if (fromEnv != null) {
-      writeMemory(cacheKey, fromEnv);
-      return fromEnv;
-    }
-  }
+  const { cacheKey, ttlSeconds, sources } = options;
 
   const fromRedis = await readRedis(cacheKey);
   if (fromRedis != null) {

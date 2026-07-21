@@ -62,7 +62,6 @@ export async function getEurToClpRate(): Promise<number> {
   return getCachedFxRate({
     cacheKey: FX_EUR_CLP_CACHE_KEY,
     ttlSeconds: FX_EUR_CLP_TTL_SECONDS,
-    envVar: "EUR_CLP_RATE",
     sources: [
       { name: "mindicador", fetch: fetchEurClpFromMindicador },
       { name: "open-er-api", fetch: fetchEurClpFromOpenErApi },
