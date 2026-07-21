@@ -9,6 +9,7 @@ import {
   scheduleWebPushAction,
   sendWebPushNowAction,
 } from "@/lib/actions/admin-web-push";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -380,24 +381,26 @@ export function WebPushForm({ initial = {} }: { initial?: Initial }) {
               type="button"
               disabled={pending}
               onClick={() => {
-                if (
-                  !window.confirm(
-                    `Enviar “${title}” a ${estimate?.estimated ?? "la audiencia resuelta"} destinatarios elegibles ahora?`,
-                  )
-                )
-                  return;
-                startTransition(async () => {
-                  const result = await sendWebPushNowAction({
-                    notificationId: id,
-                    idempotencyKey: crypto.randomUUID(),
-                    confirmation: "ENVIAR",
+                void (async () => {
+                  const confirmed = await confirmDialog.confirm({
+                    title: "Enviar notificación",
+                    description: `¿Enviar “${title}” a ${estimate?.estimated ?? "la audiencia resuelta"} destinatarios elegibles ahora?`,
+                    confirmLabel: "Enviar ahora",
                   });
-                  if (!result.success) toast.error(result.message);
-                  else {
-                    toast.success("Notificación en cola");
-                    router.refresh();
-                  }
-                });
+                  if (!confirmed) return;
+                  startTransition(async () => {
+                    const result = await sendWebPushNowAction({
+                      notificationId: id,
+                      idempotencyKey: crypto.randomUUID(),
+                      confirmation: "ENVIAR",
+                    });
+                    if (!result.success) toast.error(result.message);
+                    else {
+                      toast.success("Notificación en cola");
+                      router.refresh();
+                    }
+                  });
+                })();
               }}
             >
               Enviar ahora

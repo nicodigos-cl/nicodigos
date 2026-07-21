@@ -8,6 +8,7 @@ import { HiOutlineKey, HiOutlinePlus, HiOutlineTrash } from "react-icons/hi";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -169,25 +170,30 @@ export function ProductKeysManager({
               size="sm"
               disabled={isPending}
               onClick={() => {
-                const confirmed = window.confirm(
-                  "¿Revocar esta key? No se eliminará físicamente.",
-                );
-                if (!confirmed) return;
+                void (async () => {
+                  const confirmed = await confirmDialog.warning({
+                    title: "Revocar key",
+                    description:
+                      "¿Revocar esta key? No se eliminará físicamente.",
+                    confirmLabel: "Revocar",
+                  });
+                  if (!confirmed) return;
 
-                startTransition(() => {
-                  void (async () => {
-                    const result = await revokeProductKeyAction({
-                      productId,
-                      keyId: key.id,
-                    });
-                    if (!result.success) {
-                      toast.error(result.message);
-                      return;
-                    }
-                    toast.success("Key revocada");
-                    router.refresh();
-                  })();
-                });
+                  startTransition(() => {
+                    void (async () => {
+                      const result = await revokeProductKeyAction({
+                        productId,
+                        keyId: key.id,
+                      });
+                      if (!result.success) {
+                        toast.error(result.message);
+                        return;
+                      }
+                      toast.success("Key revocada");
+                      router.refresh();
+                    })();
+                  });
+                })();
               }}
             >
               <HiOutlineTrash className="size-4" />

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { confirmDialog } from "@/components/confirm-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -106,9 +107,11 @@ export function ProvidersMobileList({
                   variant="destructive"
                   onClick={() => {
                     void (async () => {
-                      const confirmed = window.confirm(
-                        `¿Eliminar "${provider.name}"?`,
-                      );
+                      const confirmed = await confirmDialog.danger({
+                        title: "Eliminar provider",
+                        description: `¿Eliminar “${provider.name}”?`,
+                        confirmLabel: "Eliminar",
+                      });
                       if (!confirmed) return;
                       const result = await deleteSmmProviderAction({
                         id: provider.id,

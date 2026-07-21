@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { confirmDialog } from "@/components/confirm-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -123,9 +124,11 @@ export function ServicesMobileList({
                     variant="destructive"
                     onClick={() => {
                       void (async () => {
-                        const confirmed = window.confirm(
-                          `¿Eliminar "${service.name}"?`,
-                        );
+                        const confirmed = await confirmDialog.danger({
+                          title: "Eliminar servicio",
+                          description: `¿Eliminar “${service.name}”?`,
+                          confirmLabel: "Eliminar",
+                        });
                         if (!confirmed) return;
                         const result = await deleteSmmServiceAction({
                           id: service.id,

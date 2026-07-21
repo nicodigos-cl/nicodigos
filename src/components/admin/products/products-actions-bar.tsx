@@ -17,6 +17,7 @@ import { toast } from "sonner";
 
 import { BulkCoverImageDialog } from "@/components/admin/products/bulk-cover-image-dialog";
 import { SelectionLimitControl } from "@/components/admin/selection-limit-control";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -105,7 +106,7 @@ export function ProductsActionsBar({
     });
   }
 
-  function handleStatus(status: "ACTIVE" | "DRAFT" | "ARCHIVED") {
+  async function handleStatus(status: "ACTIVE" | "DRAFT" | "ARCHIVED") {
     if (!canProcess) return;
     const label =
       status === "ACTIVE"
@@ -113,9 +114,17 @@ export function ProductsActionsBar({
         : status === "DRAFT"
           ? "pasar a borrador"
           : "archivar";
-    const confirmed = window.confirm(
-      `¿${label.charAt(0).toUpperCase()}${label.slice(1)} ${selectedCount} producto${selectedCount === 1 ? "" : "s"}?`,
-    );
+    const confirmed = await confirmDialog({
+      variant: status === "ARCHIVED" ? "warning" : "confirm",
+      title: `${label.charAt(0).toUpperCase()}${label.slice(1)} productos`,
+      description: `¿${label.charAt(0).toUpperCase()}${label.slice(1)} ${selectedCount} producto${selectedCount === 1 ? "" : "s"}?`,
+      confirmLabel:
+        status === "ACTIVE"
+          ? "Publicar"
+          : status === "DRAFT"
+            ? "Pasar a borrador"
+            : "Archivar",
+    });
     if (!confirmed) return;
 
     startTransition(() => {
@@ -198,11 +207,13 @@ export function ProductsActionsBar({
     });
   }
 
-  function handleSyncKinguin() {
+  async function handleSyncKinguin() {
     if (!canSyncKinguin) return;
-    const confirmed = window.confirm(
-      `¿Sincronizar ${kinguinSelected.length} producto${kinguinSelected.length === 1 ? "" : "s"} Kinguin (costo, ofertas y detalles)?`,
-    );
+    const confirmed = await confirmDialog.confirm({
+      title: "Sincronizar Kinguin",
+      description: `¿Sincronizar ${kinguinSelected.length} producto${kinguinSelected.length === 1 ? "" : "s"} Kinguin (costo, ofertas y detalles)?`,
+      confirmLabel: "Sincronizar",
+    });
     if (!confirmed) return;
 
     startTransition(() => {

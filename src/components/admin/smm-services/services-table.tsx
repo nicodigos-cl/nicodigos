@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 
 import { DataTable, DataTableColumnHeader } from "@/components/data-table";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -85,9 +86,11 @@ function ServiceActions({ service }: { service: SmmServiceListItemDto }) {
           variant="destructive"
           onClick={() => {
             void (async () => {
-              const confirmed = window.confirm(
-                `¿Eliminar el servicio "${service.name}"?`,
-              );
+              const confirmed = await confirmDialog.danger({
+                title: "Eliminar servicio",
+                description: `¿Eliminar el servicio “${service.name}”?`,
+                confirmLabel: "Eliminar",
+              });
               if (!confirmed) return;
               const result = await deleteSmmServiceAction({ id: service.id });
               if (!result.success) {

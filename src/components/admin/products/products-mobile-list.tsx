@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 import { ProductStatusBadge } from "@/components/admin/products/product-status-badge";
 import { ProductThumbnail } from "@/components/admin/products/product-thumbnail";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -137,9 +138,11 @@ export function ProductsMobileList({
                         variant="destructive"
                         onClick={() => {
                           void (async () => {
-                            const confirmed = window.confirm(
-                              `¿Archivar "${product.name}"?`,
-                            );
+                            const confirmed = await confirmDialog.warning({
+                              title: "Archivar producto",
+                              description: `¿Archivar “${product.name}”?`,
+                              confirmLabel: "Archivar",
+                            });
                             if (!confirmed) return;
                             const result = await archiveProductAction({
                               id: product.id,

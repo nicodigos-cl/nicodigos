@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -104,9 +105,11 @@ function ProviderActions({ provider }: { provider: SmmProviderListItemDto }) {
           variant="destructive"
           onClick={() => {
             void (async () => {
-              const confirmed = window.confirm(
-                `¿Eliminar el provider "${provider.name}"? Se borrarán también sus servicios cacheados.`,
-              );
+              const confirmed = await confirmDialog.danger({
+                title: "Eliminar provider",
+                description: `¿Eliminar el provider “${provider.name}”? Se borrarán también sus servicios cacheados.`,
+                confirmLabel: "Eliminar",
+              });
               if (!confirmed) return;
               const result = await deleteSmmProviderAction({ id: provider.id });
               if (!result.success) {

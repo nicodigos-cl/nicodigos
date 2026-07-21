@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { confirmDialog } from "@/components/confirm-dialog";
 import {
   Card,
   CardContent,
@@ -200,24 +201,28 @@ export function ProviderForm({
                 variant="destructive"
                 disabled={isPending}
                 onClick={() => {
-                  const confirmed = window.confirm(
-                    `¿Eliminar "${provider.name}"?`,
-                  );
-                  if (!confirmed) return;
-                  startTransition(() => {
-                    void (async () => {
-                      const result = await deleteSmmProviderAction({
-                        id: provider.id,
-                      });
-                      if (!result.success) {
-                        toast.error(result.message);
-                        return;
-                      }
-                      toast.success("Provider eliminado");
-                      router.push("/admin/providers");
-                      router.refresh();
-                    })();
-                  });
+                  void (async () => {
+                    const confirmed = await confirmDialog.danger({
+                      title: "Eliminar provider",
+                      description: `¿Eliminar “${provider.name}”?`,
+                      confirmLabel: "Eliminar",
+                    });
+                    if (!confirmed) return;
+                    startTransition(() => {
+                      void (async () => {
+                        const result = await deleteSmmProviderAction({
+                          id: provider.id,
+                        });
+                        if (!result.success) {
+                          toast.error(result.message);
+                          return;
+                        }
+                        toast.success("Provider eliminado");
+                        router.push("/admin/providers");
+                        router.refresh();
+                      })();
+                    });
+                  })();
                 }}
               >
                 <HiOutlineTrash className="size-4" />

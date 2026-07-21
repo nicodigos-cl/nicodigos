@@ -28,6 +28,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { archiveProductAction } from "@/lib/actions/products";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { formatMoney } from "@/lib/products/format";
 import { deliveryMethodLabel } from "@/lib/products/status";
 import type { ProductListItemDto } from "@/types/products";
@@ -36,9 +37,11 @@ function ProductActions({ product }: { product: ProductListItemDto }) {
   const router = useRouter();
 
   async function handleArchive() {
-    const confirmed = window.confirm(
-      `¿Archivar "${product.name}"? El producto dejará de mostrarse como activo.`,
-    );
+    const confirmed = await confirmDialog.warning({
+      title: "Archivar producto",
+      description: `¿Archivar “${product.name}”? El producto dejará de mostrarse como activo.`,
+      confirmLabel: "Archivar",
+    });
     if (!confirmed) {
       return;
     }

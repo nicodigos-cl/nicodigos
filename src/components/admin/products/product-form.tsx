@@ -47,6 +47,7 @@ import {
   updateProductAction,
 } from "@/lib/actions/products";
 import { syncKinguinProductAction } from "@/lib/actions/products-bulk";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { applyMarkupPct } from "@/lib/fx/markup";
 import { calculateMarginPercent, slugify } from "@/lib/products/format";
 import type { CategoryOptionDto, ProductDetailDto } from "@/types/products";
@@ -372,13 +373,17 @@ export function ProductForm({
 
   function handleSyncKinguin() {
     if (!product || product.kinguinId == null || isPending) return;
-    const confirmed = window.confirm(
-      "¿Sincronizar desde Kinguin? Se actualizarán costo, ofertas, región y detalles (no el nombre ni la descripción).",
-    );
-    if (!confirmed) return;
 
     startTransition(() => {
       void (async () => {
+        const confirmed = await confirmDialog.confirm({
+          title: "Sincronizar desde Kinguin",
+          description:
+            "Se actualizarán costo, ofertas, región y detalles (no el nombre ni la descripción).",
+          confirmLabel: "Sincronizar",
+        });
+        if (!confirmed) return;
+
         const toastId = toast.loading("Sincronizando con Kinguin…");
         const result = await syncKinguinProductAction({ productId: product.id });
         if (!result.success) {

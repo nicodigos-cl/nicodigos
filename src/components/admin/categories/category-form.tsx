@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { AssetField } from "@/components/admin/asset-field";
+import { confirmDialog } from "@/components/confirm-dialog";
 import {
   Card,
   CardContent,
@@ -158,24 +159,28 @@ export function CategoryForm({
               variant="destructive"
               disabled={isPending}
               onClick={() => {
-                const confirmed = window.confirm(
-                  `¿Eliminar "${category.name}"?`,
-                );
-                if (!confirmed) return;
-                startTransition(() => {
-                  void (async () => {
-                    const result = await deleteCategoryAction({
-                      id: category.id,
-                    });
-                    if (!result.success) {
-                      toast.error(result.message);
-                      return;
-                    }
-                    toast.success("Categoría eliminada");
-                    router.push("/admin/categories");
-                    router.refresh();
-                  })();
-                });
+                void (async () => {
+                  const confirmed = await confirmDialog.danger({
+                    title: "Eliminar categoría",
+                    description: `¿Eliminar “${category.name}”?`,
+                    confirmLabel: "Eliminar",
+                  });
+                  if (!confirmed) return;
+                  startTransition(() => {
+                    void (async () => {
+                      const result = await deleteCategoryAction({
+                        id: category.id,
+                      });
+                      if (!result.success) {
+                        toast.error(result.message);
+                        return;
+                      }
+                      toast.success("Categoría eliminada");
+                      router.push("/admin/categories");
+                      router.refresh();
+                    })();
+                  });
+                })();
               }}
             >
               <HiOutlineTrash className="size-4" />

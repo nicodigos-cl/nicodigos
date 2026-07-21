@@ -31,6 +31,7 @@ import {
 import { toast } from "sonner";
 
 import { CreateCategoryDialog } from "@/components/admin/categories/create-category-dialog";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -184,20 +185,26 @@ function SortableCategoryRow({
         disabled={isPending || undefined}
         aria-label="Eliminar"
         onClick={() => {
-          const confirmed = window.confirm(`¿Eliminar "${node.name}"?`);
-          if (!confirmed) return;
-          startTransition(() => {
-            void (async () => {
-              const result = await deleteCategoryAction({ id: node.id });
-              if (!result.success) {
-                toast.error(result.message);
-                return;
-              }
-              toast.success("Categoría eliminada");
-              onDeleted(node.id);
-              router.refresh();
-            })();
-          });
+          void (async () => {
+            const confirmed = await confirmDialog.danger({
+              title: "Eliminar categoría",
+              description: `¿Eliminar “${node.name}”?`,
+              confirmLabel: "Eliminar",
+            });
+            if (!confirmed) return;
+            startTransition(() => {
+              void (async () => {
+                const result = await deleteCategoryAction({ id: node.id });
+                if (!result.success) {
+                  toast.error(result.message);
+                  return;
+                }
+                toast.success("Categoría eliminada");
+                onDeleted(node.id);
+                router.refresh();
+              })();
+            });
+          })();
         }}
       >
         <HiOutlineTrash className="size-4" />
