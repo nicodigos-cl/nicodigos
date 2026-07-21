@@ -50,6 +50,15 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  // Railway edge sets/overwrites x-real-ip; XFF is multi-hop and ignored
+  // unless trustedProxies is set (Better Auth ≥1.6.21).
+  advanced: {
+    ipAddress: {
+      ipAddressHeaders: ["x-real-ip", "x-forwarded-for"],
+      // Railway private CGNAT hops between edge and the container.
+      trustedProxies: ["100.0.0.0/8"],
+    },
+  },
   databaseHooks: {
     user: {
       create: {
