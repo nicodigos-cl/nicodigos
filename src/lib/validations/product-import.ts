@@ -71,6 +71,42 @@ export const importProductItemSchema = z.object({
     z.coerce.number().int().min(0).optional(),
   ),
   assets: assetsInputSchema.optional().default([]),
+  /** SMM panel wiring (required for fulfillment when deliveryMethod=SMM). */
+  smmApiUrl: z.preprocess(
+    emptyToUndefined,
+    z.string().trim().url().max(2000).optional(),
+  ),
+  smmServiceId: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().positive().optional(),
+  ),
+  smmServiceType: z.preprocess(
+    emptyToUndefined,
+    z.string().trim().max(120).optional(),
+  ),
+  smmCategory: z.preprocess(
+    emptyToUndefined,
+    z.string().trim().max(200).optional(),
+  ),
+  smmRate: z.preprocess(emptyToUndefined, priceSchema.optional()),
+  smmMarkupPct: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().min(0).max(1000).optional(),
+  ),
+  smmMin: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().min(0).optional(),
+  ),
+  smmMax: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().min(0).optional(),
+  ),
+  smmRefill: z.preprocess(emptyToUndefined, z.coerce.boolean().optional()),
+  smmCancel: z.preprocess(emptyToUndefined, z.coerce.boolean().optional()),
+  smmServiceName: z.preprocess(
+    emptyToUndefined,
+    z.string().trim().max(300).optional(),
+  ),
 });
 
 export type ImportProductItem = z.infer<typeof importProductItemSchema>;

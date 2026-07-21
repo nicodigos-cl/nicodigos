@@ -290,6 +290,17 @@ export async function exportSmmServicesAsProductsAction(
         qty: 0,
         currency: "CLP",
         assets: [],
+        smmApiUrl: service.providerApiUrl,
+        smmServiceId: service.remoteServiceId,
+        smmServiceType: service.type,
+        smmCategory: service.category,
+        smmRate: service.rate,
+        smmMarkupPct: markupPct,
+        smmMin: service.min,
+        smmMax: service.max,
+        smmRefill: service.refill,
+        smmCancel: service.cancel,
+        smmServiceName: service.name,
       };
     });
 

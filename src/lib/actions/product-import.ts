@@ -181,6 +181,18 @@ export async function importProductsAction(
 
   const { items, categoryIds } = parsed.data;
 
+  const smmMissingWiring = items.filter(
+    (item) =>
+      item.deliveryMethod === "SMM" &&
+      (item.smmApiUrl == null || item.smmServiceId == null),
+  );
+  if (smmMissingWiring.length > 0) {
+    return {
+      success: false,
+      message: `${smmMissingWiring.length} producto(s) SMM sin wiring (smmApiUrl / smmServiceId). Vuelve a exportar desde Servicios → Exportar como producto.`,
+    };
+  }
+
   if (categoryIds.length > 0) {
     const count = await prisma.category.count({
       where: { id: { in: categoryIds } },
@@ -206,6 +218,10 @@ export async function importProductsAction(
           assets.find((asset) => asset.type === "IMAGE")?.url ??
           null;
 
+        const isSmm = item.deliveryMethod === "SMM";
+        const hasSmmWiring =
+          isSmm && item.smmApiUrl != null && item.smmServiceId != null;
+
         const product = await tx.product.create({
           data: {
             name: item.name,
@@ -220,6 +236,23 @@ export async function importProductsAction(
             currency: item.currency,
             qty: item.qty,
             textQty: item.textQty ?? null,
+            ...(hasSmmWiring
+              ? {
+                  smmApiUrl: item.smmApiUrl,
+                  smmServiceId: item.smmServiceId,
+                  smmServiceType: item.smmServiceType ?? null,
+                  smmCategory: item.smmCategory ?? null,
+                  smmRate: item.smmRate ?? null,
+                  smmMarkupPct: item.smmMarkupPct ?? null,
+                  smmMin: item.smmMin ?? null,
+                  smmMax: item.smmMax ?? null,
+                  smmRefill: item.smmRefill ?? null,
+                  smmCancel: item.smmCancel ?? null,
+                  smmServiceName: item.smmServiceName ?? null,
+                  smmSyncedAt: new Date(),
+                  originalName: item.smmServiceName ?? null,
+                }
+              : {}),
             categories:
               categoryIds.length > 0
                 ? {
