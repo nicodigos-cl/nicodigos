@@ -223,12 +223,10 @@ export async function prefillSmmServicesWithAiAction(
 function buildServiceDescription(service: SmmServiceListItemDto): string {
   return [
     `Tipo: ${service.type}`,
-    `Categoría panel: ${service.category}`,
+    `Categoría: ${service.category}`,
     `Cantidad permitida: ${service.min.toLocaleString("es-CL")} – ${service.max.toLocaleString("es-CL")}`,
     `Refill: ${service.refill ? "sí" : "no"}`,
     `Cancel: ${service.cancel ? "sí" : "no"}`,
-    `Rate proveedor: USD ${service.rate}`,
-    `Provider: ${service.providerName}`,
   ].join("\n");
 }
 
@@ -391,16 +389,7 @@ export async function convertSmmServicesToProductsAction(
         const rateUsd = Number.parseFloat(service.rate) || 0;
         const baseClp = Math.round(rateUsd * usdClpRate);
         const description =
-          item.description?.trim() ||
-          [
-            `Tipo: ${service.type}`,
-            `Categoría panel: ${service.category}`,
-            `Cantidad permitida: ${service.min.toLocaleString("es-CL")} – ${service.max.toLocaleString("es-CL")}`,
-            `Refill: ${service.refill ? "sí" : "no"}`,
-            `Cancel: ${service.cancel ? "sí" : "no"}`,
-            `Rate proveedor: USD ${service.rate}`,
-          ].join("\n");
-
+          item.description?.trim() || buildServiceDescription(service);
         const product = await tx.product.create({
           data: {
             name: item.name,
