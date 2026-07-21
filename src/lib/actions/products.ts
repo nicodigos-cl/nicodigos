@@ -36,9 +36,14 @@ import {
   revokeProductAccountSchema,
   revokeProductKeySchema,
   setCoverImageSchema,
+  translateProductTextSchema,
   updateProductSchema,
 } from "@/lib/validations/products";
 import type { AssetInput } from "@/lib/validations/assets";
+import {
+  translateProductFields,
+  type ProductTranslateFields,
+} from "@/lib/products/translate-fields";
 
 function unauthorized<T>(): ActionResult<T> {
   return {
@@ -698,6 +703,44 @@ export async function deleteProductAction(
 
   revalidatePath("/admin/products");
   return { success: true, data: { id: product.id } };
+}
+
+/**
+ * Translate product text fields in-memory (for the edit form). Does not persist.
+ */
+export async function translateProductTextAction(
+  rawInput: unknown,
+): Promise<ActionResult<{ fields: ProductTranslateFields }>> {
+  const session = await requireSession();
+  if (!session) {
+    return unauthorized();
+  }
+
+  const parsed = translateProductTextSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return validationError(parsed.error);
+  }
+
+  try {
+    const fields = await translateProductFields(parsed.data.fields, {
+      only: parsed.data.only,
+      force: parsed.data.force,
+    });
+
+    if (Object.keys(fields).length === 0) {
+      return {
+        success: false,
+        message:
+          "Nada que traducir: los campos están vacíos o ya parecen estar en español.",
+      };
+    }
+
+    return { success: true, data: { fields } };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message.slice(0, 300) : "Error de traducción";
+    return { success: false, message };
+  }
 }
 
 function normalizeKeyCodes(codesText: string): {

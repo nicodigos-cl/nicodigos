@@ -9,6 +9,7 @@ import {
   HiOutlineExclamation,
   HiOutlineRefresh,
   HiOutlineSave,
+  HiOutlineSparkles,
   HiOutlineTrash,
 } from "react-icons/hi";
 import { toast } from "sonner";
@@ -17,6 +18,8 @@ import { AssetField } from "@/components/admin/asset-field";
 import { ProductStatusBadge } from "@/components/admin/products/product-status-badge";
 import { KinguinProductPicker } from "@/components/admin/products/kinguin-product-picker";
 import { SmmServicePicker } from "@/components/admin/products/smm-service-picker";
+import { TranslateFieldButton } from "@/components/admin/products/translate-field-button";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,16 +47,21 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   createProductAction,
+  translateProductTextAction,
   updateProductAction,
 } from "@/lib/actions/products";
 import { syncKinguinProductAction } from "@/lib/actions/products-bulk";
-import { confirmDialog } from "@/components/confirm-dialog";
 import { applyMarkupPct } from "@/lib/fx/markup";
 import { calculateMarginPercent, slugify } from "@/lib/products/format";
 import type { CategoryOptionDto, ProductDetailDto } from "@/types/products";
 import type { KinguinSearchHitDto } from "@/types/kinguin-admin";
 import type { SmmServiceListItemDto } from "@/types/smm-provider";
 import type { AssetDraft } from "@/types/assets";
+import type { TranslateProductTextInput } from "@/lib/validations/products";
+
+type ProductTranslateField = NonNullable<
+  TranslateProductTextInput["only"]
+>[number];
 
 type SmmPickerProps = {
   items: SmmServiceListItemDto[];
@@ -212,6 +220,9 @@ export function ProductForm({
   );
   const [smmServiceDbId, setSmmServiceDbId] = useState<string | null>(null);
   const [kinguinId, setKinguinId] = useState<number | null>(null);
+  const [translating, setTranslating] = useState<
+    ProductTranslateField | "all" | null
+  >(null);
 
   const margin = useMemo(() => {
     const price = Number.parseFloat(form.price.replace(",", "."));
@@ -227,6 +238,70 @@ export function ProductForm({
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function currentTranslateFields() {
+    return {
+      name: form.name,
+      description: form.description,
+      platform: form.platform,
+      regionalLimitations: form.regionalLimitations,
+      activationDetails: form.activationDetails,
+      genres: form.genres,
+      languages: form.languages,
+    };
+  }
+
+  function applyTranslatedFields(
+    fields: Partial<Record<ProductTranslateField, string>>,
+  ) {
+    setForm((prev) => {
+      const next = { ...prev };
+      if (fields.name != null) {
+        next.name = fields.name;
+        if (!slugTouched) next.slug = slugify(fields.name);
+      }
+      if (fields.description != null) next.description = fields.description;
+      if (fields.platform != null) next.platform = fields.platform;
+      if (fields.regionalLimitations != null) {
+        next.regionalLimitations = fields.regionalLimitations;
+      }
+      if (fields.activationDetails != null) {
+        next.activationDetails = fields.activationDetails;
+      }
+      if (fields.genres != null) next.genres = fields.genres;
+      if (fields.languages != null) next.languages = fields.languages;
+      return next;
+    });
+  }
+
+  function handleTranslate(only?: ProductTranslateField[]) {
+    if (isPending || translating) return;
+    const key = only?.length === 1 ? only[0]! : "all";
+    setTranslating(key);
+    void (async () => {
+      const toastId = toast.loading(
+        key === "all" ? "Traduciendo producto…" : "Traduciendo campo…",
+      );
+      try {
+        const result = await translateProductTextAction({
+          fields: currentTranslateFields(),
+          only,
+          force: true,
+        });
+        if (!result.success) {
+          toast.error(result.message, { id: toastId });
+          return;
+        }
+        applyTranslatedFields(result.data.fields);
+        toast.success(
+          key === "all" ? "Producto traducido" : "Campo traducido",
+          { id: toastId },
+        );
+      } finally {
+        setTranslating(null);
+      }
+    })();
   }
 
   function handleSelectSmmService(service: SmmServiceListItemDto) {
@@ -441,6 +516,16 @@ export function ProductForm({
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isPending || translating != null}
+            className="w-full sm:w-auto"
+            onClick={() => handleTranslate()}
+          >
+            <HiOutlineSparkles className="size-4" />
+            {translating === "all" ? "Traduciendo..." : "Traducir todo"}
+          </Button>
           {mode === "edit" && product?.kinguinId != null ? (
             <Button
               type="button"
@@ -456,7 +541,7 @@ export function ProductForm({
           {archiveSlot}
           <Button
             type="submit"
-            disabled={isPending}
+            disabled={isPending || translating != null}
             className="w-full sm:w-auto"
           >
             <HiOutlineSave className="size-4" />
@@ -507,7 +592,14 @@ export function ProductForm({
             <CardContent className="flex flex-col gap-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="name">Nombre del producto</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="name">Nombre del producto</Label>
+                    <TranslateFieldButton
+                      busy={translating === "name"}
+                      disabled={isPending || translating != null}
+                      onClick={() => handleTranslate(["name"])}
+                    />
+                  </div>
                   <Input
                     id="name"
                     value={form.name}
@@ -544,7 +636,14 @@ export function ProductForm({
                   ) : null}
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="description">Descripción detallada</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="description">Descripción detallada</Label>
+                    <TranslateFieldButton
+                      busy={translating === "description"}
+                      disabled={isPending || translating != null}
+                      onClick={() => handleTranslate(["description"])}
+                    />
+                  </div>
                   <Textarea
                     id="description"
                     value={form.description}
@@ -691,9 +790,18 @@ export function ProductForm({
                     />
                   </div>
                   <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="regionalLimitations">
-                      Limitaciones regionales
-                    </Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="regionalLimitations">
+                        Limitaciones regionales
+                      </Label>
+                      <TranslateFieldButton
+                        busy={translating === "regionalLimitations"}
+                        disabled={isPending || translating != null}
+                        onClick={() =>
+                          handleTranslate(["regionalLimitations"])
+                        }
+                      />
+                    </div>
                     <Input
                       id="regionalLimitations"
                       value={form.regionalLimitations}
@@ -716,9 +824,16 @@ export function ProductForm({
                     />
                   </div>
                   <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="activationDetails">
-                      Detalles de activación
-                    </Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="activationDetails">
+                        Detalles de activación
+                      </Label>
+                      <TranslateFieldButton
+                        busy={translating === "activationDetails"}
+                        disabled={isPending || translating != null}
+                        onClick={() => handleTranslate(["activationDetails"])}
+                      />
+                    </div>
                     <Textarea
                       id="activationDetails"
                       value={form.activationDetails}
@@ -739,7 +854,14 @@ export function ProductForm({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="platform">Plataforma</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="platform">Plataforma</Label>
+                      <TranslateFieldButton
+                        busy={translating === "platform"}
+                        disabled={isPending || translating != null}
+                        onClick={() => handleTranslate(["platform"])}
+                      />
+                    </div>
                     <Input
                       id="platform"
                       value={form.platform}
@@ -749,7 +871,14 @@ export function ProductForm({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="genres">Géneros</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="genres">Géneros</Label>
+                      <TranslateFieldButton
+                        busy={translating === "genres"}
+                        disabled={isPending || translating != null}
+                        onClick={() => handleTranslate(["genres"])}
+                      />
+                    </div>
                     <Input
                       id="genres"
                       value={form.genres}
@@ -759,7 +888,14 @@ export function ProductForm({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="languages">Idiomas</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="languages">Idiomas</Label>
+                      <TranslateFieldButton
+                        busy={translating === "languages"}
+                        disabled={isPending || translating != null}
+                        onClick={() => handleTranslate(["languages"])}
+                      />
+                    </div>
                     <Input
                       id="languages"
                       value={form.languages}

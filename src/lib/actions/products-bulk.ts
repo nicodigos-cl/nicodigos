@@ -24,12 +24,17 @@ import {
   bulkUpdateProductStatusSchema,
   bulkUpdateProductCoverSchema,
   bulkDeleteProductsSchema,
+  bulkTranslateProductsSchema,
   checkProductsChileCompatibilitySchema,
   exportProductsSchema,
   selectProductsForQuerySchema,
   syncKinguinProductsSchema,
 } from "@/lib/validations/products";
 import { deleteImageFromR2 } from "@/lib/r2";
+import {
+  translateProductFieldsBulk,
+  type ProductTranslateFields,
+} from "@/lib/products/translate-fields";
 import type { ProductListItemDto } from "@/types/products";
 
 function unauthorized<T>(): ActionResult<T> {
@@ -441,5 +446,134 @@ export async function bulkDeleteProductsAction(
       deleted: toDelete.length,
       skipped,
     },
+  };
+}
+
+function csvOrJoin(values: string[]): string {
+  return values.filter(Boolean).join(", ");
+}
+
+function splitCsv(value: string | undefined): string[] {
+  if (!value?.trim()) return [];
+  return value
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export async function bulkTranslateProductsAction(
+  rawInput: unknown,
+): Promise<
+  ActionResult<{
+    updated: number;
+    skipped: number;
+    failed: Array<{ productId: string; name: string; message: string }>;
+  }>
+> {
+  const session = await requireSession();
+  if (!session) {
+    return unauthorized();
+  }
+
+  const parsed = bulkTranslateProductsSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return validationError(parsed.error);
+  }
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: parsed.data.productIds } },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      platform: true,
+      regionalLimitations: true,
+      activationDetails: true,
+      genres: true,
+      languages: true,
+    },
+  });
+
+  const items = products.map((product) => ({
+    productId: product.id,
+    fields: {
+      name: product.name,
+      description: product.description ?? "",
+      platform: product.platform ?? "",
+      regionalLimitations: product.regionalLimitations ?? "",
+      activationDetails: product.activationDetails ?? "",
+      genres: csvOrJoin(product.genres),
+      languages: csvOrJoin(product.languages),
+    } satisfies ProductTranslateFields,
+  }));
+
+  let translatedById: Map<string, ProductTranslateFields>;
+  try {
+    translatedById = await translateProductFieldsBulk(items, {
+      only: parsed.data.only,
+      force: parsed.data.force,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message.slice(0, 300) : "Error de traducción";
+    return { success: false, message };
+  }
+
+  let updated = 0;
+  let skipped = 0;
+  const failed: Array<{ productId: string; name: string; message: string }> =
+    [];
+
+  for (const product of products) {
+    const translated = translatedById.get(product.id);
+    if (!translated || Object.keys(translated).length === 0) {
+      skipped += 1;
+      continue;
+    }
+
+    try {
+      await prisma.product.update({
+        where: { id: product.id },
+        data: {
+          ...(translated.name != null ? { name: translated.name } : {}),
+          ...(translated.description != null
+            ? { description: translated.description }
+            : {}),
+          ...(translated.platform != null
+            ? { platform: translated.platform }
+            : {}),
+          ...(translated.regionalLimitations != null
+            ? { regionalLimitations: translated.regionalLimitations }
+            : {}),
+          ...(translated.activationDetails != null
+            ? { activationDetails: translated.activationDetails }
+            : {}),
+          ...(translated.genres != null
+            ? { genres: splitCsv(translated.genres) }
+            : {}),
+          ...(translated.languages != null
+            ? { languages: splitCsv(translated.languages) }
+            : {}),
+        },
+      });
+      updated += 1;
+      revalidatePath(`/admin/products/${product.id}`);
+    } catch (error) {
+      failed.push({
+        productId: product.id,
+        name: product.name,
+        message:
+          error instanceof Error
+            ? error.message.slice(0, 200)
+            : "No se pudo guardar",
+      });
+    }
+  }
+
+  revalidatePath("/admin/products");
+
+  return {
+    success: true,
+    data: { updated, skipped, failed },
   };
 }

@@ -10,6 +10,7 @@ import {
   HiOutlineExclamation,
   HiOutlinePhotograph,
   HiOutlineRefresh,
+  HiOutlineSparkles,
   HiOutlineTrash,
   HiOutlineViewGrid,
   HiOutlineX,
@@ -30,6 +31,7 @@ import {
 import {
   bulkUpdateProductStatusAction,
   bulkDeleteProductsAction,
+  bulkTranslateProductsAction,
   checkProductsChileCompatibilityAction,
   exportProductsAction,
   selectProductsForQueryAction,
@@ -275,6 +277,39 @@ export function ProductsActionsBar({
     });
   }
 
+  async function handleBulkTranslate() {
+    if (!canProcess) return;
+    const confirmed = await confirmDialog.confirm({
+      title: "Traducir productos",
+      description: `¿Traducir al español el texto de ${selectedCount} producto${selectedCount === 1 ? "" : "s"} (nombre, descripción, plataforma, región, géneros, idiomas, activación)? Se guardará en la base de datos.`,
+      confirmLabel: "Traducir y guardar",
+    });
+    if (!confirmed) return;
+
+    startTransition(() => {
+      void (async () => {
+        const toastId = toast.loading("Traduciendo productos…");
+        const result = await bulkTranslateProductsAction({
+          productIds: selected.map((item) => item.id),
+          force: true,
+        });
+        if (!result.success) {
+          toast.error(result.message, { id: toastId });
+          return;
+        }
+        const { updated, skipped, failed } = result.data;
+        toast.success(
+          `Traducidos ${updated} · omitidos ${skipped}${
+            failed.length ? ` · fallidos ${failed.length}` : ""
+          }`,
+          { id: toastId },
+        );
+        onClear();
+        onRefresh();
+      })();
+    });
+  }
+
   return (
     <>
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -373,6 +408,15 @@ export function ProductsActionsBar({
               >
                 <HiOutlineExclamation className="size-4" />
                 Verificar Chile
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!canProcess}
+                onClick={() => {
+                  void handleBulkTranslate();
+                }}
+              >
+                <HiOutlineSparkles className="size-4" />
+                Traducir textos
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={!canSyncKinguin}

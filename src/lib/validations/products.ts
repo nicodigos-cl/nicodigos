@@ -310,6 +310,47 @@ export const bulkDeleteProductsSchema = z.object({
 
 export type BulkDeleteProductsInput = z.infer<typeof bulkDeleteProductsSchema>;
 
+export const productTranslateFieldSchema = z.enum([
+  "name",
+  "description",
+  "platform",
+  "regionalLimitations",
+  "activationDetails",
+  "genres",
+  "languages",
+]);
+
+export const translateProductTextSchema = z.object({
+  fields: z.object({
+    name: z.string().max(500).optional(),
+    description: z.string().max(20_000).optional(),
+    platform: z.string().max(200).optional(),
+    regionalLimitations: z.string().max(2000).optional(),
+    activationDetails: z.string().max(5000).optional(),
+    genres: z.string().max(1000).optional(),
+    languages: z.string().max(1000).optional(),
+  }),
+  only: z.array(productTranslateFieldSchema).min(1).max(7).optional(),
+  force: z.boolean().optional(),
+});
+
+export type TranslateProductTextInput = z.infer<
+  typeof translateProductTextSchema
+>;
+
+export const bulkTranslateProductsSchema = z.object({
+  productIds: z
+    .array(z.string().cuid())
+    .min(1)
+    .max(PRODUCT_PROCESS_LIMIT),
+  only: z.array(productTranslateFieldSchema).min(1).max(7).optional(),
+  force: z.boolean().optional(),
+});
+
+export type BulkTranslateProductsInput = z.infer<
+  typeof bulkTranslateProductsSchema
+>;
+
 export const bulkUpdateProductStatusSchema = z.object({
   productIds: z
     .array(z.string().cuid())
