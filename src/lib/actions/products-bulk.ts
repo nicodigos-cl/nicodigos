@@ -382,11 +382,7 @@ export async function bulkUpdateProductCoverAction(
   });
 
   // Use concurrency when revalidating product paths, in case of many products
-  await Promise.all(
-    ids.map((productId) =>
-      limit(() => revalidatePath(`/admin/products/${productId}`)),
-    ),
-  );
+  ids.forEach((productId) => revalidatePath(`/admin/products/${productId}`));
   revalidatePath("/admin/products");
 
   return { success: true, data: { updated: ids.length } };
