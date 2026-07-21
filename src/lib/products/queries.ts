@@ -2,6 +2,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { ProductKeyStatus, ProductStatus } from "@/generated/prisma/client";
 
 import prisma from "@/lib/prisma";
+import { getCategoryDescendantIds } from "@/lib/categories/queries";
 import { decimalToString, productCodeFromSlug } from "@/lib/products/format";
 import { smmUsesPerThousandPricing } from "@/lib/products/smm-pricing";
 import { getProductStock } from "@/lib/products/stock";
@@ -67,9 +68,23 @@ function buildOrderBy(
   }
 }
 
-function buildProductsWhere(
+async function resolveFilterCategoryIds(
+  categoryParam: string,
+): Promise<string[] | null> {
+  const category = await prisma.category.findFirst({
+    where: {
+      OR: [{ slug: categoryParam }, { id: categoryParam }],
+    },
+    select: { id: true },
+  });
+  if (!category) return null;
+  const ids = await getCategoryDescendantIds(category.id);
+  return [...ids];
+}
+
+async function buildProductsWhere(
   input: ProductsListQuery,
-): Prisma.ProductWhereInput {
+): Promise<Prisma.ProductWhereInput> {
   const where: Prisma.ProductWhereInput = {};
 
   if (input.q) {
@@ -89,14 +104,15 @@ function buildProductsWhere(
   }
 
   if (input.category) {
-    where.categories = {
-      some: {
-        OR: [
-          { categoryId: input.category },
-          { category: { slug: input.category } },
-        ],
-      },
-    };
+    const categoryIds = await resolveFilterCategoryIds(input.category);
+    if (!categoryIds?.length) {
+      // Unknown category → empty result set.
+      where.id = { in: [] };
+    } else {
+      where.categories = {
+        some: { categoryId: { in: categoryIds } },
+      };
+    }
   }
 
   return where;
@@ -107,7 +123,7 @@ export async function getProductsForBulkQuery(
   input: ProductsListQuery,
   limit: number,
 ): Promise<ProductListItemDto[]> {
-  const where = buildProductsWhere(input);
+  const where = await buildProductsWhere(input);
   const orderBy = buildOrderBy(input.sort, input.order);
   const take = Math.min(Math.max(1, limit), BULK_EXPORT_SELECTION_LIMIT);
 
@@ -305,7 +321,7 @@ function toListItemDto(product: {
 export async function getProductsPage(
   input: ProductsListQuery,
 ): Promise<ProductsPageResult> {
-  const where = buildProductsWhere(input);
+  const where = await buildProductsWhere(input);
   const orderBy = buildOrderBy(input.sort, input.order);
   const skip = (input.page - 1) * input.pageSize;
 
@@ -719,10 +735,18 @@ export async function getCategoryOptions(): Promise<CategoryOptionDto[]> {
       id: true,
       name: true,
       slug: true,
+      parentId: true,
+      parent: { select: { name: true } },
     },
   });
 
-  return categories;
+  return categories.map((category) => ({
+    id: category.id,
+    name: category.parent
+      ? `${category.parent.name} · ${category.name}`
+      : category.name,
+    slug: category.slug,
+  }));
 }
 
 function toStoreProductCard(product: {
@@ -1482,21 +1506,7 @@ function buildInStockWhere(): Prisma.ProductWhereInput {
 async function resolveCatalogCategoryIds(
   categoryParam: string,
 ): Promise<string[] | null> {
-  const category = await prisma.category.findFirst({
-    where: {
-      OR: [{ slug: categoryParam }, { id: categoryParam }],
-    },
-    select: {
-      id: true,
-      children: { select: { id: true } },
-    },
-  });
-
-  if (!category) {
-    return null;
-  }
-
-  return [category.id, ...category.children.map((child) => child.id)];
+  return resolveFilterCategoryIds(categoryParam);
 }
 
 async function buildStoreCatalogWhere(
