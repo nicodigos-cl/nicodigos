@@ -1,47 +1,67 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { HiOutlineTrash } from "react-icons/hi";
+import { HiOutlineArchive, HiOutlineTrash } from "react-icons/hi";
 import { toast } from "sonner";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import { archiveProductAction } from "@/lib/actions/products";
+import {
+  archiveProductAction,
+  deleteProductAction,
+} from "@/lib/actions/products";
 
-type ArchiveProductButtonProps = {
+type ProductDangerActionsProps = {
   productId: string;
   productName: string;
 };
 
-export function ArchiveProductButton({
+export function ProductDangerActions({
   productId,
   productName,
-}: ArchiveProductButtonProps) {
+}: ProductDangerActionsProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function handleArchive() {
     startTransition(() => {
       void (async () => {
+        const confirmed = await confirmDialog.warning({
+          title: "Archivar producto",
+          description: `“${productName}” se marcará como Archivado. No se borra el historial comercial y puedes reactivarlo después.`,
+          confirmLabel: "Archivar",
+        });
+        if (!confirmed) return;
+
         const result = await archiveProductAction({ id: productId });
         if (!result.success) {
           toast.error(result.message);
           return;
         }
         toast.success("Producto archivado");
-        setOpen(false);
+        router.push("/admin/products");
+        router.refresh();
+      })();
+    });
+  }
+
+  function handleDelete() {
+    startTransition(() => {
+      void (async () => {
+        const confirmed = await confirmDialog.danger({
+          title: "Eliminar definitivamente",
+          description: `¿Borrar “${productName}” de forma permanente? No se puede deshacer. Si tiene ventas, deberás archivarlo en su lugar.`,
+          confirmLabel: "Eliminar para siempre",
+        });
+        if (!confirmed) return;
+
+        const result = await deleteProductAction({ id: productId });
+        if (!result.success) {
+          toast.error(result.message);
+          return;
+        }
+        toast.success("Producto eliminado");
         router.push("/admin/products");
         router.refresh();
       })();
@@ -49,41 +69,32 @@ export function ArchiveProductButton({
   }
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger
-        render={
-          <Button
-            type="button"
-            variant="destructive"
-            className="w-full sm:w-auto"
-          />
-        }
+    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full sm:w-auto"
+        disabled={isPending}
+        onClick={handleArchive}
+      >
+        <HiOutlineArchive className="size-4" />
+        {isPending ? "…" : "Archivar"}
+      </Button>
+      <Button
+        type="button"
+        variant="destructive"
+        className="w-full sm:w-auto"
+        disabled={isPending}
+        onClick={handleDelete}
       >
         <HiOutlineTrash className="size-4" />
-        Eliminar
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>¿Archivar producto?</AlertDialogTitle>
-          <AlertDialogDescription>
-            “{productName}” se marcará como <strong>Archivado</strong>. No se
-            borrará el historial comercial (órdenes, keys, carritos). Puedes
-            reactivarlo más tarde cambiando su estado.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction
-            disabled={isPending}
-            onClick={(event) => {
-              event.preventDefault();
-              handleArchive();
-            }}
-          >
-            {isPending ? "Archivando..." : "Archivar producto"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+        {isPending ? "…" : "Eliminar"}
+      </Button>
+    </div>
   );
+}
+
+/** @deprecated Use ProductDangerActions */
+export function ArchiveProductButton(props: ProductDangerActionsProps) {
+  return <ProductDangerActions {...props} />;
 }

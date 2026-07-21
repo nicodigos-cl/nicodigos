@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  HiOutlineArchive,
   HiOutlineClipboardCopy,
   HiOutlineCube,
   HiOutlineDotsHorizontal,
@@ -30,7 +31,10 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { archiveProductAction } from "@/lib/actions/products";
+import {
+  archiveProductAction,
+  deleteProductAction,
+} from "@/lib/actions/products";
 import { formatMoney } from "@/lib/products/format";
 import type { ProductListItemDto } from "@/types/products";
 
@@ -135,7 +139,6 @@ export function ProductsMobileList({
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        variant="destructive"
                         onClick={() => {
                           void (async () => {
                             const confirmed = await confirmDialog.warning({
@@ -156,8 +159,33 @@ export function ProductsMobileList({
                           })();
                         }}
                       >
-                        <HiOutlineTrash className="size-4" />
+                        <HiOutlineArchive className="size-4" />
                         Archivar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => {
+                          void (async () => {
+                            const confirmed = await confirmDialog.danger({
+                              title: "Eliminar definitivamente",
+                              description: `¿Borrar “${product.name}” para siempre? No se puede deshacer.`,
+                              confirmLabel: "Eliminar para siempre",
+                            });
+                            if (!confirmed) return;
+                            const result = await deleteProductAction({
+                              id: product.id,
+                            });
+                            if (!result.success) {
+                              toast.error(result.message);
+                              return;
+                            }
+                            toast.success("Producto eliminado");
+                            router.refresh();
+                          })();
+                        }}
+                      >
+                        <HiOutlineTrash className="size-4" />
+                        Eliminar
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

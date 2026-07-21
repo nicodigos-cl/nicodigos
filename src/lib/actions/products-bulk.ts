@@ -23,11 +23,13 @@ import type { ImportProductItem } from "@/lib/validations/product-import";
 import {
   bulkUpdateProductStatusSchema,
   bulkUpdateProductCoverSchema,
+  bulkDeleteProductsSchema,
   checkProductsChileCompatibilitySchema,
   exportProductsSchema,
   selectProductsForQuerySchema,
   syncKinguinProductsSchema,
 } from "@/lib/validations/products";
+import { deleteImageFromR2 } from "@/lib/r2";
 import type { ProductListItemDto } from "@/types/products";
 
 function unauthorized<T>(): ActionResult<T> {
@@ -370,4 +372,74 @@ export async function bulkUpdateProductCoverAction(
   revalidatePath("/admin/products");
 
   return { success: true, data: { updated: ids.length } };
+}
+
+export async function bulkDeleteProductsAction(
+  rawInput: unknown,
+): Promise<
+  ActionResult<{
+    deleted: number;
+    skipped: Array<{ productId: string; name: string; reason: string }>;
+  }>
+> {
+  const session = await requireSession();
+  if (!session) {
+    return unauthorized();
+  }
+
+  const parsed = bulkDeleteProductsSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return validationError(parsed.error);
+  }
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: parsed.data.productIds } },
+    select: {
+      id: true,
+      name: true,
+      _count: { select: { orderItems: true } },
+      assets: { select: { objectKey: true } },
+    },
+  });
+
+  const skipped: Array<{ productId: string; name: string; reason: string }> =
+    [];
+  const toDelete: typeof products = [];
+
+  for (const product of products) {
+    if (product._count.orderItems > 0) {
+      skipped.push({
+        productId: product.id,
+        name: product.name,
+        reason: "tiene ventas",
+      });
+      continue;
+    }
+    toDelete.push(product);
+  }
+
+  const objectKeys = toDelete.flatMap((product) =>
+    product.assets
+      .map((asset) => asset.objectKey)
+      .filter((key): key is string => Boolean(key)),
+  );
+
+  if (toDelete.length > 0) {
+    await prisma.product.deleteMany({
+      where: { id: { in: toDelete.map((item) => item.id) } },
+    });
+    await Promise.all(
+      objectKeys.map((key) => deleteImageFromR2(key).catch(() => undefined)),
+    );
+  }
+
+  revalidatePath("/admin/products");
+
+  return {
+    success: true,
+    data: {
+      deleted: toDelete.length,
+      skipped,
+    },
+  };
 }

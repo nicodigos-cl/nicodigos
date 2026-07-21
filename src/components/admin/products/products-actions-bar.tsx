@@ -10,6 +10,7 @@ import {
   HiOutlineExclamation,
   HiOutlinePhotograph,
   HiOutlineRefresh,
+  HiOutlineTrash,
   HiOutlineViewGrid,
   HiOutlineX,
 } from "react-icons/hi";
@@ -28,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   bulkUpdateProductStatusAction,
+  bulkDeleteProductsAction,
   checkProductsChileCompatibilityAction,
   exportProductsAction,
   selectProductsForQueryAction,
@@ -239,6 +241,40 @@ export function ProductsActionsBar({
     });
   }
 
+  async function handleDeletePermanent() {
+    if (!canProcess) return;
+    const confirmed = await confirmDialog.danger({
+      title: "Eliminar definitivamente",
+      description: `¿Borrar ${selectedCount} producto${selectedCount === 1 ? "" : "s"} para siempre? Los que tengan ventas se omitirán. No se puede deshacer.`,
+      confirmLabel: "Eliminar para siempre",
+    });
+    if (!confirmed) return;
+
+    startTransition(() => {
+      void (async () => {
+        const toastId = toast.loading("Eliminando productos…");
+        const result = await bulkDeleteProductsAction({
+          productIds: selected.map((item) => item.id),
+        });
+        if (!result.success) {
+          toast.error(result.message, { id: toastId });
+          return;
+        }
+        const { deleted, skipped } = result.data;
+        if (skipped.length > 0) {
+          toast.warning(
+            `Eliminados ${deleted}. Omitidos ${skipped.length} (tienen ventas).`,
+            { id: toastId, duration: 10_000 },
+          );
+        } else {
+          toast.success(`Eliminados ${deleted} productos`, { id: toastId });
+        }
+        onClear();
+        onRefresh();
+      })();
+    });
+  }
+
   return (
     <>
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -309,6 +345,16 @@ export function ProductsActionsBar({
               >
                 <HiOutlineArchive className="size-4" />
                 Archivar
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={!canProcess}
+                onClick={() => {
+                  void handleDeletePermanent();
+                }}
+              >
+                <HiOutlineTrash className="size-4" />
+                Eliminar definitivamente
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

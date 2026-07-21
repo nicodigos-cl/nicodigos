@@ -297,6 +297,19 @@ export const archiveProductSchema = z.object({
   id: z.string().cuid(),
 });
 
+export const deleteProductSchema = z.object({
+  id: z.string().cuid(),
+});
+
+export const bulkDeleteProductsSchema = z.object({
+  productIds: z
+    .array(z.string().cuid())
+    .min(1)
+    .max(PRODUCT_PROCESS_LIMIT),
+});
+
+export type BulkDeleteProductsInput = z.infer<typeof bulkDeleteProductsSchema>;
+
 export const bulkUpdateProductStatusSchema = z.object({
   productIds: z
     .array(z.string().cuid())

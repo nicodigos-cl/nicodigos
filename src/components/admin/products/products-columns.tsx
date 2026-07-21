@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  HiOutlineArchive,
   HiOutlineClipboardCopy,
   HiOutlineDotsHorizontal,
   HiOutlinePencil,
@@ -13,6 +14,7 @@ import { toast } from "sonner";
 
 import { ProductStatusBadge } from "@/components/admin/products/product-status-badge";
 import { ProductThumbnail } from "@/components/admin/products/product-thumbnail";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,8 +29,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { archiveProductAction } from "@/lib/actions/products";
-import { confirmDialog } from "@/components/confirm-dialog";
+import {
+  archiveProductAction,
+  deleteProductAction,
+} from "@/lib/actions/products";
 import { formatMoney } from "@/lib/products/format";
 import { deliveryMethodLabel } from "@/lib/products/status";
 import type { ProductListItemDto } from "@/types/products";
@@ -53,6 +57,24 @@ function ProductActions({ product }: { product: ProductListItemDto }) {
     }
 
     toast.success("Producto archivado");
+    router.refresh();
+  }
+
+  async function handleDelete() {
+    const confirmed = await confirmDialog.danger({
+      title: "Eliminar definitivamente",
+      description: `¿Borrar “${product.name}” para siempre? No se puede deshacer. Si tiene ventas, no se eliminará.`,
+      confirmLabel: "Eliminar para siempre",
+    });
+    if (!confirmed) return;
+
+    const result = await deleteProductAction({ id: product.id });
+    if (!result.success) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success("Producto eliminado");
     router.refresh();
   }
 
@@ -87,12 +109,16 @@ function ProductActions({ product }: { product: ProductListItemDto }) {
           Copiar ID
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => void handleArchive()}>
+          <HiOutlineArchive className="size-4" />
+          Archivar
+        </DropdownMenuItem>
         <DropdownMenuItem
           variant="destructive"
-          onClick={() => void handleArchive()}
+          onClick={() => void handleDelete()}
         >
           <HiOutlineTrash className="size-4" />
-          Archivar
+          Eliminar
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

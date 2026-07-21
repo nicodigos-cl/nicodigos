@@ -30,6 +30,7 @@ import {
   addProductKeysSchema,
   archiveProductSchema,
   createProductSchema,
+  deleteProductSchema,
   removeProductImageSchema,
   reorderProductImagesSchema,
   revokeProductAccountSchema,
@@ -625,6 +626,78 @@ export async function archiveProductAction(
       message: "No se pudo archivar el producto.",
     };
   }
+}
+
+/** Hard-delete a product. Blocked when it has order history (FK Restrict). */
+export async function deleteProductAction(
+  rawInput: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  const session = await requireSession();
+  if (!session) {
+    return unauthorized();
+  }
+
+  const parsed = deleteProductSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return validationError(parsed.error);
+  }
+
+  const product = await prisma.product.findUnique({
+    where: { id: parsed.data.id },
+    select: {
+      id: true,
+      _count: { select: { orderItems: true } },
+      assets: { select: { objectKey: true } },
+    },
+  });
+
+  if (!product) {
+    return { success: false, message: "Producto no encontrado." };
+  }
+
+  if (product._count.orderItems > 0) {
+    return {
+      success: false,
+      message:
+        "No se puede eliminar: tiene ventas asociadas. Archívalo para ocultarlo del catálogo.",
+    };
+  }
+
+  const objectKeys = product.assets
+    .map((asset) => asset.objectKey)
+    .filter((key): key is string => Boolean(key));
+
+  try {
+    await prisma.product.delete({ where: { id: product.id } });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2003"
+    ) {
+      return {
+        success: false,
+        message:
+          "No se puede eliminar: está referenciado por órdenes. Archívalo en su lugar.",
+      };
+    }
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return { success: false, message: "Producto no encontrado." };
+    }
+    return {
+      success: false,
+      message: "No se pudo eliminar el producto.",
+    };
+  }
+
+  await Promise.all(
+    objectKeys.map((key) => deleteImageFromR2(key).catch(() => undefined)),
+  );
+
+  revalidatePath("/admin/products");
+  return { success: true, data: { id: product.id } };
 }
 
 function normalizeKeyCodes(codesText: string): {
