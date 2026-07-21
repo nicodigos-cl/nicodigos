@@ -1,10 +1,11 @@
 import { z } from "zod";
 
 import {
+  BULK_EXPORT_SELECTION_LIMIT,
   DEFAULT_KINGUIN_MARKUP_PCT,
   DEFAULT_MARKUP_MAX_PCT,
   DEFAULT_MARKUP_MIN_PCT,
-  KINGUIN_SELECTION_LIMIT,
+  KINGUIN_PROCESS_LIMIT,
 } from "@/lib/smm-services/constants";
 
 function emptyToUndefined(value: unknown): unknown {
@@ -99,7 +100,7 @@ export const prefillKinguinProductsSchema = z
     items: z
       .array(kinguinPrefillHitSchema)
       .min(1)
-      .max(KINGUIN_SELECTION_LIMIT),
+      .max(KINGUIN_PROCESS_LIMIT),
     minMarkupPct: z.coerce
       .number()
       .min(0)
@@ -133,7 +134,32 @@ export type PriceKinguinProductsInput = z.infer<
 >;
 
 /** Markup range to price Kinguin hits for product-import JSON export. */
-export const exportKinguinAsProductsSchema = priceKinguinProductsSchema;
+export const exportKinguinAsProductsSchema = z
+  .object({
+    items: z
+      .array(kinguinPrefillHitSchema)
+      .min(1)
+      .max(BULK_EXPORT_SELECTION_LIMIT),
+    minMarkupPct: z.coerce
+      .number()
+      .min(0)
+      .max(1000)
+      .default(DEFAULT_MARKUP_MIN_PCT),
+    maxMarkupPct: z.coerce
+      .number()
+      .min(0)
+      .max(1000)
+      .default(DEFAULT_MARKUP_MAX_PCT),
+  })
+  .superRefine((data, ctx) => {
+    if (data.maxMarkupPct < data.minMarkupPct) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["maxMarkupPct"],
+        message: "El máximo debe ser ≥ al mínimo",
+      });
+    }
+  });
 
 export type ExportKinguinAsProductsInput = z.infer<
   typeof exportKinguinAsProductsSchema
@@ -143,7 +169,7 @@ export const translateKinguinProductsSchema = z.object({
   kinguinIds: z
     .array(z.coerce.number().int().positive())
     .min(1)
-    .max(KINGUIN_SELECTION_LIMIT),
+    .max(KINGUIN_PROCESS_LIMIT),
 });
 
 export type TranslateKinguinProductsInput = z.infer<
@@ -178,7 +204,7 @@ export const importKinguinProductsBulkSchema = z.object({
   items: z
     .array(bulkImportItemSchema)
     .min(1)
-    .max(KINGUIN_SELECTION_LIMIT),
+    .max(KINGUIN_PROCESS_LIMIT),
   categoryIds: z.array(z.string().cuid()).default([]),
 });
 

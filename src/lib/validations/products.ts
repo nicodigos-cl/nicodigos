@@ -5,9 +5,12 @@ import {
   ProductKeyStatus,
   ProductStatus,
 } from "@/generated/prisma/client";
-import { PRODUCT_SELECTION_LIMIT } from "@/lib/smm-services/constants";
+import {
+  BULK_EXPORT_SELECTION_LIMIT,
+  DEFAULT_BULK_SELECTION_LIMIT,
+  PRODUCT_PROCESS_LIMIT,
+} from "@/lib/smm-services/constants";
 import { assetsInputSchema } from "@/lib/validations/assets";
-import { PRODUCT_IMPORT_LIMIT } from "@/lib/validations/product-import";
 
 const productStatusValues = [
   ProductStatus.DRAFT,
@@ -298,7 +301,7 @@ export const bulkUpdateProductStatusSchema = z.object({
   productIds: z
     .array(z.string().cuid())
     .min(1)
-    .max(PRODUCT_SELECTION_LIMIT),
+    .max(PRODUCT_PROCESS_LIMIT),
   status: z.enum(productStatusValues),
 });
 
@@ -312,23 +315,23 @@ export const selectProductsForQuerySchema = z.object({
     .number()
     .int()
     .min(1)
-    .max(PRODUCT_SELECTION_LIMIT)
-    .default(PRODUCT_SELECTION_LIMIT),
+    .max(BULK_EXPORT_SELECTION_LIMIT)
+    .default(DEFAULT_BULK_SELECTION_LIMIT),
 });
 
 export const exportProductsSchema = z.object({
   productIds: z
     .array(z.string().cuid())
     .min(1)
-    .max(PRODUCT_IMPORT_LIMIT)
+    .max(BULK_EXPORT_SELECTION_LIMIT)
     .optional(),
   query: productsListQuerySchema.optional(),
   limit: z.coerce
     .number()
     .int()
     .min(1)
-    .max(PRODUCT_IMPORT_LIMIT)
-    .default(PRODUCT_IMPORT_LIMIT),
+    .max(BULK_EXPORT_SELECTION_LIMIT)
+    .default(BULK_EXPORT_SELECTION_LIMIT),
 }).superRefine((data, ctx) => {
   if (!data.productIds?.length && !data.query) {
     ctx.addIssue({

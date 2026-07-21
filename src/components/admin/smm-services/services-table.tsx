@@ -24,7 +24,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { deleteSmmServiceAction } from "@/lib/actions/smm-services";
-import { SMM_SERVICE_SELECTION_LIMIT } from "@/lib/smm-services/constants";
 import type {
   ServicesListQuery,
   ServicesSortField,
@@ -111,6 +110,7 @@ function ServiceActions({ service }: { service: SmmServiceListItemDto }) {
 type ServicesTableProps = {
   data: SmmServiceListItemDto[];
   query: ServicesListQuery;
+  selectionLimit: number;
   rowSelection: RowSelectionState;
   onRowSelectionChange: OnChangeFn<RowSelectionState>;
 };
@@ -118,6 +118,7 @@ type ServicesTableProps = {
 export function ServicesTable({
   data,
   query,
+  selectionLimit,
   rowSelection,
   onRowSelectionChange,
 }: ServicesTableProps) {
@@ -169,7 +170,7 @@ export function ServicesTable({
                 for (const row of table.getRowModel().rows) {
                   if (
                     Object.values(next).filter(Boolean).length >=
-                    SMM_SERVICE_SELECTION_LIMIT
+                    selectionLimit
                   ) {
                     break;
                   }
@@ -187,8 +188,7 @@ export function ServicesTable({
           <Checkbox
             checked={row.getIsSelected()}
             disabled={
-              !row.getIsSelected() &&
-              selectedCount >= SMM_SERVICE_SELECTION_LIMIT
+              !row.getIsSelected() && selectedCount >= selectionLimit
             }
             onCheckedChange={(value) => row.toggleSelected(!!value)}
             aria-label="Seleccionar fila"
@@ -295,7 +295,7 @@ export function ServicesTable({
         cell: ({ row }) => <ServiceActions service={row.original} />,
       },
     ],
-    [onRowSelectionChange, rowSelection, selectedCount],
+    [onRowSelectionChange, rowSelection, selectedCount, selectionLimit],
   );
 
   return (

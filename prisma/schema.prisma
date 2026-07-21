@@ -455,12 +455,15 @@ model Category {
   parentId    String?
   parent      Category?         @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
   children    Category[]        @relation("CategoryTree")
+  /// Sibling order within the same parent (0-based).
+  sortOrder   Int               @default(0)
   products    ProductCategory[]
   assets      Asset[]
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
   @@index([parentId])
+  @@index([parentId, sortOrder])
   @@index([slug])
   @@map("category")
 }

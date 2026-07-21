@@ -6,11 +6,17 @@ import {
   HiOutlineX,
 } from "react-icons/hi";
 
+import { SelectionLimitControl } from "@/components/admin/selection-limit-control";
 import { Button } from "@/components/ui/button";
-import { KINGUIN_SELECTION_LIMIT } from "@/lib/smm-services/constants";
+import {
+  BULK_EXPORT_SELECTION_LIMIT,
+  KINGUIN_PROCESS_LIMIT,
+} from "@/lib/smm-services/constants";
 
 type KinguinActionsBarProps = {
   selectedCount: number;
+  selectionLimit: number;
+  onSelectionLimitChange: (limit: number) => void;
   onClear: () => void;
   onExportAsProducts: () => void;
   onImport: () => void;
@@ -18,24 +24,37 @@ type KinguinActionsBarProps = {
 
 export function KinguinActionsBar({
   selectedCount,
+  selectionLimit,
+  onSelectionLimitChange,
   onClear,
   onExportAsProducts,
   onImport,
 }: KinguinActionsBarProps) {
-  const canAct =
-    selectedCount >= 1 && selectedCount <= KINGUIN_SELECTION_LIMIT;
+  const canExport =
+    selectedCount >= 1 && selectedCount <= BULK_EXPORT_SELECTION_LIMIT;
+  const canProcess =
+    selectedCount >= 1 && selectedCount <= KINGUIN_PROCESS_LIMIT;
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="tabular-nums text-muted-foreground">
-          {selectedCount} / {KINGUIN_SELECTION_LIMIT} seleccionados
+          {selectedCount} / {selectionLimit} seleccionados
         </span>
+        <SelectionLimitControl
+          value={selectionLimit}
+          onChange={onSelectionLimitChange}
+        />
         {selectedCount > 0 ? (
           <Button type="button" variant="ghost" size="sm" onClick={onClear}>
             <HiOutlineX className="size-4" />
             Limpiar
           </Button>
+        ) : null}
+        {selectedCount > KINGUIN_PROCESS_LIMIT ? (
+          <span className="text-xs text-muted-foreground">
+            Importar: máx. {KINGUIN_PROCESS_LIMIT}
+          </span>
         ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -43,10 +62,10 @@ export function KinguinActionsBar({
           type="button"
           variant="outline"
           size="sm"
-          aria-disabled={!canAct}
-          className={!canAct ? "pointer-events-none opacity-50" : undefined}
+          aria-disabled={!canExport}
+          className={!canExport ? "pointer-events-none opacity-50" : undefined}
           onClick={() => {
-            if (!canAct) return;
+            if (!canExport) return;
             onExportAsProducts();
           }}
         >
@@ -56,10 +75,10 @@ export function KinguinActionsBar({
         <Button
           type="button"
           size="sm"
-          aria-disabled={!canAct}
-          className={!canAct ? "pointer-events-none opacity-50" : undefined}
+          aria-disabled={!canProcess}
+          className={!canProcess ? "pointer-events-none opacity-50" : undefined}
           onClick={() => {
-            if (!canAct) return;
+            if (!canProcess) return;
             onImport();
           }}
         >

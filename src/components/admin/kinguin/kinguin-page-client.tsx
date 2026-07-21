@@ -9,7 +9,10 @@ import { ExportKinguinAsProductsDialog } from "@/components/admin/kinguin/export
 import { ImportKinguinDialog } from "@/components/admin/kinguin/import-kinguin-dialog";
 import { KinguinActionsBar } from "@/components/admin/kinguin/kinguin-actions-bar";
 import { KinguinResultsTable } from "@/components/admin/kinguin/kinguin-results-table";
-import { KINGUIN_SELECTION_LIMIT } from "@/lib/smm-services/constants";
+import {
+  clampBulkSelectionLimit,
+  DEFAULT_BULK_SELECTION_LIMIT,
+} from "@/lib/smm-services/constants";
 import type { CategoryOptionDto } from "@/types/products";
 import type { KinguinSearchHitDto } from "@/types/kinguin-admin";
 
@@ -22,6 +25,9 @@ export function KinguinPageClient({
   items,
   categories,
 }: KinguinPageClientProps) {
+  const [selectionLimit, setSelectionLimit] = useState(
+    DEFAULT_BULK_SELECTION_LIMIT,
+  );
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [selectedById, setSelectedById] = useState<
     Record<string, KinguinSearchHitDto>
@@ -58,14 +64,32 @@ export function KinguinPageClient({
     });
   }
 
+  function handleSelectionLimitChange(nextLimit: number) {
+    const clamped = clampBulkSelectionLimit(nextLimit);
+    setSelectionLimit(clamped);
+    if (selected.length <= clamped) return;
+
+    const kept = selected.slice(0, clamped);
+    const nextSelection: RowSelectionState = {};
+    const nextMap: Record<string, KinguinSearchHitDto> = {};
+    for (const item of kept) {
+      const id = String(item.kinguinId);
+      nextSelection[id] = true;
+      nextMap[id] = item;
+    }
+    setRowSelection(nextSelection);
+    setSelectedById(nextMap);
+    toast.message(`Selección recortada a ${clamped}`);
+  }
+
   const handleRowSelectionChange: OnChangeFn<RowSelectionState> = (
     updater,
   ) => {
     const next =
       typeof updater === "function" ? updater(rowSelection) : updater;
     const selectedFlags = Object.entries(next).filter(([, value]) => value);
-    if (selectedFlags.length > KINGUIN_SELECTION_LIMIT) {
-      toast.error(`Máximo ${KINGUIN_SELECTION_LIMIT} productos`);
+    if (selectedFlags.length > selectionLimit) {
+      toast.error(`Máximo ${selectionLimit} productos`);
       return;
     }
     syncSelection(next, items);
@@ -84,6 +108,8 @@ export function KinguinPageClient({
     <>
       <KinguinActionsBar
         selectedCount={selected.length}
+        selectionLimit={selectionLimit}
+        onSelectionLimitChange={handleSelectionLimitChange}
         onClear={handleClear}
         onExportAsProducts={() => {
           if (selected.length === 0) return;
@@ -101,6 +127,7 @@ export function KinguinPageClient({
 
       <KinguinResultsTable
         items={items}
+        selectionLimit={selectionLimit}
         rowSelection={rowSelection}
         onRowSelectionChange={handleRowSelectionChange}
         onImportOne={(hit) => setSingleTarget(hit)}

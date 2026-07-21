@@ -6,6 +6,7 @@ import { decimalToString, productCodeFromSlug } from "@/lib/products/format";
 import { smmUsesPerThousandPricing } from "@/lib/products/smm-pricing";
 import { getProductStock } from "@/lib/products/stock";
 import { getVisualProductStatus } from "@/lib/products/status";
+import { BULK_EXPORT_SELECTION_LIMIT } from "@/lib/smm-services/constants";
 import {
   canAffordKinguinPurchase,
   getCachedKinguinBalance,
@@ -107,7 +108,7 @@ export async function getProductsForBulkQuery(
 ): Promise<ProductListItemDto[]> {
   const where = buildProductsWhere(input);
   const orderBy = buildOrderBy(input.sort, input.order);
-  const take = Math.min(Math.max(1, limit), 100);
+  const take = Math.min(Math.max(1, limit), BULK_EXPORT_SELECTION_LIMIT);
 
   const products = await prisma.product.findMany({
     where,
@@ -701,7 +702,7 @@ export async function getProductAccountsPage(
 
 export async function getCategoryOptions(): Promise<CategoryOptionDto[]> {
   const categories = await prisma.category.findMany({
-    orderBy: { name: "asc" },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     select: {
       id: true,
       name: true,

@@ -3,6 +3,7 @@ import { assetsInputSchema } from "@/lib/validations/assets";
 
 const sortFields = [
   "name",
+  "sortOrder",
   "createdAt",
   "updatedAt",
   "productsCount",
@@ -102,3 +103,18 @@ export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
 export const deleteCategorySchema = z.object({
   id: z.string().cuid(),
 });
+
+export const reorderCategoriesSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        id: z.string().cuid(),
+        parentId: z.union([z.string().cuid(), z.null()]),
+        sortOrder: z.number().int().min(0).max(10_000),
+      }),
+    )
+    .min(1)
+    .max(500),
+});
+
+export type ReorderCategoriesInput = z.infer<typeof reorderCategoriesSchema>;

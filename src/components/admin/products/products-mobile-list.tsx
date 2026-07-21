@@ -31,17 +31,18 @@ import {
 } from "@/components/ui/empty";
 import { archiveProductAction } from "@/lib/actions/products";
 import { formatMoney } from "@/lib/products/format";
-import { PRODUCT_SELECTION_LIMIT } from "@/lib/smm-services/constants";
 import type { ProductListItemDto } from "@/types/products";
 
 type ProductsMobileListProps = {
   data: ProductListItemDto[];
+  selectionLimit: number;
   selectedIds: Set<string>;
   onToggle: (product: ProductListItemDto, selected: boolean) => void;
 };
 
 export function ProductsMobileList({
   data,
+  selectionLimit,
   selectedIds,
   onToggle,
 }: ProductsMobileListProps) {
@@ -68,7 +69,7 @@ export function ProductsMobileList({
       {data.map((product) => {
         const isSelected = selectedIds.has(product.id);
         const atLimit =
-          !isSelected && selectedIds.size >= PRODUCT_SELECTION_LIMIT;
+          !isSelected && selectedIds.size >= selectionLimit;
 
         return (
           <li

@@ -5,7 +5,7 @@ import {
   exportedSmmServiceSchema,
   type ExportedSmmService,
 } from "@/lib/validations/product-import";
-import { SMM_SERVICE_SELECTION_LIMIT } from "@/lib/smm-services/constants";
+import { SMM_SERVICE_PROCESS_LIMIT } from "@/lib/smm-services/constants";
 
 export type ParseImportResult<T> =
   | {
@@ -250,11 +250,11 @@ export function parseServicesJson(
 
   const items: ExportedSmmService[] = [];
   const warnings: string[] = [];
-  const limit = Math.min(rows.length, SMM_SERVICE_SELECTION_LIMIT);
+  const limit = Math.min(rows.length, SMM_SERVICE_PROCESS_LIMIT);
 
-  if (rows.length > SMM_SERVICE_SELECTION_LIMIT) {
+  if (rows.length > SMM_SERVICE_PROCESS_LIMIT) {
     warnings.push(
-      `Se truncó a ${SMM_SERVICE_SELECTION_LIMIT} servicios (límite).`,
+      `Se truncó a ${SMM_SERVICE_PROCESS_LIMIT} servicios (límite).`,
     );
   }
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { SMM_SERVICE_SELECTION_LIMIT } from "@/lib/smm-services/constants";
+import { SMM_SERVICE_PROCESS_LIMIT } from "@/lib/smm-services/constants";
 
 export const PRODUCT_IMPORT_LIMIT = 100;
 
@@ -98,7 +98,7 @@ export const resolveExportedSmmServicesSchema = z.object({
   services: z
     .array(exportedSmmServiceSchema)
     .min(1)
-    .max(SMM_SERVICE_SELECTION_LIMIT),
+    .max(SMM_SERVICE_PROCESS_LIMIT),
 });
 
 export type ResolveExportedSmmServicesInput = z.infer<

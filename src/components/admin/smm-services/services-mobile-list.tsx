@@ -27,17 +27,18 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { deleteSmmServiceAction } from "@/lib/actions/smm-services";
-import { SMM_SERVICE_SELECTION_LIMIT } from "@/lib/smm-services/constants";
 import type { SmmServiceListItemDto } from "@/types/smm-provider";
 
 type ServicesMobileListProps = {
   data: SmmServiceListItemDto[];
+  selectionLimit: number;
   selectedIds: Set<string>;
   onToggle: (service: SmmServiceListItemDto, selected: boolean) => void;
 };
 
 export function ServicesMobileList({
   data,
+  selectionLimit,
   selectedIds,
   onToggle,
 }: ServicesMobileListProps) {
@@ -64,7 +65,7 @@ export function ServicesMobileList({
       {data.map((service) => {
         const isSelected = selectedIds.has(service.id);
         const atLimit =
-          !isSelected && selectedIds.size >= SMM_SERVICE_SELECTION_LIMIT;
+          !isSelected && selectedIds.size >= selectionLimit;
 
         return (
           <li

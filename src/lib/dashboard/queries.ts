@@ -1098,7 +1098,7 @@ export async function getAdminDashboard(input: {
         description: "Revisar stock entregable",
       },
       {
-        href: "/admin/categories/new",
+        href: "/admin/categories",
         label: "Crear categoría",
         description: "Organizar catálogo",
       },

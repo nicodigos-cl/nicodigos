@@ -1,9 +1,11 @@
 import { z } from "zod";
 
 import {
+  BULK_EXPORT_SELECTION_LIMIT,
+  DEFAULT_BULK_SELECTION_LIMIT,
   DEFAULT_MARKUP_MAX_PCT,
   DEFAULT_MARKUP_MIN_PCT,
-  SMM_SERVICE_SELECTION_LIMIT,
+  SMM_SERVICE_PROCESS_LIMIT,
 } from "@/lib/smm-services/constants";
 import { servicesListQuerySchema } from "@/lib/validations/smm-providers";
 
@@ -14,21 +16,7 @@ function emptyToUndefined(value: unknown): unknown {
   return value;
 }
 
-export const selectSmmServicesForQuerySchema = z.object({
-  query: servicesListQuerySchema,
-  limit: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(SMM_SERVICE_SELECTION_LIMIT)
-    .default(SMM_SERVICE_SELECTION_LIMIT),
-});
-
-export const prefillSmmServicesSchema = z.object({
-  serviceIds: z
-    .array(z.string().cuid())
-    .min(1)
-    .max(SMM_SERVICE_SELECTION_LIMIT),
+const markupRangeFields = {
   minMarkupPct: z.coerce
     .number()
     .min(0)
@@ -39,7 +27,12 @@ export const prefillSmmServicesSchema = z.object({
     .min(0)
     .max(1000)
     .default(DEFAULT_MARKUP_MAX_PCT),
-}).superRefine((data, ctx) => {
+};
+
+function refineMarkupRange(
+  data: { minMarkupPct: number; maxMarkupPct: number },
+  ctx: z.RefinementCtx,
+) {
   if (data.maxMarkupPct < data.minMarkupPct) {
     ctx.addIssue({
       code: "custom",
@@ -47,18 +40,46 @@ export const prefillSmmServicesSchema = z.object({
       message: "El máximo debe ser ≥ al mínimo",
     });
   }
+}
+
+export const selectSmmServicesForQuerySchema = z.object({
+  query: servicesListQuerySchema,
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(BULK_EXPORT_SELECTION_LIMIT)
+    .default(DEFAULT_BULK_SELECTION_LIMIT),
 });
+
+export const prefillSmmServicesSchema = z
+  .object({
+    serviceIds: z
+      .array(z.string().cuid())
+      .min(1)
+      .max(SMM_SERVICE_PROCESS_LIMIT),
+    ...markupRangeFields,
+  })
+  .superRefine(refineMarkupRange);
 
 export type PrefillSmmServicesInput = z.infer<typeof prefillSmmServicesSchema>;
 
 /** Markup range to price services for product-import JSON export. */
-export const exportSmmServicesAsProductsSchema = prefillSmmServicesSchema;
+export const exportSmmServicesAsProductsSchema = z
+  .object({
+    serviceIds: z
+      .array(z.string().cuid())
+      .min(1)
+      .max(BULK_EXPORT_SELECTION_LIMIT),
+    ...markupRangeFields,
+  })
+  .superRefine(refineMarkupRange);
 
 export type ExportSmmServicesAsProductsInput = z.infer<
   typeof exportSmmServicesAsProductsSchema
 >;
 
-/** Price/markup only for SMM → product export (no AI). */
+/** Price/markup only for SMM → product convert (no AI). */
 export const priceSmmServicesSchema = prefillSmmServicesSchema;
 
 export type PriceSmmServicesInput = z.infer<typeof priceSmmServicesSchema>;
@@ -96,7 +117,7 @@ export const convertSmmServicesToProductsSchema = z.object({
   items: z
     .array(productDraftItemSchema)
     .min(1)
-    .max(SMM_SERVICE_SELECTION_LIMIT),
+    .max(SMM_SERVICE_PROCESS_LIMIT),
   categoryIds: z.array(z.string().cuid()).default([]),
 });
 

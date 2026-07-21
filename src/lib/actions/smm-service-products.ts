@@ -18,7 +18,7 @@ import {
   getSmmServiceIdsForQuery,
   getSmmServicesByIds,
 } from "@/lib/smm-providers/queries";
-import { SMM_SERVICE_SELECTION_LIMIT } from "@/lib/smm-services/constants";
+import { SMM_SERVICE_PROCESS_LIMIT } from "@/lib/smm-services/constants";
 import {
   convertSmmServicesToProductsSchema,
   exportSmmServicesAsProductsSchema,
@@ -320,10 +320,10 @@ export async function convertSmmServicesToProductsAction(
     return validationError(parsed.error);
   }
 
-  if (parsed.data.items.length > SMM_SERVICE_SELECTION_LIMIT) {
+  if (parsed.data.items.length > SMM_SERVICE_PROCESS_LIMIT) {
     return {
       success: false,
-      message: `Máximo ${SMM_SERVICE_SELECTION_LIMIT} servicios por operación.`,
+      message: `Máximo ${SMM_SERVICE_PROCESS_LIMIT} servicios por operación.`,
     };
   }
 

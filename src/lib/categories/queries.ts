@@ -10,6 +10,7 @@ import type {
   CategoryDetailDto,
   CategoryListItemDto,
   CategoryParentOptionDto,
+  CategoryTreeNodeDto,
   StoreNavCategoryDto,
 } from "@/types/categories";
 
@@ -24,6 +25,8 @@ function buildOrderBy(
   switch (sort) {
     case "name":
       return { name: order };
+    case "sortOrder":
+      return { sortOrder: order };
     case "createdAt":
       return { createdAt: order };
     case "updatedAt":
@@ -40,6 +43,7 @@ function toListItem(category: {
   description: string | null;
   imageUrl: string | null;
   parentId: string | null;
+  sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
   parent: { name: string } | null;
@@ -67,6 +71,7 @@ function toListItem(category: {
     imageUrl: category.imageUrl,
     parentId: category.parentId,
     parentName: category.parent?.name ?? null,
+    sortOrder: category.sortOrder,
     productsCount: category._count.products,
     childrenCount: category._count.children,
     createdAt: category.createdAt.toISOString(),
@@ -86,11 +91,12 @@ const categoryListSelect = {
   description: true,
   imageUrl: true,
   parentId: true,
+  sortOrder: true,
   createdAt: true,
   updatedAt: true,
   parent: { select: { name: true } },
   _count: { select: { products: true, children: true } },
-  assets: { orderBy: { sortOrder: "asc" } },
+  assets: { orderBy: { sortOrder: "asc" as const } },
 } as const;
 
 export async function getCategoriesPage(
@@ -132,6 +138,73 @@ export async function getCategoriesPage(
     pageSize: input.pageSize,
     totalPages: Math.max(1, Math.ceil(total / input.pageSize)),
   };
+}
+
+/** Full category tree for admin DnD (ordered by sortOrder). */
+export async function getCategoriesTree(
+  search?: string,
+): Promise<CategoryTreeNodeDto[]> {
+  const q = search?.trim();
+  const categories = await prisma.category.findMany({
+    where: q
+      ? {
+          OR: [
+            { name: { contains: q, mode: "insensitive" } },
+            { slug: { contains: q, mode: "insensitive" } },
+            { description: { contains: q, mode: "insensitive" } },
+          ],
+        }
+      : undefined,
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      imageUrl: true,
+      parentId: true,
+      sortOrder: true,
+      _count: { select: { products: true } },
+    },
+  });
+
+  if (q) {
+    // Flat filtered list as roots (search mode — no nesting).
+    return categories.map((category) => ({
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      imageUrl: category.imageUrl,
+      parentId: category.parentId,
+      sortOrder: category.sortOrder,
+      productsCount: category._count.products,
+      children: [],
+    }));
+  }
+
+  const byParent = new Map<string | null, typeof categories>();
+  for (const category of categories) {
+    const siblings = byParent.get(category.parentId) ?? [];
+    siblings.push(category);
+    byParent.set(category.parentId, siblings);
+  }
+
+  function build(parentId: string | null): CategoryTreeNodeDto[] {
+    return (byParent.get(parentId) ?? []).map((category) => ({
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      imageUrl: category.imageUrl,
+      parentId: category.parentId,
+      sortOrder: category.sortOrder,
+      productsCount: category._count.products,
+      children: build(category.id),
+    }));
+  }
+
+  return build(null);
 }
 
 export async function getCategoryById(
@@ -206,7 +279,7 @@ export async function getCategoryParentOptions(
 
   const categories = await prisma.category.findMany({
     where: excluded.size > 0 ? { id: { notIn: [...excluded] } } : undefined,
-    orderBy: { name: "asc" },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     select: {
       id: true,
       name: true,
@@ -221,14 +294,14 @@ export async function getCategoryParentOptions(
 export async function getStoreNavCategories(): Promise<StoreNavCategoryDto[]> {
   const roots = await prisma.category.findMany({
     where: { parentId: null },
-    orderBy: { name: "asc" },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     select: {
       id: true,
       name: true,
       slug: true,
       imageUrl: true,
       children: {
-        orderBy: { name: "asc" },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
         select: {
           id: true,
           name: true,

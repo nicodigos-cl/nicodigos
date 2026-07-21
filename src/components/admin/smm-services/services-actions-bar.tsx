@@ -10,15 +10,21 @@ import {
 } from "react-icons/hi";
 import { toast } from "sonner";
 
+import { SelectionLimitControl } from "@/components/admin/selection-limit-control";
 import { Button } from "@/components/ui/button";
 import { selectSmmServicesForQueryAction } from "@/lib/actions/smm-service-products";
-import { SMM_SERVICE_SELECTION_LIMIT } from "@/lib/smm-services/constants";
+import {
+  BULK_EXPORT_SELECTION_LIMIT,
+  SMM_SERVICE_PROCESS_LIMIT,
+} from "@/lib/smm-services/constants";
 import type { ServicesListQuery } from "@/lib/validations/smm-providers";
 import type { SmmServiceListItemDto } from "@/types/smm-provider";
 
 type ServicesActionsBarProps = {
   query: ServicesListQuery;
   selectedCount: number;
+  selectionLimit: number;
+  onSelectionLimitChange: (limit: number) => void;
   onSelectAll: (items: SmmServiceListItemDto[]) => void;
   onClear: () => void;
   onExport: () => void;
@@ -29,6 +35,8 @@ type ServicesActionsBarProps = {
 export function ServicesActionsBar({
   query,
   selectedCount,
+  selectionLimit,
+  onSelectionLimitChange,
   onSelectAll,
   onClear,
   onExport,
@@ -36,15 +44,17 @@ export function ServicesActionsBar({
   onConvert,
 }: ServicesActionsBarProps) {
   const [isPending, startTransition] = useTransition();
-  const canAct =
-    selectedCount >= 1 && selectedCount <= SMM_SERVICE_SELECTION_LIMIT;
+  const canExport =
+    selectedCount >= 1 && selectedCount <= BULK_EXPORT_SELECTION_LIMIT;
+  const canProcess =
+    selectedCount >= 1 && selectedCount <= SMM_SERVICE_PROCESS_LIMIT;
 
   function handleSelectAll() {
     startTransition(() => {
       void (async () => {
         const result = await selectSmmServicesForQueryAction({
           query,
-          limit: SMM_SERVICE_SELECTION_LIMIT,
+          limit: selectionLimit,
         });
         if (!result.success) {
           toast.error(result.message);
@@ -52,7 +62,7 @@ export function ServicesActionsBar({
         }
         onSelectAll(result.data.items);
         toast.success(
-          `Seleccionados ${result.data.items.length} (máx. ${SMM_SERVICE_SELECTION_LIMIT})`,
+          `Seleccionados ${result.data.items.length} (límite ${selectionLimit})`,
         );
       })();
     });
@@ -62,13 +72,23 @@ export function ServicesActionsBar({
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="tabular-nums text-muted-foreground">
-          {selectedCount} / {SMM_SERVICE_SELECTION_LIMIT} seleccionados
+          {selectedCount} / {selectionLimit} seleccionados
         </span>
+        <SelectionLimitControl
+          value={selectionLimit}
+          onChange={onSelectionLimitChange}
+          disabled={isPending}
+        />
         {selectedCount > 0 ? (
           <Button type="button" variant="ghost" size="sm" onClick={onClear}>
             <HiOutlineX className="size-4" />
             Limpiar
           </Button>
+        ) : null}
+        {selectedCount > SMM_SERVICE_PROCESS_LIMIT ? (
+          <span className="text-xs text-muted-foreground">
+            Convertir: máx. {SMM_SERVICE_PROCESS_LIMIT}
+          </span>
         ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -80,18 +100,16 @@ export function ServicesActionsBar({
           onClick={handleSelectAll}
         >
           <HiOutlineCheckCircle className="size-4" />
-          {isPending
-            ? "Seleccionando..."
-            : `Seleccionar todos (máx. ${SMM_SERVICE_SELECTION_LIMIT})`}
+          {isPending ? "Seleccionando..." : "Seleccionar todos"}
         </Button>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          aria-disabled={!canAct}
-          className={!canAct ? "pointer-events-none opacity-50" : undefined}
+          aria-disabled={!canExport}
+          className={!canExport ? "pointer-events-none opacity-50" : undefined}
           onClick={() => {
-            if (!canAct) return;
+            if (!canExport) return;
             onExport();
           }}
         >
@@ -102,10 +120,10 @@ export function ServicesActionsBar({
           type="button"
           variant="outline"
           size="sm"
-          aria-disabled={!canAct}
-          className={!canAct ? "pointer-events-none opacity-50" : undefined}
+          aria-disabled={!canExport}
+          className={!canExport ? "pointer-events-none opacity-50" : undefined}
           onClick={() => {
-            if (!canAct) return;
+            if (!canExport) return;
             onExportAsProducts();
           }}
         >
@@ -115,10 +133,10 @@ export function ServicesActionsBar({
         <Button
           type="button"
           size="sm"
-          aria-disabled={!canAct}
-          className={!canAct ? "pointer-events-none opacity-50" : undefined}
+          aria-disabled={!canProcess}
+          className={!canProcess ? "pointer-events-none opacity-50" : undefined}
           onClick={() => {
-            if (!canAct) return;
+            if (!canProcess) return;
             onConvert();
           }}
         >

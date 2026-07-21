@@ -9,7 +9,10 @@ import { ProductsActionsBar } from "@/components/admin/products/products-actions
 import { ProductsMobileList } from "@/components/admin/products/products-mobile-list";
 import { ProductsPagination } from "@/components/admin/products/products-pagination";
 import { ProductsTable } from "@/components/admin/products/products-table";
-import { PRODUCT_SELECTION_LIMIT } from "@/lib/smm-services/constants";
+import {
+  clampBulkSelectionLimit,
+  DEFAULT_BULK_SELECTION_LIMIT,
+} from "@/lib/smm-services/constants";
 import type { ProductsListQuery } from "@/lib/validations/products";
 import type { ProductListItemDto } from "@/types/products";
 
@@ -31,6 +34,9 @@ export function ProductsPageClient({
   totalPages,
 }: ProductsPageClientProps) {
   const router = useRouter();
+  const [selectionLimit, setSelectionLimit] = useState(
+    DEFAULT_BULK_SELECTION_LIMIT,
+  );
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [selectedById, setSelectedById] = useState<
     Record<string, ProductListItemDto>
@@ -64,14 +70,31 @@ export function ProductsPageClient({
     });
   }
 
+  function handleSelectionLimitChange(nextLimit: number) {
+    const clamped = clampBulkSelectionLimit(nextLimit);
+    setSelectionLimit(clamped);
+    if (selected.length <= clamped) return;
+
+    const kept = selected.slice(0, clamped);
+    const nextSelection: RowSelectionState = {};
+    const nextMap: Record<string, ProductListItemDto> = {};
+    for (const item of kept) {
+      nextSelection[item.id] = true;
+      nextMap[item.id] = item;
+    }
+    setRowSelection(nextSelection);
+    setSelectedById(nextMap);
+    toast.message(`Selección recortada a ${clamped}`);
+  }
+
   const handleRowSelectionChange: OnChangeFn<RowSelectionState> = (
     updater,
   ) => {
     const next =
       typeof updater === "function" ? updater(rowSelection) : updater;
     const selectedFlags = Object.entries(next).filter(([, value]) => value);
-    if (selectedFlags.length > PRODUCT_SELECTION_LIMIT) {
-      toast.error(`Máximo ${PRODUCT_SELECTION_LIMIT} productos`);
+    if (selectedFlags.length > selectionLimit) {
+      toast.error(`Máximo ${selectionLimit} productos`);
       return;
     }
     syncSelection(next, items);
@@ -80,7 +103,7 @@ export function ProductsPageClient({
   function handleSelectAll(allItems: ProductListItemDto[]) {
     const nextSelection: RowSelectionState = {};
     const nextMap: Record<string, ProductListItemDto> = {};
-    for (const item of allItems.slice(0, PRODUCT_SELECTION_LIMIT)) {
+    for (const item of allItems.slice(0, selectionLimit)) {
       nextSelection[item.id] = true;
       nextMap[item.id] = item;
     }
@@ -99,10 +122,10 @@ export function ProductsPageClient({
   ) {
     if (
       selectedFlag &&
-      selectedIds.size >= PRODUCT_SELECTION_LIMIT &&
+      selectedIds.size >= selectionLimit &&
       !selectedIds.has(product.id)
     ) {
-      toast.error(`Máximo ${PRODUCT_SELECTION_LIMIT} productos`);
+      toast.error(`Máximo ${selectionLimit} productos`);
       return;
     }
 
@@ -131,6 +154,8 @@ export function ProductsPageClient({
       <ProductsActionsBar
         query={query}
         selected={selected}
+        selectionLimit={selectionLimit}
+        onSelectionLimitChange={handleSelectionLimitChange}
         onSelectAll={handleSelectAll}
         onClear={handleClear}
         onRefresh={() => router.refresh()}
@@ -140,6 +165,7 @@ export function ProductsPageClient({
         <ProductsTable
           data={items}
           query={query}
+          selectionLimit={selectionLimit}
           rowSelection={rowSelection}
           onRowSelectionChange={handleRowSelectionChange}
         />
@@ -147,6 +173,7 @@ export function ProductsPageClient({
       <div className="md:hidden">
         <ProductsMobileList
           data={items}
+          selectionLimit={selectionLimit}
           selectedIds={selectedIds}
           onToggle={handleMobileToggle}
         />

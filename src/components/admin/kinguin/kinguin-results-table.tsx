@@ -20,11 +20,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { KINGUIN_SELECTION_LIMIT } from "@/lib/smm-services/constants";
 import type { KinguinSearchHitDto } from "@/types/kinguin-admin";
 
 type KinguinResultsTableProps = {
   items: KinguinSearchHitDto[];
+  selectionLimit: number;
   rowSelection: RowSelectionState;
   onRowSelectionChange: OnChangeFn<RowSelectionState>;
   onImportOne: (hit: KinguinSearchHitDto) => void;
@@ -43,6 +43,7 @@ function CoverThumb({ src }: { src: string | null }) {
 
 export function KinguinResultsTable({
   items,
+  selectionLimit,
   rowSelection,
   onRowSelectionChange,
   onImportOne,
@@ -67,7 +68,7 @@ export function KinguinResultsTable({
                   if (row.original.alreadyImported) continue;
                   if (
                     Object.values(next).filter(Boolean).length >=
-                    KINGUIN_SELECTION_LIMIT
+                    selectionLimit
                   ) {
                     break;
                   }
@@ -86,8 +87,7 @@ export function KinguinResultsTable({
             checked={row.getIsSelected()}
             disabled={
               row.original.alreadyImported ||
-              (!row.getIsSelected() &&
-                selectedCount >= KINGUIN_SELECTION_LIMIT)
+              (!row.getIsSelected() && selectedCount >= selectionLimit)
             }
             onCheckedChange={(value) => row.toggleSelected(!!value)}
             aria-label="Seleccionar fila"
@@ -180,7 +180,7 @@ export function KinguinResultsTable({
         },
       },
     ],
-    [onImportOne, onRowSelectionChange, rowSelection, selectedCount],
+    [onImportOne, onRowSelectionChange, rowSelection, selectedCount, selectionLimit],
   );
 
   if (items.length === 0) {
@@ -219,7 +219,7 @@ export function KinguinResultsTable({
           const rowId = String(item.kinguinId);
           const isSelected = Boolean(rowSelection[rowId]);
           const atLimit =
-            !isSelected && selectedCount >= KINGUIN_SELECTION_LIMIT;
+            !isSelected && selectedCount >= selectionLimit;
 
           return (
             <div

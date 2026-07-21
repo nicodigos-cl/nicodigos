@@ -14,7 +14,10 @@ import {
 import { ServicesMobileList } from "@/components/admin/smm-services/services-mobile-list";
 import { ServicesPagination } from "@/components/admin/smm-services/services-pagination";
 import { ServicesTable } from "@/components/admin/smm-services/services-table";
-import { SMM_SERVICE_SELECTION_LIMIT } from "@/lib/smm-services/constants";
+import {
+  clampBulkSelectionLimit,
+  DEFAULT_BULK_SELECTION_LIMIT,
+} from "@/lib/smm-services/constants";
 import type { ServicesListQuery } from "@/lib/validations/smm-providers";
 import type { CategoryOptionDto } from "@/types/products";
 import type { SmmServiceListItemDto } from "@/types/smm-provider";
@@ -38,6 +41,9 @@ export function ServicesPageClient({
   totalPages,
   categories,
 }: ServicesPageClientProps) {
+  const [selectionLimit, setSelectionLimit] = useState(
+    DEFAULT_BULK_SELECTION_LIMIT,
+  );
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [selectedById, setSelectedById] = useState<
     Record<string, SmmServiceListItemDto>
@@ -73,14 +79,31 @@ export function ServicesPageClient({
     });
   }
 
+  function handleSelectionLimitChange(nextLimit: number) {
+    const clamped = clampBulkSelectionLimit(nextLimit);
+    setSelectionLimit(clamped);
+    if (selected.length <= clamped) return;
+
+    const kept = selected.slice(0, clamped);
+    const nextSelection: RowSelectionState = {};
+    const nextMap: Record<string, SmmServiceListItemDto> = {};
+    for (const item of kept) {
+      nextSelection[item.id] = true;
+      nextMap[item.id] = item;
+    }
+    setRowSelection(nextSelection);
+    setSelectedById(nextMap);
+    toast.message(`Selección recortada a ${clamped}`);
+  }
+
   const handleRowSelectionChange: OnChangeFn<RowSelectionState> = (
     updater,
   ) => {
     const next =
       typeof updater === "function" ? updater(rowSelection) : updater;
     const selectedFlags = Object.entries(next).filter(([, value]) => value);
-    if (selectedFlags.length > SMM_SERVICE_SELECTION_LIMIT) {
-      toast.error(`Máximo ${SMM_SERVICE_SELECTION_LIMIT} servicios`);
+    if (selectedFlags.length > selectionLimit) {
+      toast.error(`Máximo ${selectionLimit} servicios`);
       return;
     }
     syncSelection(next, items);
@@ -89,7 +112,7 @@ export function ServicesPageClient({
   function handleSelectAll(allItems: SmmServiceListItemDto[]) {
     const nextSelection: RowSelectionState = {};
     const nextMap: Record<string, SmmServiceListItemDto> = {};
-    for (const item of allItems.slice(0, SMM_SERVICE_SELECTION_LIMIT)) {
+    for (const item of allItems.slice(0, selectionLimit)) {
       nextSelection[item.id] = true;
       nextMap[item.id] = item;
     }
@@ -108,10 +131,10 @@ export function ServicesPageClient({
   ) {
     if (
       selectedFlag &&
-      selectedIds.size >= SMM_SERVICE_SELECTION_LIMIT &&
+      selectedIds.size >= selectionLimit &&
       !selectedIds.has(service.id)
     ) {
-      toast.error(`Máximo ${SMM_SERVICE_SELECTION_LIMIT} servicios`);
+      toast.error(`Máximo ${selectionLimit} servicios`);
       return;
     }
 
@@ -145,6 +168,8 @@ export function ServicesPageClient({
       <ServicesActionsBar
         query={query}
         selectedCount={selected.length}
+        selectionLimit={selectionLimit}
+        onSelectionLimitChange={handleSelectionLimitChange}
         onSelectAll={handleSelectAll}
         onClear={handleClear}
         onExport={() => {
@@ -162,6 +187,7 @@ export function ServicesPageClient({
         <ServicesTable
           data={items}
           query={query}
+          selectionLimit={selectionLimit}
           rowSelection={rowSelection}
           onRowSelectionChange={handleRowSelectionChange}
         />
@@ -169,6 +195,7 @@ export function ServicesPageClient({
       <div className="md:hidden">
         <ServicesMobileList
           data={items}
+          selectionLimit={selectionLimit}
           selectedIds={selectedIds}
           onToggle={handleMobileToggle}
         />

@@ -12,7 +12,6 @@ import type {
 import { productsColumns } from "@/components/admin/products/products-columns";
 import { DataTable } from "@/components/data-table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PRODUCT_SELECTION_LIMIT } from "@/lib/smm-services/constants";
 import type {
   ProductsListQuery,
   ProductsSortField,
@@ -49,6 +48,7 @@ function buildProductsHref(
 type ProductsTableProps = {
   data: ProductListItemDto[];
   query: ProductsListQuery;
+  selectionLimit: number;
   rowSelection: RowSelectionState;
   onRowSelectionChange: OnChangeFn<RowSelectionState>;
 };
@@ -56,6 +56,7 @@ type ProductsTableProps = {
 export function ProductsTable({
   data,
   query,
+  selectionLimit,
   rowSelection,
   onRowSelectionChange,
 }: ProductsTableProps) {
@@ -107,7 +108,7 @@ export function ProductsTable({
                 for (const row of table.getRowModel().rows) {
                   if (
                     Object.values(next).filter(Boolean).length >=
-                    PRODUCT_SELECTION_LIMIT
+                    selectionLimit
                   ) {
                     break;
                   }
@@ -126,7 +127,7 @@ export function ProductsTable({
             checked={row.getIsSelected()}
             disabled={
               !row.getIsSelected() &&
-              selectedCount >= PRODUCT_SELECTION_LIMIT
+              selectedCount >= selectionLimit
             }
             onCheckedChange={(value) => row.toggleSelected(!!value)}
             aria-label="Seleccionar fila"
@@ -137,7 +138,7 @@ export function ProductsTable({
       },
       ...productsColumns,
     ],
-    [onRowSelectionChange, rowSelection, selectedCount],
+    [onRowSelectionChange, rowSelection, selectedCount, selectionLimit],
   );
 
   return (

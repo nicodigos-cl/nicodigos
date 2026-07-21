@@ -11,7 +11,7 @@ import {
   getProductsByIdsForBulk,
   getProductsForBulkQuery,
 } from "@/lib/products/queries";
-import { PRODUCT_SELECTION_LIMIT } from "@/lib/smm-services/constants";
+import { PRODUCT_PROCESS_LIMIT } from "@/lib/smm-services/constants";
 import type { ImportProductItem } from "@/lib/validations/product-import";
 import {
   bulkUpdateProductStatusSchema,
@@ -87,10 +87,10 @@ export async function bulkUpdateProductStatusAction(
     return validationError(parsed.error);
   }
 
-  if (parsed.data.productIds.length > PRODUCT_SELECTION_LIMIT) {
+  if (parsed.data.productIds.length > PRODUCT_PROCESS_LIMIT) {
     return {
       success: false,
-      message: `Máximo ${PRODUCT_SELECTION_LIMIT} productos por operación.`,
+      message: `Máximo ${PRODUCT_PROCESS_LIMIT} productos por operación.`,
     };
   }
 

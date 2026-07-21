@@ -11,13 +11,17 @@ import {
 } from "react-icons/hi";
 import { toast } from "sonner";
 
+import { SelectionLimitControl } from "@/components/admin/selection-limit-control";
 import { Button } from "@/components/ui/button";
 import {
   bulkUpdateProductStatusAction,
   exportProductsAction,
   selectProductsForQueryAction,
 } from "@/lib/actions/products-bulk";
-import { PRODUCT_SELECTION_LIMIT } from "@/lib/smm-services/constants";
+import {
+  BULK_EXPORT_SELECTION_LIMIT,
+  PRODUCT_PROCESS_LIMIT,
+} from "@/lib/smm-services/constants";
 import type { ProductsListQuery } from "@/lib/validations/products";
 import type { ImportProductItem } from "@/lib/validations/product-import";
 import type { ProductListItemDto } from "@/types/products";
@@ -25,6 +29,8 @@ import type { ProductListItemDto } from "@/types/products";
 type ProductsActionsBarProps = {
   query: ProductsListQuery;
   selected: ProductListItemDto[];
+  selectionLimit: number;
+  onSelectionLimitChange: (limit: number) => void;
   onSelectAll: (items: ProductListItemDto[]) => void;
   onClear: () => void;
   onRefresh: () => void;
@@ -46,21 +52,25 @@ function downloadProductsJson(items: ImportProductItem[]) {
 export function ProductsActionsBar({
   query,
   selected,
+  selectionLimit,
+  onSelectionLimitChange,
   onSelectAll,
   onClear,
   onRefresh,
 }: ProductsActionsBarProps) {
   const [isPending, startTransition] = useTransition();
   const selectedCount = selected.length;
-  const canAct =
-    selectedCount >= 1 && selectedCount <= PRODUCT_SELECTION_LIMIT;
+  const canExport =
+    selectedCount >= 1 && selectedCount <= BULK_EXPORT_SELECTION_LIMIT;
+  const canProcess =
+    selectedCount >= 1 && selectedCount <= PRODUCT_PROCESS_LIMIT;
 
   function handleSelectAll() {
     startTransition(() => {
       void (async () => {
         const result = await selectProductsForQueryAction({
           query,
-          limit: PRODUCT_SELECTION_LIMIT,
+          limit: selectionLimit,
         });
         if (!result.success) {
           toast.error(result.message);
@@ -68,14 +78,14 @@ export function ProductsActionsBar({
         }
         onSelectAll(result.data.items);
         toast.success(
-          `Seleccionados ${result.data.items.length} (máx. ${PRODUCT_SELECTION_LIMIT})`,
+          `Seleccionados ${result.data.items.length} (límite ${selectionLimit})`,
         );
       })();
     });
   }
 
   function handleStatus(status: "ACTIVE" | "DRAFT" | "ARCHIVED") {
-    if (!canAct) return;
+    if (!canProcess) return;
     const label =
       status === "ACTIVE"
         ? "publicar"
@@ -105,7 +115,7 @@ export function ProductsActionsBar({
   }
 
   function handleExportSelected() {
-    if (!canAct) return;
+    if (!canExport) return;
     startTransition(() => {
       void (async () => {
         const result = await exportProductsAction({
@@ -125,13 +135,23 @@ export function ProductsActionsBar({
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="tabular-nums text-muted-foreground">
-          {selectedCount} / {PRODUCT_SELECTION_LIMIT} seleccionados
+          {selectedCount} / {selectionLimit} seleccionados
         </span>
+        <SelectionLimitControl
+          value={selectionLimit}
+          onChange={onSelectionLimitChange}
+          disabled={isPending}
+        />
         {selectedCount > 0 ? (
           <Button type="button" variant="ghost" size="sm" onClick={onClear}>
             <HiOutlineX className="size-4" />
             Limpiar
           </Button>
+        ) : null}
+        {selectedCount > PRODUCT_PROCESS_LIMIT ? (
+          <span className="text-xs text-muted-foreground">
+            Procesar (publicar/archivar): máx. {PRODUCT_PROCESS_LIMIT}
+          </span>
         ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -143,19 +163,17 @@ export function ProductsActionsBar({
           onClick={handleSelectAll}
         >
           <HiOutlineViewGrid className="size-4" />
-          {isPending
-            ? "Seleccionando..."
-            : `Seleccionar todos (máx. ${PRODUCT_SELECTION_LIMIT})`}
+          {isPending ? "Seleccionando..." : "Seleccionar todos"}
         </Button>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          aria-disabled={!canAct}
-          className={!canAct ? "pointer-events-none opacity-50" : undefined}
+          aria-disabled={!canProcess}
+          className={!canProcess ? "pointer-events-none opacity-50" : undefined}
           disabled={isPending || undefined}
           onClick={() => {
-            if (!canAct) return;
+            if (!canProcess) return;
             handleStatus("ACTIVE");
           }}
         >
@@ -166,11 +184,11 @@ export function ProductsActionsBar({
           type="button"
           variant="outline"
           size="sm"
-          aria-disabled={!canAct}
-          className={!canAct ? "pointer-events-none opacity-50" : undefined}
+          aria-disabled={!canProcess}
+          className={!canProcess ? "pointer-events-none opacity-50" : undefined}
           disabled={isPending || undefined}
           onClick={() => {
-            if (!canAct) return;
+            if (!canProcess) return;
             handleStatus("DRAFT");
           }}
         >
@@ -181,11 +199,11 @@ export function ProductsActionsBar({
           type="button"
           variant="outline"
           size="sm"
-          aria-disabled={!canAct}
-          className={!canAct ? "pointer-events-none opacity-50" : undefined}
+          aria-disabled={!canProcess}
+          className={!canProcess ? "pointer-events-none opacity-50" : undefined}
           disabled={isPending || undefined}
           onClick={() => {
-            if (!canAct) return;
+            if (!canProcess) return;
             handleStatus("ARCHIVED");
           }}
         >
@@ -195,11 +213,11 @@ export function ProductsActionsBar({
         <Button
           type="button"
           size="sm"
-          aria-disabled={!canAct}
-          className={!canAct ? "pointer-events-none opacity-50" : undefined}
+          aria-disabled={!canExport}
+          className={!canExport ? "pointer-events-none opacity-50" : undefined}
           disabled={isPending || undefined}
           onClick={() => {
-            if (!canAct) return;
+            if (!canExport) return;
             handleExportSelected();
           }}
         >
