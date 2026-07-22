@@ -14,8 +14,9 @@ import type {
   StoreNavCategoryDto,
 } from "@/types/categories";
 
-function categoryHref(slug: string): string {
-  return `/catalog?category=${encodeURIComponent(slug)}`;
+/** Storefront category landing page. */
+export function categoryHref(slug: string): string {
+  return `/categories/${encodeURIComponent(slug)}`;
 }
 
 function buildOrderBy(
@@ -328,3 +329,141 @@ export async function getStoreNavCategories(): Promise<StoreNavCategoryDto[]> {
     })),
   }));
 }
+
+export type StoreCategoryTreeDto = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  imageUrl: string | null;
+  productsCount: number;
+  children: {
+    id: string;
+    name: string;
+    slug: string;
+    description: string | null;
+    imageUrl: string | null;
+    productsCount: number;
+  }[];
+};
+
+/** Get the root categories and all children with product count and description for categories page. */
+export async function getStoreCategoriesPageData(): Promise<StoreCategoryTreeDto[]> {
+  const categories = await prisma.category.findMany({
+    where: { parentId: null },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      imageUrl: true,
+      _count: { select: { products: true } },
+      children: {
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          imageUrl: true,
+          _count: { select: { products: true } },
+        },
+      },
+    },
+  });
+
+  return categories.map((cat) => ({
+    id: cat.id,
+    name: cat.name,
+    slug: cat.slug,
+    description: cat.description,
+    imageUrl: cat.imageUrl,
+    productsCount: cat._count.products,
+    children: cat.children.map((child) => ({
+      id: child.id,
+      name: child.name,
+      slug: child.slug,
+      description: child.description,
+      imageUrl: child.imageUrl,
+      productsCount: child._count.products,
+    })),
+  }));
+}
+
+export type StoreCategoryDetailDto = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  imageUrl: string | null;
+  parentId: string | null;
+  parent: { id: string; name: string; slug: string } | null;
+  children: {
+    id: string;
+    name: string;
+    slug: string;
+    description: string | null;
+    imageUrl: string | null;
+    productsCount: number;
+  }[];
+};
+
+/** Get a single category by slug, with parent and children data for detail/landing page. */
+export async function getStoreCategoryDetail(
+  slug: string,
+): Promise<StoreCategoryDetailDto | null> {
+  const category = await prisma.category.findFirst({
+    where: {
+      OR: [{ slug }, { id: slug }],
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      imageUrl: true,
+      parentId: true,
+      parent: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+      children: {
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          imageUrl: true,
+          _count: { select: { products: true } },
+        },
+      },
+    },
+  });
+
+  if (!category) return null;
+
+  return {
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    description: category.description,
+    imageUrl: category.imageUrl,
+    parentId: category.parentId,
+    parent: category.parent,
+    children: category.children.map((child) => ({
+      id: child.id,
+      name: child.name,
+      slug: child.slug,
+      description: child.description,
+      imageUrl: child.imageUrl,
+      productsCount: child._count.products,
+    })),
+  };
+}
+
+

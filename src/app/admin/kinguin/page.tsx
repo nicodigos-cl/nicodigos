@@ -10,6 +10,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { buildKinguinAdminHref, kinguinSearchHasCriteria } from "@/lib/kinguin/admin-url";
+import {
+  getCachedKinguinPlatforms,
+  getCachedKinguinRegions,
+} from "@/lib/kinguin/catalog-filters-cache";
 import { searchKinguinProducts } from "@/lib/kinguin/search";
 import { getCategoryOptions } from "@/lib/products/queries";
 import { parseSearchParamsRecord } from "@/lib/validations/products";
@@ -29,7 +34,13 @@ export default async function KinguinPage({ searchParams }: KinguinPageProps) {
   }
 
   const query = parsed.data;
-  const categories = await getCategoryOptions();
+  const hasCriteria = kinguinSearchHasCriteria(query);
+
+  const [categories, platforms, regions] = await Promise.all([
+    getCategoryOptions(),
+    getCachedKinguinPlatforms(),
+    getCachedKinguinRegions(),
+  ]);
 
   let result: Awaited<ReturnType<typeof searchKinguinProducts>> = {
     items: [],
@@ -41,7 +52,7 @@ export default async function KinguinPage({ searchParams }: KinguinPageProps) {
   };
   let searchError: string | null = null;
 
-  if (query.q) {
+  if (hasCriteria) {
     try {
       result = await searchKinguinProducts(query);
     } catch (error) {
@@ -53,27 +64,29 @@ export default async function KinguinPage({ searchParams }: KinguinPageProps) {
   }
 
   if (result.total > 0 && query.page > result.totalPages) {
-    const params = new URLSearchParams();
-    if (query.q) params.set("q", query.q);
-    params.set("page", String(result.totalPages));
-    if (query.pageSize !== 20) params.set("pageSize", String(query.pageSize));
-    redirect(`/admin/kinguin?${params.toString()}`);
+    redirect(
+      buildKinguinAdminHref(query, { page: result.totalPages }),
+    );
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <KinguinToolbar query={query} />
+      <KinguinToolbar
+        query={query}
+        platforms={platforms}
+        regions={regions}
+      />
 
-      {!query.q ? (
+      {!hasCriteria ? (
         <Empty className="border border-border bg-card">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <HiOutlineSearch className="size-5" />
             </EmptyMedia>
-            <EmptyTitle>Busca un juego</EmptyTitle>
+            <EmptyTitle>Busca o filtra productos</EmptyTitle>
             <EmptyDescription>
-              Escribe un nombre y pulsa Enter. Los resultados vienen en vivo
-              desde la API de Kinguin.
+              Escribe un nombre (Enter) o elige plataforma / región / tipo en
+              Filtros. Los resultados vienen en vivo desde la API de Kinguin.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -93,6 +106,7 @@ export default async function KinguinPage({ searchParams }: KinguinPageProps) {
             total={result.total}
             totalPages={result.totalPages}
             query={query}
+            visibleCount={result.items.length}
           />
         </>
       )}

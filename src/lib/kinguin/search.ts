@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import { evaluateChileCompatibility } from "@/lib/kinguin/chile-compatibility";
+import { kinguinSearchHasCriteria } from "@/lib/kinguin/admin-url";
 import { getKinguinClient } from "@/lib/kinguin-client";
 import { createLogger } from "@/lib/logger";
 import prisma from "@/lib/prisma";
@@ -61,9 +62,18 @@ function mapSearchHit(
   };
 }
 
-function searchCacheKey(q: string, page: number, pageSize: number): string {
+function searchCacheKey(input: KinguinSearchQuery): string {
   const digest = createHash("sha256")
-    .update(`${q}\0${page}\0${pageSize}`)
+    .update(
+      [
+        input.q ?? "",
+        input.page,
+        input.pageSize,
+        input.platform ?? "",
+        input.regionId ?? "",
+        input.tag ?? "",
+      ].join("\0"),
+    )
     .digest("hex")
     .slice(0, 32);
   return `${KINGUIN_SEARCH_CACHE_PREFIX}${digest}`;
@@ -108,15 +118,17 @@ async function writeCachedSearch(
 }
 
 async function fetchSearchFromApi(
-  q: string,
-  page: number,
-  pageSize: number,
+  input: KinguinSearchQuery,
 ): Promise<CachedSearchPayload> {
   const client = getKinguinClient();
+  const q = input.q?.trim() ?? "";
   const response: KinguinProductListResponse = await client.searchProducts({
-    name: q,
-    page,
-    limit: pageSize,
+    name: q || undefined,
+    page: input.page,
+    limit: input.pageSize,
+    platform: input.platform,
+    regionId: input.regionId,
+    tags: input.tag,
   });
 
   return {
@@ -125,12 +137,25 @@ async function fetchSearchFromApi(
   };
 }
 
-/** Live search against Kinguin ESA, cached briefly in Redis by query+page. */
+function applyLocalFilters(
+  items: KinguinSearchHitDto[],
+  input: KinguinSearchQuery,
+): KinguinSearchHitDto[] {
+  return items.filter((item) => {
+    if (input.chile === "compatible" && !item.chileCompatible) return false;
+    if (input.chile === "incompatible" && item.chileCompatible) return false;
+    if (input.imported === "imported" && !item.alreadyImported) return false;
+    if (input.imported === "not_imported" && item.alreadyImported) return false;
+    return true;
+  });
+}
+
+/** Live search against Kinguin ESA, cached briefly in Redis by query+filters+page. */
 export async function searchKinguinProducts(
   input: KinguinSearchQuery,
 ): Promise<KinguinSearchPageResult> {
   const q = input.q?.trim() ?? "";
-  if (!q) {
+  if (!kinguinSearchHasCriteria(input)) {
     return {
       items: [],
       total: 0,
@@ -141,19 +166,26 @@ export async function searchKinguinProducts(
     };
   }
 
-  const cacheKey = searchCacheKey(q, input.page, input.pageSize);
+  const cacheKey = searchCacheKey(input);
   let payload = await readCachedSearch(cacheKey);
   let fromCache = payload != null;
 
   if (!payload) {
-    payload = await fetchSearchFromApi(q, input.page, input.pageSize);
+    payload = await fetchSearchFromApi(input);
     fromCache = false;
     await writeCachedSearch(cacheKey, payload);
   }
 
   if (fromCache) {
     log.debug(
-      { q, page: input.page, pageSize: input.pageSize },
+      {
+        q,
+        page: input.page,
+        pageSize: input.pageSize,
+        platform: input.platform,
+        regionId: input.regionId,
+        tag: input.tag,
+      },
       "kinguin.search.cache_hit",
     );
   }
@@ -173,10 +205,13 @@ export async function searchKinguinProducts(
       .map((row) => [row.kinguinId as number, row.id]),
   );
 
+  const mapped = payload.results.map((item) => mapSearchHit(item, imported));
+  const items = applyLocalFilters(mapped, input);
   const total = payload.item_count;
 
   return {
-    items: payload.results.map((item) => mapSearchHit(item, imported)),
+    items,
+    // Chile/imported are page-local filters; pagination stays on API totals.
     total,
     page: input.page,
     pageSize: input.pageSize,

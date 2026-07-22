@@ -1,5 +1,5 @@
-import Link from "next/link";
 import StoreLayout from "@/components/layout/store-layout";
+import { HomeDeepLink } from "@/components/store/home-deep-link";
 import StoreCategories from "@/components/store/store-categories";
 import StoreCTA from "@/components/store/store-cta";
 import StoreHero from "@/components/store/store-hero";
@@ -16,7 +16,22 @@ import {
   getTrendingStoreProducts,
 } from "@/lib/products/queries";
 
-export default async function Home() {
+type HomePageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function firstParam(
+  value: string | string[] | undefined,
+): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function Home({ searchParams }: HomePageProps) {
+  const params = await searchParams;
+  const filtro = firstParam(params.filtro)?.toLowerCase();
+  const scrollToId =
+    filtro === "ofertas" || filtro === "offers" ? "offer-products" : null;
+
   const [
     categories,
     popularProducts,
@@ -33,6 +48,7 @@ export default async function Home() {
 
   return (
     <StoreLayout>
+      <HomeDeepLink scrollToId={scrollToId} />
       <StoreHero />
       <StoreProductBands>
         <StoreCategories
@@ -45,14 +61,14 @@ export default async function Home() {
         <StorePopularProducts products={popularProducts} />
       </StoreProductBands>
       <StoreProductBands>
+        <StoreOfferProducts products={offerProducts} />
         <StoreTrendingProducts products={trendingProducts} />
       </StoreProductBands>
-      
+
       <StoreCTA />
-      
+
       <StoreProductBands>
         <StoreNewProducts products={newProducts} />
-        <StoreOfferProducts products={offerProducts} />
       </StoreProductBands>
     </StoreLayout>
   );

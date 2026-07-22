@@ -1012,7 +1012,7 @@ export async function getNewStoreProducts(
   return enrichStoreProductCards(products);
 }
 
-/** Active products marked as offers. */
+/** Active products marked as offers (fills with compareAt / featured if short). */
 export async function getOfferStoreProducts(
   limit = 12,
 ): Promise<StoreProductCardDto[]> {
@@ -1030,11 +1030,11 @@ export async function getOfferStoreProducts(
     return enrichStoreProductCards(offers);
   }
 
-  const offerIds = offers.map((product) => product.id);
-  const fillers = await prisma.product.findMany({
+  const excludeIds = offers.map((product) => product.id);
+  const withCompare = await prisma.product.findMany({
     where: {
       status: ProductStatus.ACTIVE,
-      id: offerIds.length > 0 ? { notIn: offerIds } : undefined,
+      id: excludeIds.length > 0 ? { notIn: excludeIds } : undefined,
       compareAtPrice: { not: null },
     },
     orderBy: { updatedAt: "desc" },
@@ -1042,7 +1042,24 @@ export async function getOfferStoreProducts(
     select: storeProductCardSelect,
   });
 
-  return enrichStoreProductCards([...offers, ...fillers]);
+  const merged = [...offers, ...withCompare];
+  if (merged.length >= limit) {
+    return enrichStoreProductCards(merged);
+  }
+
+  const mergedIds = merged.map((product) => product.id);
+  const featuredFillers = await prisma.product.findMany({
+    where: {
+      status: ProductStatus.ACTIVE,
+      id: mergedIds.length > 0 ? { notIn: mergedIds } : undefined,
+      isFeatured: true,
+    },
+    orderBy: { updatedAt: "desc" },
+    take: limit - merged.length,
+    select: storeProductCardSelect,
+  });
+
+  return enrichStoreProductCards([...merged, ...featuredFillers]);
 }
 
 function storeDeliveryLabel(

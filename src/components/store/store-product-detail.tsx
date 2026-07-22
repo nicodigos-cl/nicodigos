@@ -44,7 +44,7 @@ export function StoreProductDetail({
     hasOffer && compareAtPriceNum ? compareAtPriceNum - priceNum : null;
 
   const categoryHref = product.categories[0]
-    ? `/catalog?category=${encodeURIComponent(product.categories[0].slug)}`
+    ? `/categories/${encodeURIComponent(product.categories[0].slug)}`
     : "/catalog";
 
   return (
@@ -97,7 +97,7 @@ export function StoreProductDetail({
               </li>
               <li>
                 <Link
-                  href={`/catalog?category=${encodeURIComponent(product.categories[0].slug)}`}
+                  href={`/categories/${encodeURIComponent(product.categories[0].slug)}`}
                   className="hover:text-foreground transition-colors font-medium"
                 >
                   {product.categories[0].name}

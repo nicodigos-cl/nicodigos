@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { HiPlay } from "react-icons/hi2";
 
@@ -35,14 +35,12 @@ export function StoreProductGallery({
   const [activeId, setActiveId] = useState<string | null>(images[0]?.id || null);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
   const [isZoomed, setIsZoomed] = useState(false);
+  const [prevImages, setPrevImages] = useState(images);
 
-  useEffect(() => {
-    if (images.length > 0) {
-      setActiveId(images[0].id);
-    } else {
-      setActiveId(null);
-    }
-  }, [images]);
+  if (images !== prevImages) {
+    setPrevImages(images);
+    setActiveId(images[0]?.id || null);
+  }
 
   if (images.length === 0) {
     return (

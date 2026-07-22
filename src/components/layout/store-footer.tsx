@@ -27,9 +27,9 @@ const navigation = {
   store: [
     { name: "Catálogo", href: "/catalog" },
     { name: "Ofertas", href: "/catalog?filter=offers" },
-    { name: "Keys y juegos", href: "/catalog?category=juegos" },
-    { name: "Software", href: "/catalog?category=software" },
-    { name: "Servicios SMM", href: "/catalog?category=smm" },
+    { name: "Keys y juegos", href: "/categories/juegos" },
+    { name: "Software", href: "/categories/software" },
+    { name: "Servicios SMM", href: "/categories/smm" },
     { name: "Carrito", href: "/cart" },
   ] satisfies NavItem[],
   support: [

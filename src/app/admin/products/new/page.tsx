@@ -85,6 +85,8 @@ export default async function NewProductPage({
             q: picker.kinguinQ,
             page: picker.kinguinPage,
             pageSize: 10,
+            chile: "all",
+            imported: "all",
           }).catch(() => ({
             ...emptyKinguin,
             q: picker.kinguinQ ?? "",

@@ -21,6 +21,16 @@ const clpPriceStringSchema = z
   .regex(/^\d+([.,]\d{1,4})?$/)
   .transform((value) => value.replace(",", "."));
 
+const chileFilterValues = ["all", "compatible", "incompatible"] as const;
+const importedFilterValues = ["all", "imported", "not_imported"] as const;
+const tagFilterValues = [
+  "base",
+  "dlc",
+  "software",
+  "prepaid",
+  "indie valley",
+] as const;
+
 export const kinguinSearchQuerySchema = z.object({
   q: z.preprocess(
     emptyToUndefined,
@@ -45,9 +55,31 @@ export const kinguinSearchQuerySchema = z.object({
       })
       .default(20),
   ),
+  /** Local Chile activation filter (applied after API results). */
+  chile: z.preprocess(
+    emptyToUndefined,
+    z.enum(chileFilterValues).default("all"),
+  ),
+  platform: z.preprocess(
+    emptyToUndefined,
+    z.string().trim().min(1).max(80).optional(),
+  ),
+  regionId: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().positive().optional(),
+  ),
+  /** Kinguin product tag / type (API `tags`). */
+  tag: z.preprocess(emptyToUndefined, z.enum(tagFilterValues).optional()),
+  imported: z.preprocess(
+    emptyToUndefined,
+    z.enum(importedFilterValues).default("all"),
+  ),
 });
 
 export type KinguinSearchQuery = z.infer<typeof kinguinSearchQuerySchema>;
+export type KinguinChileFilter = (typeof chileFilterValues)[number];
+export type KinguinImportedFilter = (typeof importedFilterValues)[number];
+export type KinguinTagFilter = (typeof tagFilterValues)[number];
 
 export const importKinguinProductSchema = z.object({
   kinguinId: z.coerce.number().int().positive(),

@@ -9,6 +9,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { buildKinguinAdminHref } from "@/lib/kinguin/admin-url";
 import type { KinguinSearchQuery } from "@/lib/validations/kinguin";
 
 type KinguinPaginationProps = {
@@ -17,20 +18,9 @@ type KinguinPaginationProps = {
   total: number;
   totalPages: number;
   query: KinguinSearchQuery;
+  /** Rows left after local filters (Chile / import) on this page. */
+  visibleCount?: number;
 };
-
-function buildHref(
-  query: KinguinSearchQuery,
-  overrides: Partial<KinguinSearchQuery>,
-): string {
-  const next = { ...query, ...overrides };
-  const params = new URLSearchParams();
-  if (next.q) params.set("q", next.q);
-  if (next.page > 1) params.set("page", String(next.page));
-  if (next.pageSize !== 20) params.set("pageSize", String(next.pageSize));
-  const qs = params.toString();
-  return qs ? `/admin/kinguin?${qs}` : "/admin/kinguin";
-}
 
 function getPageNumbers(
   page: number,
@@ -55,11 +45,16 @@ export function KinguinPagination({
   total,
   totalPages,
   query,
+  visibleCount,
 }: KinguinPaginationProps) {
-  if (total === 0 || !query.q) return null;
+  if (total === 0) return null;
 
   const from = (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
+  const filteredLocally =
+    visibleCount != null &&
+    visibleCount < Math.min(pageSize, to - from + 1) &&
+    (query.chile !== "all" || query.imported !== "all");
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -70,6 +65,12 @@ export function KinguinPagination({
         </span>{" "}
         de <span className="font-medium text-foreground">{total}</span>{" "}
         resultados
+        {filteredLocally ? (
+          <span>
+            {" "}
+            · {visibleCount} visibles con filtros locales en esta página
+          </span>
+        ) : null}
       </p>
 
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
@@ -79,7 +80,10 @@ export function KinguinPagination({
             {([10, 20, 50] as const).map((size) => (
               <Link
                 key={size}
-                href={buildHref(query, { page: 1, pageSize: size })}
+                href={buildKinguinAdminHref(query, {
+                  page: 1,
+                  pageSize: size,
+                })}
                 className={
                   pageSize === size
                     ? "rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground"
@@ -98,8 +102,8 @@ export function KinguinPagination({
               <PaginationPrevious
                 href={
                   page > 1
-                    ? buildHref(query, { page: page - 1 })
-                    : buildHref(query, { page: 1 })
+                    ? buildKinguinAdminHref(query, { page: page - 1 })
+                    : buildKinguinAdminHref(query, { page: 1 })
                 }
                 text="Anterior"
                 aria-disabled={page <= 1}
@@ -116,7 +120,7 @@ export function KinguinPagination({
               ) : (
                 <PaginationItem key={item}>
                   <PaginationLink
-                    href={buildHref(query, { page: item })}
+                    href={buildKinguinAdminHref(query, { page: item })}
                     isActive={item === page}
                   >
                     {item}
@@ -128,8 +132,8 @@ export function KinguinPagination({
               <PaginationNext
                 href={
                   page < totalPages
-                    ? buildHref(query, { page: page + 1 })
-                    : buildHref(query, { page: totalPages })
+                    ? buildKinguinAdminHref(query, { page: page + 1 })
+                    : buildKinguinAdminHref(query, { page: totalPages })
                 }
                 text="Siguiente"
                 aria-disabled={page >= totalPages}

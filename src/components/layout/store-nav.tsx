@@ -57,7 +57,7 @@ import { cn } from "@/lib/utils";
 import type { StoreNavCategoryDto } from "@/types/categories";
 
 const staticPages = [
-  { name: "Ofertas", href: "/?filtro=ofertas" },
+  { name: "Ofertas", href: "/#offer-products" },
   { name: "Soporte", href: "/dashboard/support" },
 ] as const;
 
@@ -104,7 +104,10 @@ function UserAccountMenu({
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    const timer = setTimeout(() => {
+      setMounted(true);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   // Avoid hydration mismatch: session isPending differs between SSR and client.

@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { ResponsiveOverlay } from "@/components/store/responsive-overlay";
@@ -75,11 +75,17 @@ export function SmmCartFieldsDialog(props: SmmCartFieldsDialogProps) {
       ? `edit-${props.cartItemId}`
       : `add-${props.productId}`;
 
-  useEffect(() => {
-    if (!props.open) return;
-    setFieldErrors({});
-    setValues(props.mode === "edit" ? toPayload(props.initialSmm) : {});
-  }, [props.open, formKey]);
+  const [prevFormKey, setPrevFormKey] = useState(formKey);
+  const [prevOpen, setPrevOpen] = useState(props.open);
+
+  if (props.open !== prevOpen || formKey !== prevFormKey) {
+    setPrevOpen(props.open);
+    setPrevFormKey(formKey);
+    if (props.open) {
+      setFieldErrors({});
+      setValues(props.mode === "edit" ? toPayload(props.initialSmm) : {});
+    }
+  }
 
   function submit() {
     setFieldErrors({});
