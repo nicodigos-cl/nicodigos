@@ -48,7 +48,7 @@ export function StoreProductDetail({
     : "/catalog";
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8 max-lg:pt-16">
+    <div className="mx-auto max-w-7xl py-4 max-lg:pt-16">
       {/* Mobile Top App Bar (Android Style) */}
       <header className="fixed top-0 inset-x-0 z-40 bg-background/95 backdrop-blur-md border-b border-border/40 py-3.5 px-4 flex items-center justify-between lg:hidden shadow-xs">
         <div className="flex items-center gap-3">
@@ -122,7 +122,7 @@ export function StoreProductDetail({
         {/* Left Column: Gallery & Info Accordions */}
         <div className="lg:col-span-7 space-y-6 lg:space-y-8">
           {/* Edge-to-edge Gallery on Mobile */}
-          <div className="-mx-4 sm:mx-0">
+          <div className="px-2">
             <StoreProductGallery images={product.images} />
           </div>
 

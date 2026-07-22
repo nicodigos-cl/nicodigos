@@ -42,22 +42,20 @@ async function claimAlertOnce(
   return result === "OK";
 }
 
-async function sendOpsAlert(input: {
-  alertKey: string;
-  ttlSeconds: number;
+async function sendOpsAlertEmail(input: {
   subject: string;
   title: string;
   body: string;
   href: string;
   lines: string[];
+  alertKey?: string;
 }): Promise<boolean> {
-  if (!(await claimAlertOnce(input.alertKey, input.ttlSeconds))) {
-    return false;
-  }
-
   const recipients = await resolveAdminNotificationRecipients();
   if (recipients.length === 0) {
-    log.warn({ alertKey: input.alertKey }, "No admin recipients for ops alert");
+    log.warn(
+      { alertKey: input.alertKey ?? "ops-alert" },
+      "No admin recipients for ops alert",
+    );
     return false;
   }
 
@@ -77,11 +75,34 @@ async function sendOpsAlert(input: {
           }),
         });
       } catch (error) {
-        log.error({ err: error, to, alertKey: input.alertKey }, "Ops alert email failed");
+        log.error(
+          { err: error, to, alertKey: input.alertKey },
+          "Ops alert email failed",
+        );
       }
     }),
   );
   return true;
+}
+
+const STOCK_ALERT_TTL_SECONDS = 60 * 60 * 12;
+const STOCK_SUMMARY_LINE_LIMIT = 40;
+
+function stockSummaryLines(
+  items: Array<{ name: string; available: number }>,
+  threshold: number,
+): string[] {
+  const sorted = [...items].sort((a, b) => a.available - b.available);
+  const shown = sorted.slice(0, STOCK_SUMMARY_LINE_LIMIT);
+  const lines = [
+    `Umbral: ${threshold}`,
+    `Productos: ${items.length}`,
+    ...shown.map((item) => `${item.name}: ${item.available}`),
+  ];
+  if (sorted.length > shown.length) {
+    lines.push(`… y ${sorted.length - shown.length} más`);
+  }
+  return lines;
 }
 
 export async function runDeliveryOpsAlerts(): Promise<{
@@ -114,7 +135,6 @@ export async function runDeliveryOpsAlerts(): Promise<{
       select: {
         id: true,
         name: true,
-        slug: true,
         _count: {
           select: {
             keys: { where: { status: ProductKeyStatus.AVAILABLE } },
@@ -124,26 +144,21 @@ export async function runDeliveryOpsAlerts(): Promise<{
       },
     });
 
+    const lowStockClaimed: Array<{ name: string; available: number }> = [];
+    const outOfStockClaimed: Array<{ name: string; available: number }> = [];
+
     for (const product of products) {
-      const available =
-        product._count.keys + product._count.accounts;
-      const href = `${appBaseUrl()}/admin/products/${product.id}`;
+      const available = product._count.keys + product._count.accounts;
 
       if (available <= 0 && settings.notifyOutOfStock) {
-        const sent = await sendOpsAlert({
-          alertKey: `out-of-stock:${product.id}`,
-          ttlSeconds: 60 * 60 * 12,
-          subject: `Sin stock · ${product.name}`,
-          title: "Producto sin stock",
-          body: "Un producto MANUAL se quedó sin keys/cuentas disponibles.",
-          href,
-          lines: [
-            `Producto: ${product.name}`,
-            `Disponible: 0`,
-            `Umbral configurado: ${threshold}`,
-          ],
-        });
-        if (sent) outOfStockSent += 1;
+        if (
+          await claimAlertOnce(
+            `out-of-stock:${product.id}`,
+            STOCK_ALERT_TTL_SECONDS,
+          )
+        ) {
+          outOfStockClaimed.push({ name: product.name, available: 0 });
+        }
         continue;
       }
 
@@ -152,21 +167,41 @@ export async function runDeliveryOpsAlerts(): Promise<{
         available <= threshold &&
         settings.notifyLowStock
       ) {
-        const sent = await sendOpsAlert({
-          alertKey: `low-stock:${product.id}:${available}`,
-          ttlSeconds: 60 * 60 * 12,
-          subject: `Stock bajo · ${product.name}`,
-          title: "Stock bajo de inventario",
-          body: "Un producto MANUAL está por debajo del umbral de stock.",
-          href,
-          lines: [
-            `Producto: ${product.name}`,
-            `Disponible: ${available}`,
-            `Umbral: ${threshold}`,
-          ],
-        });
-        if (sent) lowStockSent += 1;
+        if (
+          await claimAlertOnce(
+            `low-stock:${product.id}:${available}`,
+            STOCK_ALERT_TTL_SECONDS,
+          )
+        ) {
+          lowStockClaimed.push({ name: product.name, available });
+        }
       }
+    }
+
+    const productsHref = `${appBaseUrl()}/admin/products`;
+
+    if (lowStockClaimed.length > 0) {
+      const sent = await sendOpsAlertEmail({
+        alertKey: "low-stock:summary",
+        subject: `Stock bajo · ${lowStockClaimed.length} productos`,
+        title: "Resumen de stock bajo",
+        body: `${lowStockClaimed.length} productos MANUAL están por debajo del umbral de stock.`,
+        href: productsHref,
+        lines: stockSummaryLines(lowStockClaimed, threshold),
+      });
+      if (sent) lowStockSent = lowStockClaimed.length;
+    }
+
+    if (outOfStockClaimed.length > 0) {
+      const sent = await sendOpsAlertEmail({
+        alertKey: "out-of-stock:summary",
+        subject: `Sin stock · ${outOfStockClaimed.length} productos`,
+        title: "Resumen de productos sin stock",
+        body: `${outOfStockClaimed.length} productos MANUAL se quedaron sin keys/cuentas disponibles.`,
+        href: productsHref,
+        lines: stockSummaryLines(outOfStockClaimed, threshold),
+      });
+      if (sent) outOfStockSent = outOfStockClaimed.length;
     }
   }
 
@@ -203,22 +238,49 @@ export async function runDeliveryOpsAlerts(): Promise<{
       },
     });
 
+    const stuckClaimed: Array<{
+      productName: string;
+      orderId: string;
+      status: DeliveryStatus;
+    }> = [];
+
     for (const delivery of stuck) {
-      const sent = await sendOpsAlert({
-        alertKey: `smm-stuck:${delivery.id}`,
-        ttlSeconds: stuckMinutes * 60,
-        subject: `SMM atascado · ${delivery.orderItem.productName}`,
-        title: "Entrega SMM atascada",
-        body: `Una entrega SMM lleva más de ${stuckMinutes} minutos sin completar.`,
-        href: `${appBaseUrl()}/admin/deliveries/${delivery.id}`,
-        lines: [
-          `Pedido: ${delivery.orderItem.orderId}`,
-          `Producto: ${delivery.orderItem.productName}`,
-          `Estado: ${delivery.status}`,
-          `Externo: ${delivery.externalOrderId ?? "—"}`,
-        ],
+      if (await claimAlertOnce(`smm-stuck:${delivery.id}`, stuckMinutes * 60)) {
+        stuckClaimed.push({
+          productName: delivery.orderItem.productName,
+          orderId: delivery.orderItem.orderId,
+          status: delivery.status,
+        });
+      }
+    }
+
+    if (stuckClaimed.length > 0) {
+      const first = stuckClaimed[0]!;
+      const shown = stuckClaimed.slice(0, STOCK_SUMMARY_LINE_LIMIT);
+      const lines = [
+        `Umbral: ${stuckMinutes} min`,
+        `Entregas: ${stuckClaimed.length}`,
+        ...shown.map(
+          (delivery) =>
+            `${delivery.productName} · pedido ${delivery.orderId} · ${delivery.status}`,
+        ),
+      ];
+      if (stuckClaimed.length > shown.length) {
+        lines.push(`… y ${stuckClaimed.length - shown.length} más`);
+      }
+
+      const sent = await sendOpsAlertEmail({
+        alertKey: "smm-stuck:summary",
+        subject:
+          stuckClaimed.length === 1
+            ? `SMM atascado · ${first.productName}`
+            : `SMM atascado · ${stuckClaimed.length} entregas`,
+        title: "Resumen de entregas SMM atascadas",
+        body: `${stuckClaimed.length} entregas SMM llevan más de ${stuckMinutes} minutos sin completar.`,
+        href: `${appBaseUrl()}/admin/deliveries`,
+        lines,
       });
-      if (sent) smmStuckSent += 1;
+      if (sent) smmStuckSent = stuckClaimed.length;
     }
   }
 

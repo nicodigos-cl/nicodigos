@@ -38,6 +38,10 @@ import {
 } from "@/lib/actions/orders";
 import { authClient } from "@/lib/auth-client";
 import { AUTH_OTP_LENGTH } from "@/lib/auth/otp";
+import {
+  cartMeetsMinimumTotal,
+  cartMinimumTotalMessage,
+} from "@/lib/cart/constants";
 import { formatMoney } from "@/lib/products/format";
 import { BOLETA_NAMED_THRESHOLD_CLP } from "@/lib/validations/checkout-billing";
 import { cn } from "@/lib/utils";
@@ -275,6 +279,8 @@ export function CheckoutPageClient({
       ),
     [mode, cart?.items],
   );
+  const belowMinimum =
+    mode === "cart" && !cartMeetsMinimumTotal(cart?.subtotal ?? "0");
   const awaitingGuestOtp =
     mode === "cart" && !authenticated && !guestVerified && Boolean(otpSentTo);
 
@@ -345,6 +351,10 @@ export function CheckoutPageClient({
   function pay() {
     if (mode === "cart" && hasIncompleteSmm) {
       toast.error("Completa los datos de tus servicios antes de pagar.");
+      return;
+    }
+    if (mode === "cart" && belowMinimum) {
+      toast.error(cartMinimumTotalMessage(currency));
       return;
     }
 
@@ -772,6 +782,15 @@ export function CheckoutPageClient({
               </p>
             ) : null}
 
+            {belowMinimum ? (
+              <p className="mt-8 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                {cartMinimumTotalMessage(currency)}{" "}
+                <Link href="/cart" className="font-medium underline underline-offset-2">
+                  Volver al carrito
+                </Link>
+              </p>
+            ) : null}
+
             <div className="mt-8 space-y-4">
               <Button
                 type="submit"
@@ -780,6 +799,7 @@ export function CheckoutPageClient({
                 disabled={
                   pending ||
                   hasIncompleteSmm ||
+                  belowMinimum ||
                   (awaitingGuestOtp && otp.length !== AUTH_OTP_LENGTH)
                 }
               >

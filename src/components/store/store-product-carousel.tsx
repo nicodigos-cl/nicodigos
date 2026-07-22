@@ -78,7 +78,7 @@ export default function StoreProductCarousel({
 
   return (
     <section aria-labelledby={headingId} className={cn("relative", className)}>
-      <div className="relative z-10 mx-auto max-w-7xl py-6 sm:py-20">
+      <div className="relative z-10 mx-auto px-4 max-w-7xl py-6 sm:py-20">
         <div className="flex items-end justify-between gap-4">
           <div className="max-w-2xl">
             {eyebrow ? (

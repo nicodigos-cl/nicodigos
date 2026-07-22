@@ -56,6 +56,14 @@ const items = [
 export function StoreMobileBottomNav() {
   const pathname = usePathname();
 
+  if (
+    pathname.startsWith("/checkout") ||
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/admin")
+  ) {
+    return null;
+  }
+
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur-md border-t border-border/40 py-2 px-6 flex items-center justify-around lg:hidden shadow-lg pb-safe m-0">
       {items.map((item) => {

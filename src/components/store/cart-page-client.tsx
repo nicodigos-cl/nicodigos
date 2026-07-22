@@ -12,7 +12,6 @@ import {
 } from "react-icons/hi";
 import { toast } from "sonner";
 
-import { Logo } from "@/components/logo";
 import { SmmCartFieldsDialog } from "@/components/store/smm-cart-fields-dialog";
 import { smmSummaryLabel } from "@/components/store/smm-order-fields-form";
 import { Button } from "@/components/ui/button";
@@ -29,6 +28,12 @@ import {
   removeCartItemAction,
   updateCartItemAction,
 } from "@/lib/actions/orders";
+import {
+  CART_MIN_TOTAL_CLP,
+  cartMeetsMinimumTotal,
+  cartMinimumTotalMessage,
+  parseCartTotalClp,
+} from "@/lib/cart/constants";
 import { formatMoney } from "@/lib/products/format";
 import type { CartDto, CartLineDto } from "@/types/orders";
 
@@ -63,6 +68,8 @@ export function CartPageClient({ cart }: { cart: CartDto | null }) {
   const hasIncompleteSmm = cart.items.some(
     (item) => item.deliveryMethod === "SMM" && !item.smmComplete,
   );
+  const meetsMinimum = cartMeetsMinimumTotal(cart.subtotal);
+  const canCheckout = meetsMinimum && !hasIncompleteSmm;
 
   function updateQuantity(cartItemId: string, quantity: number) {
     startTransition(async () => {
@@ -89,25 +96,22 @@ export function CartPageClient({ cart }: { cart: CartDto | null }) {
 
   return (
     <div className="bg-background">
-      <header className="border-b border-border">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Logo size={32} href="/" />
+      <main className="mx-auto max-w-2xl px-4 pt-8 pb-24 sm:px-6 sm:pt-12 lg:max-w-7xl lg:px-8">
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
+            Carrito
+          </h1>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
+            className="hidden sm:inline-flex"
             render={<Link href="/checkout" />}
             nativeButton={false}
-            disabled={hasIncompleteSmm}
+            disabled={!canCheckout}
           >
             Ir al checkout
           </Button>
         </div>
-      </header>
-
-      <main className="mx-auto max-w-2xl px-4 pt-12 pb-24 sm:px-6 lg:max-w-7xl lg:px-8">
-        <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-          Carrito
-        </h1>
 
         {hasIncompleteSmm ? (
           <p className="mt-4 text-sm text-amber-700 dark:text-amber-400">
@@ -282,10 +286,29 @@ export function CartPageClient({ cart }: { cart: CartDto | null }) {
               </div>
             </dl>
 
-            <div className="mt-6">
+            <div className="mt-6 space-y-3">
+              {!meetsMinimum ? (
+                <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                  {cartMinimumTotalMessage(cart.currency)} Te faltan{" "}
+                  {formatMoney(
+                    String(
+                      Math.max(
+                        0,
+                        CART_MIN_TOTAL_CLP - parseCartTotalClp(cart.subtotal),
+                      ),
+                    ),
+                    cart.currency,
+                  )}
+                  .
+                </p>
+              ) : null}
               {hasIncompleteSmm ? (
                 <Button className="w-full" size="lg" disabled>
                   Completa los destinos SMM
+                </Button>
+              ) : !meetsMinimum ? (
+                <Button className="w-full" size="lg" disabled>
+                  Mínimo {formatMoney(String(CART_MIN_TOTAL_CLP), cart.currency)}
                 </Button>
               ) : (
                 <Button

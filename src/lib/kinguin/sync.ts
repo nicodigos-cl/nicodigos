@@ -6,7 +6,7 @@ import {
 } from "@/generated/prisma/client";
 
 import { computePriceChangeMetrics } from "@/lib/events/price-change";
-import { applyMarkupPct, eurToClp } from "@/lib/fx/eur-clp";
+import { applyMarkupPct, eurToClp, getEurToClpRate } from "@/lib/fx/eur-clp";
 import {
   offerAvailableQty,
   offerPersistAvailableQty,
@@ -64,6 +64,13 @@ function mapRemoteMeta(remote: KinguinProduct) {
     releaseDate: parseReleaseDate(remote.releaseDate),
   };
 }
+
+const TX_OPTIONS = {
+  /** Wait longer under pool pressure (default 2s → P2028). */
+  maxWait: 20_000,
+  /** Offer replace + product update can be heavy. */
+  timeout: 60_000,
+} as const;
 
 async function syncOneProduct(product: {
   id: string;
@@ -125,7 +132,6 @@ async function syncOneProduct(product: {
     return { ...base, status: "archived", detailsUpdated: true };
   }
 
-  const remoteOfferIds = offers.map((offer) => offer.offerId);
   const available = offerAvailableQty(cheapest);
   const costClp = await eurToClp(cheapest.price);
 
@@ -143,11 +149,21 @@ async function syncOneProduct(product: {
     Number.isFinite(nextPrice) &&
     currentPrice !== nextPrice;
 
-  await prisma.$transaction(async (tx) => {
-    for (const offer of offers) {
-      await tx.productOffer.upsert({
-        where: { kinguinOfferId: offer.offerId },
-        create: {
+  try {
+    await prisma.$transaction(async (tx) => {
+      const existingOffers = await tx.productOffer.findMany({
+        where: { productId: product.id },
+        select: { kinguinOfferId: true },
+      });
+      const remoteOfferIds = new Set(offers.map((offer) => offer.offerId));
+      base.offersRemoved = existingOffers.filter(
+        (offer) => !remoteOfferIds.has(offer.kinguinOfferId),
+      ).length;
+
+      // Replace offers in two round-trips instead of N upserts (holds the tx shorter).
+      await tx.productOffer.deleteMany({ where: { productId: product.id } });
+      await tx.productOffer.createMany({
+        data: offers.map((offer) => ({
           productId: product.id,
           kinguinOfferId: offer.offerId,
           price: offer.price,
@@ -158,88 +174,61 @@ async function syncOneProduct(product: {
           releaseDate: parseReleaseDate(offer.releaseDate),
           merchantName: offer.merchantName ?? null,
           isDefault: offer.offerId === cheapest.offerId,
-        },
-        update: {
-          productId: product.id,
-          price: offer.price,
-          qty: offer.qty ?? 0,
-          textQty: offer.textQty ?? offer.availableTextQty ?? 0,
-          availableQty: offerPersistAvailableQty(offer),
-          isPreorder: Boolean(offer.isPreorder),
-          releaseDate: parseReleaseDate(offer.releaseDate),
-          merchantName: offer.merchantName ?? null,
-          isDefault: offer.offerId === cheapest.offerId,
+        })),
+      });
+      base.offersUpserted = offers.length;
+
+      if (shouldReprice) {
+        const metrics = computePriceChangeMetrics(currentPrice, nextPrice);
+        if (metrics) {
+          await tx.productPriceChangeEvent.create({
+            data: {
+              productId: product.id,
+              source: "kinguin.offer.price_changed",
+              oldPrice: currentPrice,
+              newPrice: nextPrice,
+              currency: product.currency || "CLP",
+              changePct: metrics.changePct,
+              direction: metrics.direction,
+            },
+          });
+        }
+        base.repriced = true;
+      }
+
+      const nextStatus =
+        available <= 0
+          ? ProductStatus.ARCHIVED
+          : product.status === ProductStatus.ARCHIVED
+            ? ProductStatus.ARCHIVED
+            : product.status;
+
+      await tx.product.update({
+        where: { id: product.id },
+        data: {
+          kinguinProductId: remote.productId,
+          kinguinOfferId: cheapest.offerId,
+          kinguinSyncedAt: new Date(),
+          qty: available,
+          textQty: cheapest.textQty ?? cheapest.availableTextQty ?? null,
+          isPreorder: Boolean(remote.isPreorder ?? cheapest.isPreorder),
+          sourceCostPrice: costClp,
+          status: nextStatus,
+          ...meta,
+          ...(shouldReprice ? { price: nextPrice } : {}),
         },
       });
-    }
-
-    const removed = await tx.productOffer.deleteMany({
-      where: {
-        productId: product.id,
-        kinguinOfferId: { notIn: remoteOfferIds },
-      },
-    });
-
-    base.offersUpserted = offers.length;
-    base.offersRemoved = removed.count;
-
-    await tx.productOffer.updateMany({
-      where: {
-        productId: product.id,
-        kinguinOfferId: { not: cheapest.offerId },
-      },
-      data: { isDefault: false },
-    });
-    await tx.productOffer.updateMany({
-      where: {
-        productId: product.id,
-        kinguinOfferId: cheapest.offerId,
-      },
-      data: { isDefault: true },
-    });
-
-    if (shouldReprice) {
-      const metrics = computePriceChangeMetrics(currentPrice, nextPrice);
-      if (metrics) {
-        await tx.productPriceChangeEvent.create({
-          data: {
-            productId: product.id,
-            source: "kinguin.offer.price_changed",
-            oldPrice: currentPrice,
-            newPrice: nextPrice,
-            currency: product.currency || "CLP",
-            changePct: metrics.changePct,
-            direction: metrics.direction,
-          },
-        });
-      }
-      base.repriced = true;
-    }
-
-    const nextStatus =
-      available <= 0
-        ? ProductStatus.ARCHIVED
-        : product.status === ProductStatus.ARCHIVED
-          ? ProductStatus.ARCHIVED
-          : product.status;
-
-    await tx.product.update({
-      where: { id: product.id },
-      data: {
-        kinguinProductId: remote.productId,
-        kinguinOfferId: cheapest.offerId,
-        kinguinSyncedAt: new Date(),
-        qty: available,
-        textQty: cheapest.textQty ?? cheapest.availableTextQty ?? null,
-        isPreorder: Boolean(remote.isPreorder ?? cheapest.isPreorder),
-        sourceCostPrice: costClp,
-        status: nextStatus,
-        ...meta,
-        ...(shouldReprice ? { price: nextPrice } : {}),
-      },
-    });
-    base.detailsUpdated = true;
-  });
+      base.detailsUpdated = true;
+    }, TX_OPTIONS);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message.slice(0, 500) : "sync failed";
+    log.error(
+      { err: error, productId: product.id, kinguinId: product.kinguinId },
+      "kinguin product sync transaction failed",
+    );
+    return { ...base, status: "error", error: message };
+  }
 
   if (available <= 0) {
     return { ...base, status: "archived" };
@@ -293,6 +282,8 @@ export async function syncKinguinProductById(
 export async function syncKinguinProductsByIds(
   productIds: string[],
 ): Promise<SyncAllKinguinProductsResult> {
+  await getEurToClpRate();
+
   const products = await prisma.product.findMany({
     where: {
       id: { in: productIds },
@@ -354,6 +345,9 @@ export async function syncKinguinProductsByIds(
 
 /** Sync all locally imported Kinguin products (not the full remote catalog). */
 export async function syncAllKinguinProducts(): Promise<SyncAllKinguinProductsResult> {
+  // Warm FX once so per-product eurToClp hits cache under concurrent pool load.
+  await getEurToClpRate();
+
   const products = await prisma.product.findMany({
     where: {
       deliveryMethod: DeliveryMethod.KINGUIN,

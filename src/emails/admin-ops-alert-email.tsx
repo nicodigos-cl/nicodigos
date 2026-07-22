@@ -38,8 +38,8 @@ export function AdminOpsAlertEmail({
           <Heading style={heading}>{title}</Heading>
           <Text style={text}>{body}</Text>
           <Section style={metaBox}>
-            {lines.map((line) => (
-              <Text key={line} style={metaLine}>
+            {lines.map((line, index) => (
+              <Text key={`${index}-${line}`} style={metaLine}>
                 {line}
               </Text>
             ))}

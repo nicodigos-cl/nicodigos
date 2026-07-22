@@ -18,6 +18,10 @@ import {
   getCurrentCartId,
 } from "@/lib/cart/current";
 import {
+  cartMeetsMinimumTotal,
+  cartMinimumTotalMessage,
+} from "@/lib/cart/constants";
+import {
   createFlowPaymentForOrder,
   getOrCreateFlowRedirectUrl,
 } from "@/lib/flow/payments";
@@ -459,6 +463,13 @@ export async function checkoutFromCartAction(
     return { success: false, message: "Tu carrito está vacío." };
   }
 
+  if (!cartMeetsMinimumTotal(cart.subtotal)) {
+    return {
+      success: false,
+      message: cartMinimumTotalMessage(cart.currency),
+    };
+  }
+
   const incompleteSmm = cart.items.find(
     (item) => item.deliveryMethod === "SMM" && !item.smmComplete,
   );
@@ -746,6 +757,13 @@ export async function prepareGuestCheckoutOtpAction(
   const cart = await getCurrentCart();
   if (!cart || cart.items.length === 0) {
     return { success: false, message: "Tu carrito está vacío." };
+  }
+
+  if (!cartMeetsMinimumTotal(cart.subtotal)) {
+    return {
+      success: false,
+      message: cartMinimumTotalMessage(cart.currency),
+    };
   }
 
   try {
