@@ -99,6 +99,24 @@ const stringArrayFromCsv = z.preprocess((value) => {
   return [];
 }, z.array(z.string().min(1).max(120)).max(50));
 
+/** Kinguin exclusion lists can cover nearly all ISO countries (~250). */
+const countryLimitationFromCsv = z.preprocess((value) => {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item).trim())
+      .filter((item) => item.length > 0);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  }
+
+  return [];
+}, z.array(z.string().min(1).max(12)).max(300));
+
 export const productsListQuerySchema = z.object({
   page: z.preprocess(
     emptyToUndefined,
@@ -205,7 +223,7 @@ const productBaseFields = {
     emptyToNull,
     z.union([z.string().trim().max(500), z.null()]).optional(),
   ),
-  countryLimitation: stringArrayFromCsv.optional(),
+  countryLimitation: countryLimitationFromCsv.optional(),
   activationDetails: z.preprocess(
     emptyToNull,
     z.union([z.string().trim().max(5000), z.null()]).optional(),

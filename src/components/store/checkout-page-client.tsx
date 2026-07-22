@@ -42,6 +42,10 @@ import {
   cartMeetsMinimumTotal,
   cartMinimumTotalMessage,
 } from "@/lib/cart/constants";
+import {
+  chileCheckoutBreakdown,
+  FLOW_FEE_LABEL,
+} from "@/lib/pricing/chile-checkout";
 import { formatMoney } from "@/lib/products/format";
 import { BOLETA_NAMED_THRESHOLD_CLP } from "@/lib/validations/checkout-billing";
 import { cn } from "@/lib/utils";
@@ -92,6 +96,58 @@ type CheckoutPageClientProps = {
   billingFlags?: CheckoutBillingFlags;
   authenticated?: boolean;
 };
+
+function CheckoutTotalsBreakdown({
+  total,
+  currency,
+  compact = false,
+}: {
+  total: string;
+  currency: string;
+  compact?: boolean;
+}) {
+  const breakdown = chileCheckoutBreakdown(total);
+
+  return (
+    <dl className={cn("space-y-3", compact ? "text-sm" : "text-sm")}>
+      <div className="flex justify-between text-muted-foreground">
+        <dt>Neto (sin IVA)</dt>
+        <dd className="tabular-nums text-foreground">
+          {formatMoney(breakdown.net, currency)}
+        </dd>
+      </div>
+      <div className="flex justify-between text-muted-foreground">
+        <dt>IVA (19%)</dt>
+        <dd className="tabular-nums text-foreground">
+          {formatMoney(breakdown.iva, currency)}
+        </dd>
+      </div>
+      <div className="flex justify-between text-muted-foreground">
+        <dt>Comisión Flow ({FLOW_FEE_LABEL})</dt>
+        <dd className="tabular-nums text-foreground">
+          {formatMoney(breakdown.flowFee, currency)}
+        </dd>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        IVA incluido en el precio. Comisión Flow según tarifa pública (abono a 3
+        días hábiles); no se suma aparte al total.
+      </p>
+      <div className="flex items-center justify-between border-t border-border pt-3">
+        <dt className={cn("font-medium text-foreground", !compact && "text-lg")}>
+          Total a pagar
+        </dt>
+        <dd
+          className={cn(
+            "font-bold tabular-nums text-foreground",
+            compact ? "text-lg" : "text-2xl",
+          )}
+        >
+          {formatMoney(breakdown.total, currency)}
+        </dd>
+      </div>
+    </dl>
+  );
+}
 
 function OrderSummaryList({
   lines,
@@ -259,7 +315,6 @@ export function CheckoutPageClient({
   );
 
   const currency = order?.currency ?? cart?.currency ?? "CLP";
-  const subtotal = order?.subtotal ?? cart?.subtotal ?? "0";
   const total = order?.total ?? cart?.subtotal ?? "0";
   const isPaid = order?.status === "PAID" || order?.status === "FULFILLED";
   const orderTotalClp = Number.parseFloat(total);
@@ -474,11 +529,12 @@ export function CheckoutPageClient({
               </div>
             </CollapsibleContent>
 
-            <div className="mt-4 flex items-center justify-between border-t border-border pt-4 text-foreground">
-              <span className="text-base font-medium">Total</span>
-              <span className="text-lg font-bold tabular-nums">
-                {formatMoney(total, currency)}
-              </span>
+            <div className="mt-4 border-t border-border pt-4">
+              <CheckoutTotalsBreakdown
+                total={total}
+                currency={currency}
+                compact
+              />
             </div>
           </Collapsible>
         </section>
@@ -849,19 +905,8 @@ export function CheckoutPageClient({
               onEditSmm={mode === "cart" ? setEditing : undefined}
             />
           </div>
-          <div className="mt-6 border-t border-border pt-6 space-y-4">
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Subtotal</span>
-              <span className="tabular-nums text-foreground">
-                {formatMoney(subtotal, currency)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-lg font-medium text-foreground">Total</span>
-              <span className="text-2xl font-bold tabular-nums text-foreground">
-                {formatMoney(total, currency)}
-              </span>
-            </div>
+          <div className="mt-6 border-t border-border pt-6">
+            <CheckoutTotalsBreakdown total={total} currency={currency} />
           </div>
         </section>
       </div>

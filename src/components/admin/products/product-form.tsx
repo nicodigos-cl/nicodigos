@@ -52,7 +52,11 @@ import {
 } from "@/lib/actions/products";
 import { syncKinguinProductAction } from "@/lib/actions/products-bulk";
 import { applyMarkupPct } from "@/lib/fx/markup";
-import { calculateMarginPercent, slugify } from "@/lib/products/format";
+import {
+  calculateMarginPercent,
+  calculateMarkupPercent,
+  slugify,
+} from "@/lib/products/format";
 import type { CategoryOptionDto, ProductDetailDto } from "@/types/products";
 import type { KinguinSearchHitDto } from "@/types/kinguin-admin";
 import type { SmmServiceListItemDto } from "@/types/smm-provider";
@@ -224,16 +228,17 @@ export function ProductForm({
     ProductTranslateField | "all" | null
   >(null);
 
-  const margin = useMemo(() => {
+  const pricingStats = useMemo(() => {
     const price = Number.parseFloat(form.price.replace(",", "."));
     const costRaw = form.sourceCostPrice.trim();
     const cost =
       costRaw === "" ? null : Number.parseFloat(costRaw.replace(",", "."));
-    const value = calculateMarginPercent(
-      Number.isFinite(price) ? price : 0,
-      cost != null && Number.isFinite(cost) ? cost : null,
-    );
-    return value;
+    const safePrice = Number.isFinite(price) ? price : 0;
+    const safeCost = cost != null && Number.isFinite(cost) ? cost : null;
+    return {
+      markup: calculateMarkupPercent(safePrice, safeCost),
+      margin: calculateMarginPercent(safePrice, safeCost),
+    };
   }, [form.price, form.sourceCostPrice]);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -1101,11 +1106,26 @@ export function ProductForm({
                   }
                 />
               </div>
-              <div className="rounded-2xl bg-muted/60 px-3 py-2 text-sm">
-                Margen:{" "}
-                <span className="font-medium">
-                  {margin == null ? "—" : `${margin.toFixed(1)}%`}
-                </span>
+              <div className="space-y-1 rounded-2xl bg-muted/60 px-3 py-2 text-sm">
+                <p>
+                  Markup (sobre costo):{" "}
+                  <span className="font-medium">
+                    {pricingStats.markup == null
+                      ? "—"
+                      : `${pricingStats.markup.toFixed(1)}%`}
+                  </span>
+                </p>
+                <p>
+                  Margen (sobre precio):{" "}
+                  <span className="font-medium">
+                    {pricingStats.margin == null
+                      ? "—"
+                      : `${pricingStats.margin.toFixed(1)}%`}
+                  </span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Markup 40% ≈ margen 28,6%. El % guardado en sync es el markup.
+                </p>
               </div>
             </CardContent>
           </Card>

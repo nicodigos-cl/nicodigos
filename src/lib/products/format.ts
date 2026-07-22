@@ -25,6 +25,10 @@ export function formatMoney(
   }
 }
 
+/**
+ * Gross margin on selling price: (price − cost) / price × 100.
+ * A 40% markup on cost ≈ 28.6% margin on price.
+ */
 export function calculateMarginPercent(
   price: number,
   cost: number | null,
@@ -38,6 +42,25 @@ export function calculateMarginPercent(
   }
 
   return ((price - cost) / price) * 100;
+}
+
+/**
+ * Markup on cost: (price − cost) / cost × 100.
+ * Matches stored `kinguinMarkupPct` / `smmMarkupPct` (price ≈ cost × (1 + markup/100)).
+ */
+export function calculateMarkupPercent(
+  price: number,
+  cost: number | null,
+): number | null {
+  if (cost == null || !Number.isFinite(cost) || !Number.isFinite(price)) {
+    return null;
+  }
+
+  if (cost === 0) {
+    return null;
+  }
+
+  return ((price - cost) / cost) * 100;
 }
 
 export function slugify(value: string): string {
