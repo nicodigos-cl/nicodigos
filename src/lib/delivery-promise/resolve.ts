@@ -9,6 +9,8 @@ import {
   calculateDeliveryPromise,
   type DeliveryPromiseEstimate,
 } from "@/lib/delivery-promise/calculate";
+import { resolveKinguinUnitCostEur } from "@/lib/delivery-promise/kinguin-cost";
+import { getEurToClpRate } from "@/lib/fx/eur-clp";
 import { resolvePersistedOfferQty } from "@/lib/kinguin/offers";
 import { getProductStock } from "@/lib/products/stock";
 import { getKinguinBalance } from "@/lib/providers/kinguin-balance";
@@ -39,7 +41,12 @@ export async function resolveDeliveryPromiseForProduct(
       offers: {
         where: { isDefault: true },
         take: 1,
-        select: { availableQty: true, qty: true, textQty: true },
+        select: {
+          availableQty: true,
+          qty: true,
+          textQty: true,
+          price: true,
+        },
       },
       _count: { select: { keys: true } },
     },
@@ -88,23 +95,32 @@ export async function resolveDeliveryPromiseForProduct(
     smmMax: product.smmMax,
   });
 
-  const [kinguinBalance, smmBalance] = await Promise.all([
-    product.deliveryMethod === "KINGUIN"
-      ? getKinguinBalance()
-      : Promise.resolve(null),
+  const needsKinguinCost = product.deliveryMethod === "KINGUIN";
+  const [kinguinBalance, smmBalance, eurClpRate] = await Promise.all([
+    needsKinguinCost ? getKinguinBalance() : Promise.resolve(null),
     product.deliveryMethod === "SMM" && product.smmApiUrl
       ? getSmmProviderBalanceByApiUrl(product.smmApiUrl)
       : Promise.resolve(null),
+    needsKinguinCost ? getEurToClpRate().catch(() => null) : Promise.resolve(null),
   ]);
+
+  const offerPriceEur = defaultOffer
+    ? Number.parseFloat(defaultOffer.price.toString())
+    : null;
+  const sourceCostClp = product.sourceCostPrice
+    ? Number.parseFloat(product.sourceCostPrice.toString())
+    : null;
 
   const estimate = calculateDeliveryPromise({
     product: {
       deliveryMethod: product.deliveryMethod,
       quantity: input.quantity,
       stockAvailable: stock.available,
-      sourceCostEur: product.sourceCostPrice
-        ? Number.parseFloat(product.sourceCostPrice.toString())
-        : null,
+      sourceCostEur: resolveKinguinUnitCostEur({
+        offerPriceEur,
+        sourceCostClp,
+        eurClpRate,
+      }),
       smmRateUsd: product.smmRate
         ? Number.parseFloat(product.smmRate.toString())
         : null,

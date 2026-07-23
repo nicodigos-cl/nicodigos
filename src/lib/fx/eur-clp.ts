@@ -77,3 +77,31 @@ export async function eurToClp(amountEur: number): Promise<number> {
   const rate = await getEurToClpRate();
   return Math.round(amountEur * rate);
 }
+
+/** Convert CLP amount to EUR using the cached FX rate. */
+export async function clpToEur(amountClp: number): Promise<number | null> {
+  if (!Number.isFinite(amountClp) || amountClp < 0) {
+    return null;
+  }
+  const rate = await getEurToClpRate();
+  if (!Number.isFinite(rate) || rate <= 0) {
+    return null;
+  }
+  return amountClp / rate;
+}
+
+/** Pure CLP→EUR conversion when the rate is already known. */
+export function clpToEurWithRate(
+  amountClp: number,
+  eurClpRate: number,
+): number | null {
+  if (
+    !Number.isFinite(amountClp) ||
+    amountClp < 0 ||
+    !Number.isFinite(eurClpRate) ||
+    eurClpRate <= 0
+  ) {
+    return null;
+  }
+  return amountClp / eurClpRate;
+}

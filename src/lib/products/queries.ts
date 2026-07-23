@@ -8,11 +8,7 @@ import { smmUsesPerThousandPricing } from "@/lib/products/smm-pricing";
 import { getProductStock } from "@/lib/products/stock";
 import { getVisualProductStatus } from "@/lib/products/status";
 import { BULK_EXPORT_SELECTION_LIMIT } from "@/lib/smm-services/constants";
-import {
-  canAffordKinguinPurchase,
-  getCachedKinguinBalance,
-  getCachedKinguinRegionName,
-} from "@/lib/kinguin/balance";
+import { getCachedKinguinRegionName } from "@/lib/kinguin/balance";
 import { evaluateChileCompatibility } from "@/lib/kinguin/chile-compatibility";
 import { resolvePersistedOfferQty } from "@/lib/kinguin/offers";
 import {
@@ -20,6 +16,8 @@ import {
   deliveryPromiseCustomerCopy,
   deliveryPromiseLabel,
 } from "@/lib/delivery-promise/calculate";
+import { resolveKinguinUnitCostEur } from "@/lib/delivery-promise/kinguin-cost";
+import { getEurToClpRate } from "@/lib/fx/eur-clp";
 import { getKinguinBalance } from "@/lib/providers/kinguin-balance";
 import { getSmmProviderBalanceByApiUrl } from "@/lib/providers/smm-balance";
 import type { ProviderBalanceSnapshot } from "@/lib/providers/balance-types";
@@ -823,7 +821,7 @@ const storeProductCardSelect = {
   offers: {
     where: { isDefault: true },
     take: 1,
-    select: { availableQty: true, qty: true, textQty: true },
+    select: { availableQty: true, qty: true, textQty: true, price: true },
   },
   _count: { select: { keys: true } },
 } as const;
@@ -853,6 +851,7 @@ async function enrichStoreProductCards(
       availableQty: number | null;
       qty: number;
       textQty: number;
+      price: { toString(): string };
     }>;
     _count: { keys: number };
   }>,
@@ -868,8 +867,9 @@ async function enrichStoreProductCards(
     ),
   ];
 
-  const [kinguinBalance, ...smmBalances] = await Promise.all([
+  const [kinguinBalance, eurClpRate, ...smmBalances] = await Promise.all([
     needsKinguin ? getKinguinBalance() : Promise.resolve(null),
+    needsKinguin ? getEurToClpRate().catch(() => null) : Promise.resolve(null),
     ...smmUrls.map((url) => getSmmProviderBalanceByApiUrl(url)),
   ]);
 
@@ -912,14 +912,23 @@ async function enrichStoreProductCards(
       smmMax: product.smmMax,
     });
 
+    const offerPriceEur = defaultOffer
+      ? Number.parseFloat(defaultOffer.price.toString())
+      : null;
+    const sourceCostClp = product.sourceCostPrice
+      ? Number.parseFloat(product.sourceCostPrice.toString())
+      : null;
+
     const estimate = calculateDeliveryPromise({
       product: {
         deliveryMethod: product.deliveryMethod,
         quantity: 1,
         stockAvailable: stock.available,
-        sourceCostEur: product.sourceCostPrice
-          ? Number.parseFloat(product.sourceCostPrice.toString())
-          : null,
+        sourceCostEur: resolveKinguinUnitCostEur({
+          offerPriceEur,
+          sourceCostClp,
+          eurClpRate,
+        }),
         smmRateUsd: product.smmRate
           ? Number.parseFloat(product.smmRate.toString())
           : null,
@@ -1304,7 +1313,7 @@ export async function getStoreProductBySlug(
       },
       offers: {
         where: { isDefault: true },
-        select: { availableQty: true, qty: true, textQty: true },
+        select: { availableQty: true, qty: true, textQty: true, price: true },
         take: 1,
       },
     },
@@ -1343,16 +1352,20 @@ export async function getStoreProductBySlug(
   });
 
   const isKinguin = product.deliveryMethod === "KINGUIN";
-  const sourceCostEur = decimalToString(product.sourceCostPrice);
-  const sourceCostNumber =
-    sourceCostEur != null ? Number.parseFloat(sourceCostEur) : null;
+  const offerPriceEur = defaultOffer
+    ? Number.parseFloat(defaultOffer.price.toString())
+    : null;
+  const sourceCostClp = product.sourceCostPrice
+    ? Number.parseFloat(product.sourceCostPrice.toString())
+    : null;
 
-  const [kinguinBalance, regionName, smmBalance] = await Promise.all([
+  const [kinguinBalance, regionName, smmBalance, eurClpRate] = await Promise.all([
     isKinguin ? getKinguinBalance() : Promise.resolve(null),
     getCachedKinguinRegionName(product.regionId),
     product.deliveryMethod === "SMM" && product.smmApiUrl
       ? getSmmProviderBalanceByApiUrl(product.smmApiUrl)
       : Promise.resolve(null),
+    isKinguin ? getEurToClpRate().catch(() => null) : Promise.resolve(null),
   ]);
 
   const promiseEstimate = calculateDeliveryPromise({
@@ -1360,7 +1373,11 @@ export async function getStoreProductBySlug(
       deliveryMethod: product.deliveryMethod,
       quantity: 1,
       stockAvailable: stock.available,
-      sourceCostEur: sourceCostNumber,
+      sourceCostEur: resolveKinguinUnitCostEur({
+        offerPriceEur,
+        sourceCostClp,
+        eurClpRate,
+      }),
       smmRateUsd: product.smmRate
         ? Number.parseFloat(product.smmRate.toString())
         : null,

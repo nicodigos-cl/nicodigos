@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { calculateDeliveryPromise } from "@/lib/delivery-promise/calculate";
+import { resolveKinguinUnitCostEur } from "@/lib/delivery-promise/kinguin-cost";
 import type { ProviderBalanceSnapshot } from "@/lib/providers/balance-types";
 import { deriveOrderLivePhase } from "@/lib/order-live/phase";
 import { canTransitionPaymentStatus } from "@/lib/transactions/status";
@@ -21,7 +22,47 @@ function balance(
   };
 }
 
+describe("resolveKinguinUnitCostEur", () => {
+  test("prefers offer EUR price over CLP source cost", () => {
+    expect(
+      resolveKinguinUnitCostEur({
+        offerPriceEur: 4.5,
+        sourceCostClp: 4500,
+        eurClpRate: 1000,
+      }),
+    ).toBe(4.5);
+  });
+
+  test("converts CLP source cost with FX when offer is missing", () => {
+    expect(
+      resolveKinguinUnitCostEur({
+        offerPriceEur: null,
+        sourceCostClp: 9000,
+        eurClpRate: 1000,
+      }),
+    ).toBe(9);
+  });
+});
+
 describe("delivery promise", () => {
+  test("marks Kinguin as instant when balance covers EUR cost from CLP conversion", () => {
+    const unitEur = resolveKinguinUnitCostEur({
+      sourceCostClp: 12000,
+      eurClpRate: 1000,
+    });
+    const result = calculateDeliveryPromise({
+      product: {
+        deliveryMethod: "KINGUIN",
+        quantity: 1,
+        stockAvailable: 5,
+        sourceCostEur: unitEur,
+      },
+      kinguinBalance: balance({ status: "AVAILABLE", balance: 20 }),
+    });
+    expect(result.promise).toBe("INSTANT");
+    expect(result.estimatedCostAmount).toBe(12);
+  });
+
   test("marks Kinguin as instant when balance covers cost", () => {
     const result = calculateDeliveryPromise({
       product: {
