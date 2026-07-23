@@ -112,6 +112,18 @@ export const importKinguinProductSchema = z.object({
     emptyToUndefined,
     z.string().trim().max(2000).optional(),
   ),
+  platform: z.preprocess(
+    emptyToUndefined,
+    z.string().trim().max(120).optional(),
+  ),
+  genres: z.preprocess(
+    emptyToUndefined,
+    z.array(z.string().trim().min(1).max(120)).max(50).optional(),
+  ),
+  languages: z.preprocess(
+    emptyToUndefined,
+    z.array(z.string().trim().min(1).max(120)).max(50).optional(),
+  ),
 });
 
 export type ImportKinguinProductInput = z.infer<
@@ -222,6 +234,18 @@ const bulkImportItemSchema = z.object({
   regionalLimitations: z.preprocess(
     emptyToUndefined,
     z.string().trim().max(2000).optional(),
+  ),
+  platform: z.preprocess(
+    emptyToUndefined,
+    z.string().trim().max(120).optional(),
+  ),
+  genres: z.preprocess(
+    emptyToUndefined,
+    z.array(z.string().trim().min(1).max(120)).max(50).optional(),
+  ),
+  languages: z.preprocess(
+    emptyToUndefined,
+    z.array(z.string().trim().min(1).max(120)).max(50).optional(),
   ),
   price: clpPriceStringSchema,
   markupPct: z.coerce

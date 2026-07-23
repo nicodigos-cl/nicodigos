@@ -21,6 +21,22 @@ const priceSchema = z
   .transform((value) => String(value).trim().replace(",", "."))
   .pipe(z.string().regex(/^\d+(\.\d{1,4})?$/, "Monto inválido"));
 
+const stringArraySchema = z.preprocess((value) => {
+  if (value === "" || value === null || value === undefined) return undefined;
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item).trim())
+      .filter((item) => item.length > 0);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  }
+  return undefined;
+}, z.array(z.string().min(1).max(120)).max(50).optional());
+
 export const importProductItemSchema = z.object({
   name: z.string().trim().min(1).max(200),
   slug: z.preprocess(
@@ -35,7 +51,7 @@ export const importProductItemSchema = z.object({
   ),
   description: z.preprocess(
     emptyToUndefined,
-    z.string().trim().max(10000).optional(),
+    z.string().trim().max(50000).optional(),
   ),
   price: priceSchema,
   deliveryMethod: z.preprocess(
@@ -69,6 +85,28 @@ export const importProductItemSchema = z.object({
   textQty: z.preprocess(
     emptyToUndefined,
     z.coerce.number().int().min(0).optional(),
+  ),
+  /** Translated / catalog text fields (same set as PRODUCT_TRANSLATE_FIELDS). */
+  platform: z.preprocess(
+    emptyToUndefined,
+    z.string().trim().max(120).optional(),
+  ),
+  regionalLimitations: z.preprocess(
+    emptyToUndefined,
+    z.string().trim().max(2000).optional(),
+  ),
+  activationDetails: z.preprocess(
+    emptyToUndefined,
+    z.string().trim().max(10000).optional(),
+  ),
+  genres: stringArraySchema,
+  languages: stringArraySchema,
+  developers: stringArraySchema,
+  publishers: stringArraySchema,
+  tags: stringArraySchema,
+  originalName: z.preprocess(
+    emptyToUndefined,
+    z.string().trim().max(300).optional(),
   ),
   assets: assetsInputSchema.optional().default([]),
   /** SMM panel wiring (required for fulfillment when deliveryMethod=SMM). */

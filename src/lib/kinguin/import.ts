@@ -295,6 +295,14 @@ export async function importKinguinProduct(
     input.regionalLimitations !== undefined
       ? input.regionalLimitations.trim() || null
       : meta.regionalLimitations;
+  const productPlatform =
+    input.platform !== undefined
+      ? input.platform.trim() || null
+      : meta.platform;
+  const productGenres =
+    input.genres !== undefined ? input.genres : meta.genres;
+  const productLanguages =
+    input.languages !== undefined ? input.languages : meta.languages;
   const mirroredImages = await mirrorKinguinProductImages(remote);
 
   const productId = await prisma.$transaction(async (tx) => {
@@ -316,9 +324,9 @@ export async function importKinguinProduct(
         isOffer: false,
         isPreorder: meta.isPreorder,
         originalName: meta.originalName ?? meta.name,
-        platform: meta.platform,
-        genres: meta.genres,
-        languages: meta.languages,
+        platform: productPlatform,
+        genres: productGenres,
+        languages: productLanguages,
         developers: meta.developers,
         publishers: meta.publishers,
         tags: meta.tags,

@@ -47,21 +47,52 @@ function mapRemoteMeta(remote: KinguinProduct) {
   return {
     originalName: remote.originalName ?? remote.name,
     platform: remote.platform ?? null,
-    genres: remote.genres ?? [],
-    languages: remote.languages ?? [],
     developers: remote.developers ?? [],
     publishers: remote.publishers ?? [],
     tags: remote.tags ?? [],
     regionId: remote.regionId ?? null,
-    regionalLimitations: remote.regionalLimitations ?? null,
     countryLimitation: remote.countryLimitation ?? [],
-    activationDetails: remote.activationDetails ?? null,
     ageRating: remote.ageRating ?? null,
     metacriticScore:
       typeof remote.metacriticScore === "number"
         ? Math.round(remote.metacriticScore)
         : null,
     releaseDate: parseReleaseDate(remote.releaseDate),
+  };
+}
+
+/** Catalog text that may be translated locally — only fill when empty (unless forced). */
+function catalogTextUpdate(
+  input: {
+    regionalLimitations: string | null;
+    activationDetails: string | null;
+    genres: string[];
+    languages: string[];
+    remote: KinguinProduct;
+  },
+  force = false,
+) {
+  if (force) {
+    return {
+      regionalLimitations: input.remote.regionalLimitations ?? null,
+      activationDetails: input.remote.activationDetails ?? null,
+      genres: input.remote.genres ?? [],
+      languages: input.remote.languages ?? [],
+    };
+  }
+  return {
+    ...(!input.regionalLimitations?.trim()
+      ? { regionalLimitations: input.remote.regionalLimitations ?? null }
+      : {}),
+    ...(!input.activationDetails?.trim()
+      ? { activationDetails: input.remote.activationDetails ?? null }
+      : {}),
+    ...(input.genres.length === 0
+      ? { genres: input.remote.genres ?? [] }
+      : {}),
+    ...(input.languages.length === 0
+      ? { languages: input.remote.languages ?? [] }
+      : {}),
   };
 }
 
@@ -72,14 +103,21 @@ const TX_OPTIONS = {
   timeout: 60_000,
 } as const;
 
-async function syncOneProduct(product: {
-  id: string;
-  kinguinId: number;
-  price: { toString(): string };
-  currency: string;
-  kinguinMarkupPct: { toString(): string } | null;
-  status: ProductStatus;
-}): Promise<SyncKinguinProductResult> {
+async function syncOneProduct(
+  product: {
+    id: string;
+    kinguinId: number;
+    price: { toString(): string };
+    currency: string;
+    kinguinMarkupPct: { toString(): string } | null;
+    status: ProductStatus;
+    regionalLimitations: string | null;
+    activationDetails: string | null;
+    genres: string[];
+    languages: string[];
+  },
+  options?: { forceCatalogText?: boolean },
+): Promise<SyncKinguinProductResult> {
   const client = getKinguinClient();
   const base: SyncKinguinProductResult = {
     productId: product.id,
@@ -127,6 +165,16 @@ async function syncOneProduct(product: {
         qty: 0,
         kinguinSyncedAt: new Date(),
         ...meta,
+        ...catalogTextUpdate(
+          {
+            regionalLimitations: product.regionalLimitations,
+            activationDetails: product.activationDetails,
+            genres: product.genres,
+            languages: product.languages,
+            remote,
+          },
+          options?.forceCatalogText,
+        ),
       },
     });
     return { ...base, status: "archived", detailsUpdated: true };
@@ -215,6 +263,16 @@ async function syncOneProduct(product: {
           sourceCostPrice: costClp,
           status: nextStatus,
           ...meta,
+          ...catalogTextUpdate(
+            {
+              regionalLimitations: product.regionalLimitations,
+              activationDetails: product.activationDetails,
+              genres: product.genres,
+              languages: product.languages,
+              remote,
+            },
+            options?.forceCatalogText,
+          ),
           ...(shouldReprice ? { price: nextPrice } : {}),
         },
       });
@@ -244,6 +302,10 @@ const productSyncSelect = {
   currency: true,
   kinguinMarkupPct: true,
   status: true,
+  regionalLimitations: true,
+  activationDetails: true,
+  genres: true,
+  languages: true,
 } as const;
 
 /** Sync one locally imported Kinguin product (offers, cost, region/details). */
@@ -275,6 +337,10 @@ export async function syncKinguinProductById(
     currency: product.currency,
     kinguinMarkupPct: product.kinguinMarkupPct,
     status: product.status,
+    regionalLimitations: product.regionalLimitations,
+    activationDetails: product.activationDetails,
+    genres: product.genres,
+    languages: product.languages,
   });
 }
 
@@ -320,6 +386,10 @@ export async function syncKinguinProductsByIds(
         currency: product.currency,
         kinguinMarkupPct: product.kinguinMarkupPct,
         status: product.status,
+        regionalLimitations: product.regionalLimitations,
+        activationDetails: product.activationDetails,
+        genres: product.genres,
+        languages: product.languages,
       }),
     );
   }
@@ -344,7 +414,9 @@ export async function syncKinguinProductsByIds(
 }
 
 /** Sync all locally imported Kinguin products (not the full remote catalog). */
-export async function syncAllKinguinProducts(): Promise<SyncAllKinguinProductsResult> {
+export async function syncAllKinguinProducts(options?: {
+  forceCatalogText?: boolean;
+}): Promise<SyncAllKinguinProductsResult> {
   // Warm FX once so per-product eurToClp hits cache under concurrent pool load.
   await getEurToClpRate();
 
@@ -361,14 +433,21 @@ export async function syncAllKinguinProducts(): Promise<SyncAllKinguinProductsRe
 
   for (const product of products) {
     if (product.kinguinId == null) continue;
-    const result = await syncOneProduct({
-      id: product.id,
-      kinguinId: product.kinguinId,
-      price: product.price,
-      currency: product.currency,
-      kinguinMarkupPct: product.kinguinMarkupPct,
-      status: product.status,
-    });
+    const result = await syncOneProduct(
+      {
+        id: product.id,
+        kinguinId: product.kinguinId,
+        price: product.price,
+        currency: product.currency,
+        kinguinMarkupPct: product.kinguinMarkupPct,
+        status: product.status,
+        regionalLimitations: product.regionalLimitations,
+        activationDetails: product.activationDetails,
+        genres: product.genres,
+        languages: product.languages,
+      },
+      options,
+    );
     results.push(result);
   }
 

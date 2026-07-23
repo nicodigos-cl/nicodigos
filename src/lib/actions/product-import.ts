@@ -297,6 +297,21 @@ export async function importProductsAction(
                   kinguinSyncedAt: new Date(),
                 }
               : {}),
+            ...(item.platform != null ? { platform: item.platform } : {}),
+            ...(item.regionalLimitations != null
+              ? { regionalLimitations: item.regionalLimitations }
+              : {}),
+            ...(item.activationDetails != null
+              ? { activationDetails: item.activationDetails }
+              : {}),
+            ...(item.genres != null ? { genres: item.genres } : {}),
+            ...(item.languages != null ? { languages: item.languages } : {}),
+            ...(item.developers != null ? { developers: item.developers } : {}),
+            ...(item.publishers != null ? { publishers: item.publishers } : {}),
+            ...(item.tags != null ? { tags: item.tags } : {}),
+            ...(item.originalName != null
+              ? { originalName: item.originalName }
+              : {}),
             categories:
               categoryIds.length > 0
                 ? {

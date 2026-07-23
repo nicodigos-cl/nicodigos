@@ -115,6 +115,8 @@ export type TranslatedKinguinItem = {
   descriptionEs: string;
   activationDetailsEs: string;
   regionalLimitationsEs: string;
+  genresEs: string;
+  languagesEs: string;
 };
 
 export async function getKinguinProductPreviewAction(
@@ -217,27 +219,11 @@ export async function priceKinguinProductsAction(
   }
 }
 
-function buildKinguinExportDescription(input: {
-  name: string;
-  platform: string | null | undefined;
-  description: string | null | undefined;
-  priceEur: number | null;
-  kinguinId: number;
-}): string {
-  const lines = [
-    input.description?.trim() || null,
-    input.platform ? `Plataforma: ${input.platform}` : null,
-    input.priceEur != null ? `Precio origen: EUR ${input.priceEur.toFixed(2)}` : null,
-    `Kinguin ID: ${input.kinguinId}`,
-  ].filter((line): line is string => Boolean(line));
-
-  return lines.join("\n\n").slice(0, 10000);
-}
-
 /**
  * Maps selected Kinguin hits → product-import JSON items (admin/products).
  * Prices use random markup between min/max and EUR→CLP FX.
  * Mirrors cover/screenshots to R2 and includes YouTube videos + source cost.
+ * Includes all PRODUCT_TRANSLATE_FIELDS so paste-import can persist them.
  */
 export async function exportKinguinAsProductsAction(
   rawInput: unknown,
@@ -313,13 +299,7 @@ export async function exportKinguinAsProductsAction(
           return {
             name,
             slug: `${baseSlug.slice(0, 100)}-${hit.kinguinId}`,
-            description: buildKinguinExportDescription({
-              name,
-              platform: product?.platform ?? null,
-              description: product?.description ?? null,
-              priceEur,
-              kinguinId: hit.kinguinId,
-            }),
+            description: product?.description?.trim() || undefined,
             price: String(priceClp),
             sourceCostPrice: String(costClp),
             deliveryMethod: "KINGUIN" as const,
@@ -332,6 +312,24 @@ export async function exportKinguinAsProductsAction(
               Number.isFinite(product.textQty)
                 ? Math.max(0, Math.floor(product.textQty))
                 : undefined,
+            platform: product?.platform ?? undefined,
+            regionalLimitations:
+              product?.regionalLimitations?.trim() || undefined,
+            activationDetails:
+              product?.activationDetails?.trim() || undefined,
+            genres: product?.genres?.length ? product.genres : undefined,
+            languages: product?.languages?.length
+              ? product.languages
+              : undefined,
+            developers: product?.developers?.length
+              ? product.developers
+              : undefined,
+            publishers: product?.publishers?.length
+              ? product.publishers
+              : undefined,
+            tags: product?.tags?.length ? product.tags : undefined,
+            originalName:
+              product?.originalName?.trim() || product?.name || undefined,
             kinguinId: hit.kinguinId,
             kinguinProductId: product?.productId,
             kinguinMarkupPct: markupPct,
@@ -397,6 +395,8 @@ export async function translateKinguinProductsAction(
           description: product.description ?? "",
           activationDetails: product.activationDetails ?? "",
           regionalLimitations: product.regionalLimitations ?? "",
+          genres: (product.genres ?? []).join(", "),
+          languages: (product.languages ?? []).join(", "),
         },
       })),
     );
@@ -417,6 +417,11 @@ export async function translateKinguinProductsAction(
             translated?.regionalLimitations?.trim() ||
             product.regionalLimitations ||
             "",
+          genresEs:
+            translated?.genres?.trim() || (product.genres ?? []).join(", "),
+          languagesEs:
+            translated?.languages?.trim() ||
+            (product.languages ?? []).join(", "),
         };
       },
     );
@@ -512,6 +517,9 @@ export async function importKinguinProductsBulkAction(
               description: item.description,
               activationDetails: item.activationDetails,
               regionalLimitations: item.regionalLimitations,
+              platform: item.platform,
+              genres: item.genres,
+              languages: item.languages,
               price: item.price,
               sourceCostPrice: item.sourceCostPrice,
             });
