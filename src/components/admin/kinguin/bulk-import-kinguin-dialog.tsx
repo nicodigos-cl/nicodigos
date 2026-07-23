@@ -6,6 +6,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { HiOutlineSparkles } from "react-icons/hi";
 import { toast } from "sonner";
 
+import { CategoryCombobox } from "@/components/admin/category-combobox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/data-table";
@@ -30,7 +31,6 @@ import {
 } from "@/lib/smm-services/constants";
 import type { CategoryOptionDto } from "@/types/products";
 import type { KinguinSearchHitDto } from "@/types/kinguin-admin";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
 type BulkImportKinguinDialogProps = {
   open: boolean;
@@ -47,6 +47,9 @@ type DraftRow = {
   description: string;
   activationDetails: string;
   regionalLimitations: string;
+  genres: string[];
+  languages: string[];
+  platform: string;
   markupPct: string;
   price: string;
   sourceCostPrice: string;
@@ -151,6 +154,9 @@ export function BulkImportKinguinDialog({
           description: "",
           activationDetails: "",
           regionalLimitations: hit.regionalLimitations ?? "",
+          genres: [],
+          languages: [],
+          platform: hit.platform ?? "",
           markupPct: "",
           price: "0",
           sourceCostPrice: "0",
@@ -171,17 +177,6 @@ export function BulkImportKinguinDialog({
     }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, hits]);
-
-  const categoryItems = useMemo(
-    () => [
-      { value: "", label: "Sin categoría" },
-      ...categories.map((category) => ({
-        value: category.id,
-        label: category.name,
-      })),
-    ],
-    [categories],
-  );
 
   function handleTranslate() {
     if (anyBusy) return;
@@ -209,6 +204,18 @@ export function BulkImportKinguinDialog({
               description: translated.descriptionEs,
               activationDetails: translated.activationDetailsEs,
               regionalLimitations: translated.regionalLimitationsEs,
+              genres: translated.genresEs
+                ? translated.genresEs
+                    .split(/[\n,]/)
+                    .map((item) => item.trim())
+                    .filter(Boolean)
+                : row.genres,
+              languages: translated.languagesEs
+                ? translated.languagesEs
+                    .split(/[\n,]/)
+                    .map((item) => item.trim())
+                    .filter(Boolean)
+                : row.languages,
             };
           }),
         );
@@ -237,6 +244,9 @@ export function BulkImportKinguinDialog({
             description: row.description || undefined,
             activationDetails: row.activationDetails || undefined,
             regionalLimitations: row.regionalLimitations || undefined,
+            platform: row.platform || undefined,
+            genres: row.genres.length > 0 ? row.genres : undefined,
+            languages: row.languages.length > 0 ? row.languages : undefined,
             price: row.price,
             markupPct: row.markupPct ? Number(row.markupPct) : undefined,
             sourceCostPrice: row.sourceCostPrice,
@@ -405,21 +415,14 @@ export function BulkImportKinguinDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="kinguinBulkCategory">Categoría</Label>
-              <NativeSelect
+              <CategoryCombobox
                 id="kinguinBulkCategory"
+                categories={categories}
                 value={categoryId}
-                onChange={(event) => setCategoryId(event.target.value)}
-              >
-                {categoryItems.map((item) => (
-                  <NativeSelectOption
-                    key={item.value || "none"}
-                    value={item.value}
-                    data-slot="native-select-option"
-                  >
-                    {item.label}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
+                onChange={setCategoryId}
+                disabled={anyBusy}
+                placeholder="Buscar categoría…"
+              />
             </div>
           </div>
 

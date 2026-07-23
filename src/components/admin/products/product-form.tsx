@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 
 import { AssetField } from "@/components/admin/asset-field";
+import { CategoryCombobox } from "@/components/admin/category-combobox";
 import { ProductStatusBadge } from "@/components/admin/products/product-status-badge";
 import { KinguinProductPicker } from "@/components/admin/products/kinguin-product-picker";
 import { SmmServicePicker } from "@/components/admin/products/smm-service-picker";
@@ -365,18 +366,6 @@ export function ProductForm({
     setKinguinId(null);
   }
 
-  function toggleCategory(categoryId: string) {
-    setForm((prev) => {
-      const exists = prev.categoryIds.includes(categoryId);
-      return {
-        ...prev,
-        categoryIds: exists
-          ? prev.categoryIds.filter((id) => id !== categoryId)
-          : [...prev.categoryIds, categoryId],
-      };
-    });
-  }
-
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFieldErrors({});
@@ -660,31 +649,16 @@ export function ProductForm({
                 </div>
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Categorías</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {categories.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        No hay categorías creadas.
-                      </p>
-                    ) : (
-                      categories.map((category) => {
-                        const selected = form.categoryIds.includes(category.id);
-                        return (
-                          <button
-                            key={category.id}
-                            type="button"
-                            onClick={() => toggleCategory(category.id)}
-                            className={
-                              selected
-                                ? "rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
-                                : "rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground hover:bg-muted"
-                            }
-                          >
-                            {category.name}
-                          </button>
-                        );
-                      })
-                    )}
-                  </div>
+                  <CategoryCombobox
+                    multiple
+                    categories={categories}
+                    value={form.categoryIds}
+                    onChange={(categoryIds) =>
+                      setForm((prev) => ({ ...prev, categoryIds }))
+                    }
+                    disabled={isPending}
+                    placeholder="Buscar o seleccionar categorías…"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Método de entrega</Label>

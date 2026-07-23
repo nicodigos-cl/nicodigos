@@ -13,11 +13,13 @@ import { deleteImageFromR2 } from "@/lib/r2";
 import type { AssetInput } from "@/lib/validations/assets";
 import {
   createCategorySchema,
+  createQuickCategorySchema,
   deleteCategorySchema,
   reorderCategoriesSchema,
   updateCategorySchema,
 } from "@/lib/validations/categories";
 import type { CategoryDetailDto } from "@/types/categories";
+import type { CategoryOptionDto } from "@/types/products";
 
 function unauthorized<T>(): ActionResult<T> {
   return { success: false, message: "No autorizado. Inicia sesión para continuar." };
@@ -121,9 +123,94 @@ export async function createCategoryAction(rawInput: unknown): Promise<ActionRes
     });
     revalidatePath("/admin/categories");
     revalidatePath("/admin/products");
+    revalidatePath("/admin/kinguin");
+    revalidatePath("/admin/services");
     return { success: true, data: category };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return { success: false, message: "Ya existe una categoría con ese slug.", fieldErrors: { slug: ["Slug duplicado"] } };
+    return { success: false, message: "No se pudo crear la categoría." };
+  }
+}
+
+/** Create a category with only a name (for product pickers). */
+export async function createQuickCategoryAction(
+  rawInput: unknown,
+): Promise<ActionResult<CategoryOptionDto>> {
+  if (!(await requireSession())) return unauthorized();
+  const parsed = createQuickCategorySchema.safeParse(rawInput);
+  if (!parsed.success) return validationError(parsed.error);
+
+  const data = parsed.data;
+  const parentError = await assertValidParent(data.parentId);
+  if (parentError) return parentError;
+
+  const baseSlug = slugify(data.name) || "categoria";
+
+  try {
+    const category = await prisma.$transaction(async (tx) => {
+      const parentId = data.parentId ?? null;
+      const siblingAgg = await tx.category.aggregate({
+        where: { parentId },
+        _max: { sortOrder: true },
+      });
+      const sortOrder = (siblingAgg._max.sortOrder ?? -1) + 1;
+
+      let slug = baseSlug.slice(0, 110);
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const candidate = attempt === 0 ? slug : `${slug}-${attempt + 1}`;
+        const existing = await tx.category.findUnique({
+          where: { slug: candidate },
+          select: { id: true },
+        });
+        if (!existing) {
+          slug = candidate;
+          break;
+        }
+        if (attempt === 19) {
+          slug = `${slug}-${Date.now().toString(36)}`;
+        }
+      }
+
+      const created = await tx.category.create({
+        data: {
+          name: data.name,
+          slug,
+          parentId,
+          sortOrder,
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          parent: { select: { name: true } },
+        },
+      });
+
+      return {
+        id: created.id,
+        name: created.parent
+          ? `${created.parent.name} · ${created.name}`
+          : created.name,
+        slug: created.slug,
+      };
+    });
+
+    revalidatePath("/admin/categories");
+    revalidatePath("/admin/products");
+    revalidatePath("/admin/kinguin");
+    revalidatePath("/admin/services");
+    return { success: true, data: category };
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return {
+        success: false,
+        message: "Ya existe una categoría con ese slug.",
+        fieldErrors: { name: ["Nombre/slug duplicado"] },
+      };
+    }
     return { success: false, message: "No se pudo crear la categoría." };
   }
 }

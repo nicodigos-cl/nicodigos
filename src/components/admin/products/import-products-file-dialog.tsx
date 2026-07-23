@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 
+import { CategoryCombobox } from "@/components/admin/category-combobox";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table";
 import {
@@ -24,7 +25,6 @@ import {
 import { PRODUCT_IMPORT_LIMIT } from "@/lib/validations/product-import";
 import type { ImportProductItem } from "@/lib/validations/product-import";
 import type { CategoryOptionDto } from "@/types/products";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
 type ImportMode = "json" | "csv";
 
@@ -47,17 +47,6 @@ export function ImportProductsFileDialog({
   const [items, setItems] = useState<ImportProductItem[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState("");
-
-  const categoryItems = useMemo(
-    () => [
-      { value: "", label: "Sin categoría" },
-      ...categories.map((category) => ({
-        value: category.id,
-        label: category.name,
-      })),
-    ],
-    [categories],
-  );
 
   function reset() {
     setItems([]);
@@ -182,17 +171,14 @@ export function ImportProductsFileDialog({
             <Label htmlFor="product-import-category">
               Categoría (opcional)
             </Label>
-            <NativeSelect
+            <CategoryCombobox
               id="product-import-category"
+              categories={categories}
               value={categoryId}
-              onChange={(event) => setCategoryId(event.target.value)}
-            >
-              {categoryItems.map((item) => (
-                <NativeSelectOption key={item.value || "none"} value={item.value} data-slot="native-select-option">
-                  {item.label}
-                </NativeSelectOption>
-              ))}
-              </NativeSelect>
+              onChange={setCategoryId}
+              disabled={isPending}
+              placeholder="Buscar categoría…"
+            />
           </div>
 
           {items.length > 0 ? (

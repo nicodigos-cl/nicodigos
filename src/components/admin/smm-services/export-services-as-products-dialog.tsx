@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { HiOutlineDownload } from "react-icons/hi";
 import { toast } from "sonner";
 
+import { CategoryCombobox } from "@/components/admin/category-combobox";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,10 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
 import { exportSmmServicesAsProductsAction } from "@/lib/actions/smm-service-products";
 import {
   DEFAULT_MARKUP_MAX_PCT,
@@ -66,17 +63,6 @@ export function ExportServicesAsProductsDialog({
     String(DEFAULT_MARKUP_MAX_PCT),
   );
   const [categoryId, setCategoryId] = useState("");
-
-  const categoryItems = useMemo(
-    () => [
-      { value: "", label: "Sin categoría" },
-      ...categories.map((category) => ({
-        value: category.id,
-        label: category.name,
-      })),
-    ],
-    [categories],
-  );
 
   useEffect(() => {
     if (!open) return;
@@ -152,21 +138,14 @@ export function ExportServicesAsProductsDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor="exportCategory">Categoría</Label>
-            <NativeSelect
+            <CategoryCombobox
               id="exportCategory"
-              className="w-full"
+              categories={categories}
               value={categoryId}
-              onChange={(event) => setCategoryId(event.target.value)}
-            >
-              {categoryItems.map((item) => (
-                <NativeSelectOption
-                  key={item.value || "none"}
-                  value={item.value}
-                >
-                  {item.label}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              onChange={setCategoryId}
+              disabled={isPending}
+              placeholder="Buscar categoría (opcional)…"
+            />
           </div>
         </div>
 

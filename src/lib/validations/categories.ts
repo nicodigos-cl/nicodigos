@@ -93,6 +93,17 @@ export const createCategorySchema = z.object(categoryBaseFields);
 
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 
+/** Lightweight create from product pickers — name only, no cover required. */
+export const createQuickCategorySchema = z.object({
+  name: z.string().trim().min(1, "El nombre es obligatorio").max(200),
+  parentId: z.preprocess(
+    emptyToNull,
+    z.union([z.string().cuid(), z.null()]).optional(),
+  ),
+});
+
+export type CreateQuickCategoryInput = z.infer<typeof createQuickCategorySchema>;
+
 export const updateCategorySchema = z.object({
   id: z.string().cuid(),
   ...categoryBaseFields,

@@ -17,6 +17,7 @@ import {
   DEFAULT_MARKUP_MIN_PCT,
 } from "@/lib/smm-services/constants";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CategoryCombobox } from "@/components/admin/category-combobox";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -159,14 +160,6 @@ export function ImportKinguinDialog({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, hit?.kinguinId]);
-
-  function toggleCategory(categoryId: string) {
-    setCategoryIds((prev) =>
-      prev.includes(categoryId)
-        ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId],
-    );
-  }
 
   function handleRecalculatePrices() {
     if (!hit || anyBusy) return;
@@ -413,29 +406,14 @@ export function ImportKinguinDialog({
 
           <div className="space-y-2">
             <Label>Categorías</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {categories.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Sin categorías</p>
-              ) : (
-                categories.map((category) => {
-                  const selected = categoryIds.includes(category.id);
-                  return (
-                    <button
-                      key={category.id}
-                      type="button"
-                      onClick={() => toggleCategory(category.id)}
-                      className={
-                        selected
-                          ? "rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
-                          : "rounded-full border border-border bg-background px-3 py-1 text-xs font-medium hover:bg-muted"
-                      }
-                    >
-                      {category.name}
-                    </button>
-                  );
-                })
-              )}
-            </div>
+            <CategoryCombobox
+              multiple
+              categories={categories}
+              value={categoryIds}
+              onChange={setCategoryIds}
+              disabled={anyBusy}
+              placeholder="Buscar o seleccionar categorías…"
+            />
           </div>
 
           <div className="space-y-2">

@@ -12,6 +12,7 @@ import {
 } from "react-icons/hi";
 import { toast } from "sonner";
 
+import { CategoryCombobox } from "@/components/admin/category-combobox";
 import { DataTable } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { importProductsAction } from "@/lib/actions/product-import";
 import { parseProductsJson } from "@/lib/products/parse-import";
@@ -94,17 +94,6 @@ export function ImportProductsPasteDialog({
   const parseState = useMemo(
     () => parseEditorText(deferredRaw),
     [deferredRaw],
-  );
-
-  const categoryItems = useMemo(
-    () => [
-      { value: "", label: "Sin categoría" },
-      ...categories.map((category) => ({
-        value: category.id,
-        label: category.name,
-      })),
-    ],
-    [categories],
   );
 
   const previewColumns: ColumnDef<ImportProductItem>[] = [
@@ -341,22 +330,14 @@ export function ImportProductsPasteDialog({
 
           <div className="space-y-2">
             <Label htmlFor="product-paste-category">Categoría (opcional)</Label>
-            <NativeSelect
+            <CategoryCombobox
               id="product-paste-category"
+              categories={categories}
               value={categoryId}
+              onChange={setCategoryId}
               disabled={isPending}
-              onChange={(event) => setCategoryId(event.target.value)}
-            >
-              {categoryItems.map((item) => (
-                <NativeSelectOption
-                  key={item.value || "none"}
-                  value={item.value}
-                  data-slot="native-select-option"
-                >
-                  {item.label}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              placeholder="Buscar categoría…"
+            />
           </div>
 
           {parseState.status === "valid" ? (

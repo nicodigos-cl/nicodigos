@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { HiOutlineSparkles } from "react-icons/hi";
 import { toast } from "sonner";
 
+import { CategoryCombobox } from "@/components/admin/category-combobox";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table";
 import {
@@ -84,17 +85,6 @@ export function BulkConvertServicesDialog({
       setMaxMarkupPct(String(DEFAULT_MARKUP_MAX_PCT));
     }, 0);
   }, [open, services]);
-
-  const categoryItems = useMemo(
-    () => [
-      { value: "", label: "Sin categoría" },
-      ...categories.map((category) => ({
-        value: category.id,
-        label: category.name,
-      })),
-    ],
-    [categories],
-  );
 
   function applyPrefill(items: PrefillServiceItem[]) {
     const byId = new Map(items.map((item) => [item.serviceId, item]));
@@ -292,18 +282,14 @@ export function BulkConvertServicesDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="bulkCategory">Categoría</Label>
-              <select
+              <CategoryCombobox
                 id="bulkCategory"
-                className="flex h-9 w-full rounded-2xl border border-input bg-transparent px-3 text-sm"
+                categories={categories}
                 value={categoryId}
-                onChange={(event) => setCategoryId(event.target.value)}
-              >
-                {categoryItems.map((item) => (
-                  <option key={item.value || "none"} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
+                onChange={setCategoryId}
+                disabled={anyBusy}
+                placeholder="Buscar categoría (opcional)…"
+              />
             </div>
           </div>
 

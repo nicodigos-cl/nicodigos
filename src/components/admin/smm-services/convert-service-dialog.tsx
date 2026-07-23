@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { HiOutlineSparkles } from "react-icons/hi";
 import { toast } from "sonner";
 
+import { CategoryCombobox } from "@/components/admin/category-combobox";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -58,15 +59,6 @@ export function ConvertServiceDialog({
   const [markupPct, setMarkupPct] = useState("");
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const anyBusy = busy != null;
-
-  const categoryOptions = useMemo(
-    () =>
-      categories.map((category) => ({
-        id: category.id,
-        label: category.name,
-      })),
-    [categories],
-  );
 
   function resetFromService(next: SmmServiceListItemDto | null) {
     if (!next) return;
@@ -288,34 +280,14 @@ export function ConvertServiceDialog({
 
           <div className="space-y-2">
             <Label>Categorías (opcional)</Label>
-            <div className="max-h-36 space-y-1 overflow-y-auto rounded-xl border border-border p-2">
-              {categoryOptions.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Sin categorías</p>
-              ) : (
-                categoryOptions.map((category) => {
-                  const checked = categoryIds.includes(category.id);
-                  return (
-                    <label
-                      key={category.id}
-                      className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-muted"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          setCategoryIds((prev) =>
-                            checked
-                              ? prev.filter((id) => id !== category.id)
-                              : [...prev, category.id],
-                          );
-                        }}
-                      />
-                      <span className="truncate">{category.label}</span>
-                    </label>
-                  );
-                })
-              )}
-            </div>
+            <CategoryCombobox
+              multiple
+              categories={categories}
+              value={categoryIds}
+              onChange={setCategoryIds}
+              disabled={anyBusy}
+              placeholder="Buscar o seleccionar categorías…"
+            />
           </div>
 
           <p className="text-xs text-muted-foreground">

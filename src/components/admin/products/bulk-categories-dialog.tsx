@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { HiOutlineFolder } from "react-icons/hi";
 import { toast } from "sonner";
 
+import { CategoryCombobox } from "@/components/admin/category-combobox";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { bulkUpdateProductCategoriesAction } from "@/lib/actions/products-bulk";
-import { cn } from "@/lib/utils";
 import type { CategoryOptionDto } from "@/types/products";
 
 type BulkCategoriesDialogProps = {
@@ -49,14 +49,6 @@ export function BulkCategoriesDialog({
       setCategoryIds([]);
     }
     onOpenChange(next);
-  }
-
-  function toggleCategory(categoryId: string) {
-    setCategoryIds((prev) =>
-      prev.includes(categoryId)
-        ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId],
-    );
   }
 
   function handleSubmit() {
@@ -115,33 +107,14 @@ export function BulkCategoriesDialog({
             ) : null}
           </div>
 
-          {categories.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
-              No hay categorías creadas.
-            </p>
-          ) : (
-            <div className="flex max-h-64 flex-wrap gap-2 overflow-y-auto rounded-2xl border border-border/80 bg-muted/20 p-3">
-              {categories.map((category) => {
-                const selected = categoryIds.includes(category.id);
-                return (
-                  <button
-                    key={category.id}
-                    type="button"
-                    disabled={isPending}
-                    onClick={() => toggleCategory(category.id)}
-                    className={cn(
-                      "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-                      selected
-                        ? "bg-primary text-primary-foreground"
-                        : "border border-border bg-background text-foreground hover:bg-muted",
-                    )}
-                  >
-                    {category.name}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          <CategoryCombobox
+            multiple
+            categories={categories}
+            value={categoryIds}
+            onChange={setCategoryIds}
+            disabled={isPending}
+            placeholder="Buscar o seleccionar categorías…"
+          />
 
           <p className="text-xs text-muted-foreground">
             {categoryIds.length === 0
