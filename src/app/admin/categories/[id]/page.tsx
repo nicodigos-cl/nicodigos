@@ -1,34 +1,13 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
-import { CategoryForm } from "@/components/admin/categories/category-form";
-import {
-  getCategoryById,
-  getCategoryParentOptions,
-} from "@/lib/categories/queries";
-
-type CategoryEditPageProps = {
+type CategoryEditRedirectProps = {
   params: Promise<{ id: string }>;
 };
 
-export default async function CategoryEditPage({
+/** Legacy edit route — editing now happens in a dialog on /admin/categories. */
+export default async function CategoryEditRedirectPage({
   params,
-}: CategoryEditPageProps) {
+}: CategoryEditRedirectProps) {
   const { id } = await params;
-
-  const [category, parentOptions] = await Promise.all([
-    getCategoryById(id),
-    getCategoryParentOptions(id),
-  ]);
-
-  if (!category) {
-    notFound();
-  }
-
-  return (
-    <CategoryForm
-      mode="edit"
-      category={category}
-      parentOptions={parentOptions}
-    />
-  );
+  redirect(`/admin/categories?edit=${encodeURIComponent(id)}`);
 }

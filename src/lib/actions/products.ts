@@ -17,6 +17,7 @@ import {
   writeKinguinRelatedRecords,
 } from "@/lib/kinguin/import";
 import { mirrorKinguinProductImages } from "@/lib/kinguin/mirror-images";
+import { invalidateKinguinSearchCache } from "@/lib/kinguin/search";
 import { usdToClp } from "@/lib/fx/usd-clp";
 import prisma from "@/lib/prisma";
 import { deleteImageFromR2 } from "@/lib/r2";
@@ -383,6 +384,7 @@ export async function createProductAction(
 
     revalidatePath("/admin/products");
     if (kinguinLink) {
+      await invalidateKinguinSearchCache();
       revalidatePath("/admin/kinguin");
     }
     return { success: true, data: { id: product.id } };

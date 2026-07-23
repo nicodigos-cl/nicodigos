@@ -6,7 +6,7 @@ import { flattenError } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/actions/types";
 import { requireSession } from "@/lib/auth/session";
-import { getCategoryDescendantIds } from "@/lib/categories/queries";
+import { getCategoryById, getCategoryDescendantIds } from "@/lib/categories/queries";
 import prisma from "@/lib/prisma";
 import { slugify } from "@/lib/products/format";
 import { deleteImageFromR2 } from "@/lib/r2";
@@ -17,6 +17,7 @@ import {
   reorderCategoriesSchema,
   updateCategorySchema,
 } from "@/lib/validations/categories";
+import type { CategoryDetailDto } from "@/types/categories";
 
 function unauthorized<T>(): ActionResult<T> {
   return { success: false, message: "No autorizado. Inicia sesión para continuar." };
@@ -64,6 +65,20 @@ async function assertValidParent(parentId: string | null | undefined, categoryId
     if (blocked.has(parentId)) return { success: false, message: "No puedes asignar una categoría hija como padre.", fieldErrors: { parentId: ["Jerarquía inválida"] } };
   }
   return null;
+}
+
+export async function getCategoryForEditAction(
+  rawInput: unknown,
+): Promise<ActionResult<CategoryDetailDto>> {
+  if (!(await requireSession())) return unauthorized();
+  const parsed = deleteCategorySchema.safeParse(rawInput);
+  if (!parsed.success) return validationError(parsed.error);
+
+  const category = await getCategoryById(parsed.data.id);
+  if (!category) {
+    return { success: false, message: "Categoría no encontrada." };
+  }
+  return { success: true, data: category };
 }
 
 export async function createCategoryAction(rawInput: unknown): Promise<ActionResult<{ id: string }>> {

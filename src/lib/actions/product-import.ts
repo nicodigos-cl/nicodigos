@@ -11,6 +11,7 @@ import {
 } from "@/generated/prisma/client";
 import type { ActionResult } from "@/lib/actions/types";
 import { requireSession } from "@/lib/auth/session";
+import { invalidateKinguinSearchCache } from "@/lib/kinguin/search";
 import prisma from "@/lib/prisma";
 import { slugify, decimalToString } from "@/lib/products/format";
 import { IMPORT_CONCURRENCY } from "@/lib/smm-services/constants";
@@ -193,6 +194,38 @@ export async function importProductsAction(
     };
   }
 
+  const kinguinMissingId = items.filter(
+    (item) => item.deliveryMethod === "KINGUIN" && item.kinguinId == null,
+  );
+  if (kinguinMissingId.length > 0) {
+    return {
+      success: false,
+      message: `${kinguinMissingId.length} producto(s) Kinguin sin kinguinId. Vuelve a exportar desde Kinguin → Exportar como producto.`,
+    };
+  }
+
+  const batchKinguinIds = items
+    .map((item) => item.kinguinId)
+    .filter((id): id is number => id != null);
+  if (batchKinguinIds.length !== new Set(batchKinguinIds).size) {
+    return {
+      success: false,
+      message: "El lote incluye kinguinId duplicados.",
+    };
+  }
+  if (batchKinguinIds.length > 0) {
+    const existing = await prisma.product.findMany({
+      where: { kinguinId: { in: batchKinguinIds } },
+      select: { kinguinId: true },
+    });
+    if (existing.length > 0) {
+      return {
+        success: false,
+        message: `${existing.length} producto(s) Kinguin ya están importados (kinguinId).`,
+      };
+    }
+  }
+
   if (categoryIds.length > 0) {
     const count = await prisma.category.count({
       where: { id: { in: categoryIds } },
@@ -222,6 +255,8 @@ export async function importProductsAction(
         const isSmm = item.deliveryMethod === "SMM";
         const hasSmmWiring =
           isSmm && item.smmApiUrl != null && item.smmServiceId != null;
+        const isKinguin = item.deliveryMethod === "KINGUIN";
+        const hasKinguinLink = isKinguin && item.kinguinId != null;
 
         const product = await tx.product.create({
           data: {
@@ -252,6 +287,14 @@ export async function importProductsAction(
                   smmServiceName: item.smmServiceName ?? null,
                   smmSyncedAt: new Date(),
                   originalName: item.smmServiceName ?? null,
+                }
+              : {}),
+            ...(hasKinguinLink
+              ? {
+                  kinguinId: item.kinguinId,
+                  kinguinProductId: item.kinguinProductId ?? null,
+                  kinguinMarkupPct: item.kinguinMarkupPct ?? null,
+                  kinguinSyncedAt: new Date(),
                 }
               : {}),
             categories:
@@ -313,6 +356,10 @@ export async function importProductsAction(
     });
 
     revalidatePath("/admin/products");
+    if (batchKinguinIds.length > 0) {
+      await invalidateKinguinSearchCache();
+      revalidatePath("/admin/kinguin");
+    }
     return {
       success: true,
       data: { createdIds, count: createdIds.length },
@@ -324,7 +371,8 @@ export async function importProductsAction(
     ) {
       return {
         success: false,
-        message: "Conflicto de slug al importar. Revisa o regenera los slugs.",
+        message:
+          "Conflicto de slug o kinguinId al importar. Revisa el lote o regenera los slugs.",
       };
     }
 

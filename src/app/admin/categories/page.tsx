@@ -1,5 +1,4 @@
-import { CategoriesToolbar } from "@/components/admin/categories/categories-toolbar";
-import { CategoriesTree } from "@/components/admin/categories/categories-tree";
+import { CategoriesAdminClient } from "@/components/admin/categories/categories-admin-client";
 import {
   getCategoriesTree,
   getCategoryParentOptions,
@@ -20,6 +19,13 @@ const categoriesAdminQuerySchema = z.object({
       .transform((value) => value.replace(/\s+/g, " "))
       .optional(),
   ),
+  edit: z.preprocess(
+    (value) => {
+      if (value === "" || value === null || value === undefined) return undefined;
+      return value;
+    },
+    z.string().cuid().optional(),
+  ),
 });
 
 type CategoriesPageProps = {
@@ -32,6 +38,7 @@ export default async function CategoriesPage({
   const rawParams = parseSearchParamsRecord(await searchParams);
   const parsed = categoriesAdminQuerySchema.safeParse(rawParams);
   const q = parsed.success ? parsed.data.q : undefined;
+  const initialEditId = parsed.success ? parsed.data.edit : undefined;
 
   const [tree, parentOptions] = await Promise.all([
     getCategoriesTree(q),
@@ -39,13 +46,11 @@ export default async function CategoriesPage({
   ]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <CategoriesToolbar q={q} parentOptions={parentOptions} />
-      <CategoriesTree
-        initialTree={tree}
-        parentOptions={parentOptions}
-        searchActive={Boolean(q)}
-      />
-    </div>
+    <CategoriesAdminClient
+      initialTree={tree}
+      parentOptions={parentOptions}
+      q={q}
+      initialEditId={initialEditId}
+    />
   );
 }

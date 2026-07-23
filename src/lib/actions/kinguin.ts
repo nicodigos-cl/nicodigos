@@ -15,6 +15,7 @@ import {
   mirroredImagesToAssetInputs,
   mirrorKinguinProductImages,
 } from "@/lib/kinguin/mirror-images";
+import { invalidateKinguinSearchCache } from "@/lib/kinguin/search";
 import { applyMarkupPct, eurToClp, getEurToClpRate } from "@/lib/fx/eur-clp";
 import {
   IMPORT_CONCURRENCY,
@@ -331,6 +332,9 @@ export async function exportKinguinAsProductsAction(
               Number.isFinite(product.textQty)
                 ? Math.max(0, Math.floor(product.textQty))
                 : undefined,
+            kinguinId: hit.kinguinId,
+            kinguinProductId: product?.productId,
+            kinguinMarkupPct: markupPct,
             assets,
           };
         }),
@@ -444,6 +448,7 @@ export async function importKinguinProductAction(
 
     const result = await importKinguinProduct(parsed.data);
 
+    await invalidateKinguinSearchCache();
     revalidatePath("/admin/kinguin");
     revalidatePath("/admin/products");
     revalidatePath(`/admin/products/${result.productId}`);
@@ -541,6 +546,7 @@ export async function importKinguinProductsBulkAction(
       }
     }
 
+    await invalidateKinguinSearchCache();
     revalidatePath("/admin/kinguin");
     revalidatePath("/admin/products");
 

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -31,7 +30,6 @@ import {
 } from "react-icons/hi";
 import { toast } from "sonner";
 
-import { CreateCategoryDialog } from "@/components/admin/categories/create-category-dialog";
 import { confirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,15 +45,13 @@ import {
   reorderCategoriesAction,
 } from "@/lib/actions/categories";
 import { cn } from "@/lib/utils";
-import type {
-  CategoryParentOptionDto,
-  CategoryTreeNodeDto,
-} from "@/types/categories";
+import type { CategoryTreeNodeDto } from "@/types/categories";
 
 type CategoriesTreeProps = {
   initialTree: CategoryTreeNodeDto[];
-  parentOptions: CategoryParentOptionDto[];
   searchActive: boolean;
+  onCreate: () => void;
+  onEdit: (categoryId: string) => void;
 };
 
 function cloneTree(nodes: CategoryTreeNodeDto[]): CategoryTreeNodeDto[] {
@@ -88,6 +84,7 @@ type SortableRowProps = {
   collapsed: boolean;
   onToggle: () => void;
   onDeleted: (id: string) => void;
+  onEdit: (categoryId: string) => void;
   dndEnabled: boolean;
 };
 
@@ -97,6 +94,7 @@ function SortableCategoryRow({
   collapsed,
   onToggle,
   onDeleted,
+  onEdit,
   dndEnabled,
 }: SortableRowProps) {
   const router = useRouter();
@@ -193,9 +191,8 @@ function SortableCategoryRow({
         type="button"
         variant="ghost"
         size="icon-sm"
-        render={<Link href={`/admin/categories/${node.id}`} />}
-        nativeButton={false}
         aria-label="Editar"
+        onClick={() => onEdit(node.id)}
       >
         <HiOutlinePencil className="size-4" />
       </Button>
@@ -241,6 +238,7 @@ type TreeBranchProps = {
   collapsedIds: Set<string>;
   onToggle: (id: string) => void;
   onDeleted: (id: string) => void;
+  onEdit: (categoryId: string) => void;
   dndEnabled: boolean;
 };
 
@@ -251,6 +249,7 @@ function TreeBranch({
   collapsedIds,
   onToggle,
   onDeleted,
+  onEdit,
   dndEnabled,
 }: TreeBranchProps) {
   const ids = useMemo(() => nodes.map((node) => node.id), [nodes]);
@@ -272,6 +271,7 @@ function TreeBranch({
                 collapsed={collapsed}
                 onToggle={() => onToggle(node.id)}
                 onDeleted={onDeleted}
+                onEdit={onEdit}
                 dndEnabled={dndEnabled}
               />
               {!collapsed && node.children.length > 0 ? (
@@ -282,6 +282,7 @@ function TreeBranch({
                   collapsedIds={collapsedIds}
                   onToggle={onToggle}
                   onDeleted={onDeleted}
+                  onEdit={onEdit}
                   dndEnabled={dndEnabled}
                 />
               ) : null}
@@ -295,8 +296,9 @@ function TreeBranch({
 
 export function CategoriesTree({
   initialTree,
-  parentOptions,
   searchActive,
+  onCreate,
+  onEdit,
 }: CategoriesTreeProps) {
   const router = useRouter();
   const [tree, setTree] = useState(() => cloneTree(initialTree));
@@ -424,7 +426,9 @@ export function CategoriesTree({
         </EmptyHeader>
         {!searchActive ? (
           <EmptyContent>
-            <CreateCategoryDialog parentOptions={parentOptions} />
+            <Button type="button" onClick={onCreate}>
+              Añadir categoría
+            </Button>
           </EmptyContent>
         ) : null}
       </Empty>
@@ -457,6 +461,7 @@ export function CategoriesTree({
           collapsedIds={collapsedIds}
           onToggle={handleToggle}
           onDeleted={handleDeleted}
+          onEdit={onEdit}
           dndEnabled={dndEnabled}
         />
       </DndContext>

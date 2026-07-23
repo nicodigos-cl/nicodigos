@@ -107,14 +107,39 @@ export const importProductItemSchema = z.object({
     emptyToUndefined,
     z.string().trim().max(300).optional(),
   ),
+  /** Remote Kinguin id — required to mark the catalog row as already imported. */
+  kinguinId: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().positive().optional(),
+  ),
+  kinguinProductId: z.preprocess(
+    emptyToUndefined,
+    z.string().trim().min(1).max(120).optional(),
+  ),
+  kinguinMarkupPct: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().min(0).max(1000).optional(),
+  ),
 });
 
 export type ImportProductItem = z.infer<typeof importProductItemSchema>;
 
-export const importProductsSchema = z.object({
-  items: z.array(importProductItemSchema).min(1).max(PRODUCT_IMPORT_LIMIT),
-  categoryIds: z.array(z.string().cuid()).default([]),
-});
+export const importProductsSchema = z
+  .object({
+    items: z.array(importProductItemSchema).min(1).max(PRODUCT_IMPORT_LIMIT),
+    categoryIds: z.array(z.string().cuid()).default([]),
+  })
+  .superRefine((data, ctx) => {
+    data.items.forEach((item, index) => {
+      if (item.deliveryMethod === "KINGUIN" && item.kinguinId == null) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["items", index, "kinguinId"],
+          message: "Producto Kinguin sin kinguinId",
+        });
+      }
+    });
+  });
 
 export type ImportProductsInput = z.infer<typeof importProductsSchema>;
 

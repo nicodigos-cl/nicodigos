@@ -117,6 +117,31 @@ async function writeCachedSearch(
   }
 }
 
+/** Drop cached ESA search pages so the next admin search re-fetches from Kinguin. */
+export async function invalidateKinguinSearchCache(): Promise<void> {
+  const redis = await getReadyRedis();
+  if (!redis) return;
+
+  try {
+    let cursor = "0";
+    do {
+      const [nextCursor, keys] = await redis.scan(
+        cursor,
+        "MATCH",
+        `${KINGUIN_SEARCH_CACHE_PREFIX}*`,
+        "COUNT",
+        100,
+      );
+      cursor = nextCursor;
+      if (keys.length > 0) {
+        await redis.unlink(...keys);
+      }
+    } while (cursor !== "0");
+  } catch (error) {
+    log.warn({ err: error }, "kinguin.search.cache_invalidate_failed");
+  }
+}
+
 async function fetchSearchFromApi(
   input: KinguinSearchQuery,
 ): Promise<CachedSearchPayload> {
