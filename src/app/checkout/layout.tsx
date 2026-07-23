@@ -1,10 +1,15 @@
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { HiOutlineArrowLeft } from "react-icons/hi";
 
 import { Logo } from "@/components/logo";
 import StoreFooter from "@/components/layout/store-footer";
 import StoreNav from "@/components/layout/store-nav";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default function CheckoutLayout({ children }: { children: ReactNode }) {
   return (

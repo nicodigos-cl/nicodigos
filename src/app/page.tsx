@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import StoreLayout from "@/components/layout/store-layout";
 import { HomeDeepLink } from "@/components/store/home-deep-link";
 import StoreCategories from "@/components/store/store-categories";
@@ -15,6 +17,25 @@ import {
   getPopularStoreProducts,
   getTrendingStoreProducts,
 } from "@/lib/products/queries";
+import {
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_TAGLINE,
+} from "@/lib/seo/site";
+
+export const metadata: Metadata = {
+  title: {
+    absolute: `${SITE_NAME} · ${SITE_TAGLINE}`,
+  },
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: `${SITE_NAME} · ${SITE_TAGLINE}`,
+    description: SITE_DESCRIPTION,
+    url: "/",
+    type: "website",
+  },
+};
 
 type HomePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

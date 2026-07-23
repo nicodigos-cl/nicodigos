@@ -5,13 +5,15 @@ import StoreCategoriesClient from "@/components/store/categories-client";
 import { getStoreCategoriesPageData } from "@/lib/categories/queries";
 
 export const metadata: Metadata = {
-  title: "Categorías · Nicodigos",
+  title: "Categorías",
   description:
-    "Explora todas las categorías de la tienda: videojuegos, tarjetas de regalo, redes sociales, software premium y más. Compra al instante en CLP.",
+    "Explora todas las categorías: videojuegos, tarjetas de regalo, redes sociales, software premium y servicios SMM. Compra al instante en CLP.",
+  alternates: { canonical: "/categories" },
   openGraph: {
     title: "Categorías · Nicodigos",
     description:
-      "Explora todas las categorías de Nicodigos: videojuegos, software, SMM y más.",
+      "Explora categorías de Nicodigos: videojuegos, software, gift cards y SMM en Chile.",
+    url: "/categories",
   },
 };
 

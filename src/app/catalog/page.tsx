@@ -43,13 +43,15 @@ import { storeCatalogQuerySchema } from "@/lib/validations/catalog";
 import { parseSearchParamsRecord } from "@/lib/validations/products";
 
 export const metadata: Metadata = {
-  title: "Catálogo · Nicodigos",
+  title: "Catálogo",
   description:
-    "Explora keys digitales, software y servicios SMM en CLP. Filtra por categoría, precio, disponibilidad y método de entrega.",
+    "Explora keys digitales, software y servicios SMM en Chile. Filtra por categoría, precio, disponibilidad y método de entrega. Precios en CLP.",
+  alternates: { canonical: "/catalog" },
   openGraph: {
     title: "Catálogo · Nicodigos",
     description:
-      "Catálogo de productos digitales con entrega Manual, SMM y Kinguin.",
+      "Catálogo de productos digitales y servicios SMM con entrega Manual, SMM y Kinguin.",
+    url: "/catalog",
   },
 };
 

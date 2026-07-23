@@ -18,6 +18,7 @@ import {
 import { FlickeringGrid } from "@/components/ui/flickering-grid";
 import { getStoreCategoryDetail } from "@/lib/categories/queries";
 import { getStoreCatalogPage } from "@/lib/products/queries";
+import { JsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/json-ld";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -30,14 +31,31 @@ export async function generateMetadata({
   const category = await getStoreCategoryDetail(slug);
 
   if (!category) {
-    return { title: "Categoría no encontrada" };
+    return { title: "Categoría no encontrada", robots: { index: false } };
   }
 
+  const description =
+    category.description?.slice(0, 160) ??
+    `Explora ${category.name} en Nicodigos: productos digitales y servicios SMM en Chile, precios en CLP.`;
+  const path = `/categories/${category.slug}`;
+  const image = category.imageUrl ?? undefined;
+
   return {
-    title: `${category.name} · Nicodigos`,
-    description:
-      category.description?.slice(0, 160) ??
-      `Explora los productos en la categoría ${category.name} en Nicodigos. Precios en CLP con entrega inmediata.`,
+    title: category.name,
+    description,
+    alternates: { canonical: path },
+    openGraph: {
+      title: `${category.name} · Nicodigos`,
+      description,
+      url: path,
+      images: image ? [{ url: image, alt: category.name }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${category.name} · Nicodigos`,
+      description,
+      images: image ? [image] : undefined,
+    },
   };
 }
 
@@ -66,6 +84,24 @@ export default async function CategoryDetailPage({ params }: PageProps) {
 
   return (
     <StoreLayout>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "Inicio", path: "/" },
+          { name: "Categorías", path: "/categories" },
+          ...(category.parent
+            ? [
+                {
+                  name: category.parent.name,
+                  path: `/categories/${category.parent.slug}`,
+                },
+              ]
+            : []),
+          {
+            name: category.name,
+            path: `/categories/${category.slug}`,
+          },
+        ])}
+      />
       <div className="w-full">
         {/* ========================================================================= */}
         {/* Category Hero Banner */}

@@ -1,0 +1,22 @@
+# Nicodigos
+
+> Tienda chilena de productos digitales (keys, videojuegos, software) y servicios de marketing en redes sociales (SMM). Precios en CLP.
+
+## Sitio
+
+- Inicio: https://nicodigos.cl/
+- Catálogo: https://nicodigos.cl/catalog
+- Categorías: https://nicodigos.cl/categories
+- Producto: https://nicodigos.cl/products/{slug}
+- Sitemap: https://nicodigos.cl/sitemap.xml
+
+## Productos
+
+- Keys y cuentas digitales con entrega Manual o Kinguin
+- Servicios SMM (seguidores, likes, views, etc.) con paneles externos
+- Moneda: CLP (Chile)
+- Pagos: Flow.cl
+
+## Contacto
+
+- Soporte: soporte@nicodigos.cl

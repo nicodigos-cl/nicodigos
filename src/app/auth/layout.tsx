@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   },
   description:
     "Accede a tu cuenta de Nicodigos para comprar y gestionar productos digitales.",
+  robots: { index: false, follow: false },
 };
 
 interface AuthLayoutProps {
