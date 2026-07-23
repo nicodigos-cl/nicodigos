@@ -1,5 +1,6 @@
 import "server-only";
 
+import { eld } from "eld/large";
 import pLimit from "p-limit";
 
 import { createStructuredResponse } from "@/lib/openai/client";
@@ -33,20 +34,54 @@ const FIELD_LABELS: Record<ProductTranslateField, string> = {
 
 const DESCRIPTION_MAX = 12_000;
 const SHORT_MAX = 1_500;
+/** Below this, brand/SKU noise makes detectors unreliable. */
+const MIN_DETECT_LENGTH = 10;
 
-function looksAlreadySpanish(text: string): boolean {
-  const value = text.trim();
-  if (!value) return false;
-  if (/[áéíóúüñÁÉÍÓÚÜÑ¿¡]/.test(value)) return true;
-  return false;
-}
-
+/**
+ * Detect English product copy with ELD (`eld/large`).
+ * Skips empty/short strings and non-English (incl. Spanish without accents).
+ */
 export function needsProductTranslation(
   text: string | null | undefined,
 ): boolean {
   const value = text?.trim() ?? "";
-  if (!value) return false;
-  return !looksAlreadySpanish(value);
+  if (value.length < MIN_DETECT_LENGTH) return false;
+
+  // Fast path: clear Spanish orthography → skip OpenAI.
+  if (/[áéíóúüñÁÉÍÓÚÜÑ¿¡]/.test(value)) return false;
+
+  // Titles like "Fortnite - 1000 V-Bucks Cuenta de Epic Games" are already ES.
+  const spanishHints = (
+    value.match(
+      /\b(de|la|el|los|las|un|una|para|con|por|del|al|clave|tarjeta|cuenta|prepaga|suscripcion|mes|ano|año|descarga|digital|regalo|pack|conjunto)\b/gi,
+    ) ?? []
+  ).length;
+  if (spanishHints >= 2) return false;
+
+  // SKU-style titles dominated by game brands (no prose) — leave as-is.
+  const words = value
+    .split(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ+-]+/)
+    .map((w) => w.trim())
+    .filter((w) => w.length > 1);
+  const brandHits = (
+    value.match(
+      /\b(fortnite|xbox|epic|games|steam|v-?bucks|roblox|robux|league|legends|nintendo|playstation|microsoft|windows|office|discord|nitro|duolingo|crunchyroll)\b/gi,
+    ) ?? []
+  ).length;
+  if (
+    words.length >= 3 &&
+    brandHits / words.length >= 0.45 &&
+    !/[.!?]/.test(value)
+  ) {
+    return false;
+  }
+
+  const result = eld.detect(value);
+  if (result.language !== "en") return false;
+
+  // Short titles need a reliable hit; long descriptions can proceed if EN wins.
+  if (value.length < 28) return result.isReliable();
+  return result.isReliable() || value.length >= 80;
 }
 
 function clip(value: string, max: number): string {
