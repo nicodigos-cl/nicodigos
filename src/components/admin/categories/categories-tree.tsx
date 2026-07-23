@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -167,6 +168,26 @@ function SortableCategoryRow({
             : null}
         </p>
       </div>
+
+      {node.imageUrl ? (
+        <span className="relative size-10 shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-border/60">
+          <Image
+            src={node.imageUrl}
+            alt=""
+            fill
+            unoptimized
+            className="object-cover"
+            sizes="40px"
+          />
+        </span>
+      ) : (
+        <span
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border/60"
+          aria-hidden
+        >
+          <HiOutlineFolder className="size-4" />
+        </span>
+      )}
 
       <Button
         type="button"
