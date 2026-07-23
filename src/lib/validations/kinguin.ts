@@ -55,7 +55,7 @@ export const kinguinSearchQuerySchema = z.object({
       })
       .default(20),
   ),
-  /** Local Chile activation filter (applied after API results). */
+  /** Local Chile activation filter (scanned across API pages, then paginated). */
   chile: z.preprocess(
     emptyToUndefined,
     z.enum(chileFilterValues).default("all"),

@@ -18,8 +18,6 @@ type KinguinPaginationProps = {
   total: number;
   totalPages: number;
   query: KinguinSearchQuery;
-  /** Rows left after local filters (Chile / import) on this page. */
-  visibleCount?: number;
 };
 
 function getPageNumbers(
@@ -45,16 +43,11 @@ export function KinguinPagination({
   total,
   totalPages,
   query,
-  visibleCount,
 }: KinguinPaginationProps) {
   if (total === 0) return null;
 
   const from = (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
-  const filteredLocally =
-    visibleCount != null &&
-    visibleCount < Math.min(pageSize, to - from + 1) &&
-    (query.chile !== "all" || query.imported !== "all");
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -65,12 +58,6 @@ export function KinguinPagination({
         </span>{" "}
         de <span className="font-medium text-foreground">{total}</span>{" "}
         resultados
-        {filteredLocally ? (
-          <span>
-            {" "}
-            · {visibleCount} visibles con filtros locales en esta página
-          </span>
-        ) : null}
       </p>
 
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">

@@ -106,7 +106,6 @@ export default async function KinguinPage({ searchParams }: KinguinPageProps) {
             total={result.total}
             totalPages={result.totalPages}
             query={query}
-            visibleCount={result.items.length}
           />
         </>
       )}
