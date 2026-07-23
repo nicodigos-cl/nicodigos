@@ -8,6 +8,7 @@ import {
   HiOutlineDocument,
   HiOutlineDocumentDownload,
   HiOutlineExclamation,
+  HiOutlineFolder,
   HiOutlinePhotograph,
   HiOutlineRefresh,
   HiOutlineSparkles,
@@ -17,6 +18,7 @@ import {
 } from "react-icons/hi";
 import { toast } from "sonner";
 
+import { BulkCategoriesDialog } from "@/components/admin/products/bulk-categories-dialog";
 import { BulkCoverImageDialog } from "@/components/admin/products/bulk-cover-image-dialog";
 import { SelectionLimitControl } from "@/components/admin/selection-limit-control";
 import { confirmDialog } from "@/components/confirm-dialog";
@@ -43,7 +45,7 @@ import {
 } from "@/lib/smm-services/constants";
 import type { ProductsListQuery } from "@/lib/validations/products";
 import type { ImportProductItem } from "@/lib/validations/product-import";
-import type { ProductListItemDto } from "@/types/products";
+import type { CategoryOptionDto, ProductListItemDto } from "@/types/products";
 
 type ProductsActionsBarProps = {
   query: ProductsListQuery;
@@ -53,6 +55,7 @@ type ProductsActionsBarProps = {
   onSelectAll: (items: ProductListItemDto[]) => void;
   onClear: () => void;
   onRefresh: () => void;
+  categories: CategoryOptionDto[];
 };
 
 function downloadProductsJson(items: ImportProductItem[]) {
@@ -76,9 +79,11 @@ export function ProductsActionsBar({
   onSelectAll,
   onClear,
   onRefresh,
+  categories,
 }: ProductsActionsBarProps) {
   const [isPending, startTransition] = useTransition();
   const [coverOpen, setCoverOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const selectedCount = selected.length;
   const canExport =
     selectedCount >= 1 && selectedCount <= BULK_EXPORT_SELECTION_LIMIT;
@@ -404,6 +409,16 @@ export function ProductsActionsBar({
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={!canProcess}
+                onClick={() => {
+                  if (!canProcess) return;
+                  setCategoriesOpen(true);
+                }}
+              >
+                <HiOutlineFolder className="size-4" />
+                Cambiar categorías
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!canProcess}
                 onClick={handleCheckChile}
               >
                 <HiOutlineExclamation className="size-4" />
@@ -445,6 +460,16 @@ export function ProductsActionsBar({
         open={coverOpen}
         onOpenChange={setCoverOpen}
         productIds={selected.map((item) => item.id)}
+        onDone={() => {
+          onClear();
+          onRefresh();
+        }}
+      />
+      <BulkCategoriesDialog
+        open={categoriesOpen}
+        onOpenChange={setCategoriesOpen}
+        productIds={selected.map((item) => item.id)}
+        categories={categories}
         onDone={() => {
           onClear();
           onRefresh();

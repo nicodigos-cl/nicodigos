@@ -256,9 +256,9 @@ export function BulkConvertServicesDialog({
         <DialogHeader>
           <DialogTitle>Convertir {services.length} servicios</DialogTitle>
           <DialogDescription>
-            IA solo traduce títulos. Markup aleatorio, costo CLP desde rate USD.
-            Stock ilimitado; min/max del servicio limitan el pedido. Status
-            DRAFT.
+            IA traduce título y genera descripción corta. Markup aleatorio,
+            costo CLP desde rate USD. Stock ilimitado; min/max del servicio
+            limitan el pedido. Status DRAFT.
             {usdClpHint != null ? ` USD/CLP ≈ ${Math.round(usdClpHint)}` : null}
           </DialogDescription>
         </DialogHeader>

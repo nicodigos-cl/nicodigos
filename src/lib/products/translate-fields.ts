@@ -192,6 +192,7 @@ export type BulkProductTranslateItem = {
 
 /**
  * Translate many products with p-limit concurrency (one product payload per call).
+ * Uses allSettled so a single OpenAI failure does not abort the whole batch.
  */
 export async function translateProductFieldsBulk(
   items: BulkProductTranslateItem[],
@@ -200,7 +201,7 @@ export async function translateProductFieldsBulk(
   const translateLimit = pLimit(AI_TRANSLATE_CONCURRENCY);
   const out = new Map<string, ProductTranslateFields>();
 
-  await Promise.all(
+  const settled = await Promise.allSettled(
     items.map((item) =>
       translateLimit(async () => {
         const translated = await translateProductFields(item.fields, options);
@@ -210,6 +211,14 @@ export async function translateProductFieldsBulk(
       }),
     ),
   );
+
+  const failures = settled.filter((result) => result.status === "rejected");
+  if (failures.length > 0 && failures.length === settled.length) {
+    const first = failures[0];
+    throw first.status === "rejected"
+      ? first.reason
+      : new Error("Falló la traducción masiva");
+  }
 
   return out;
 }

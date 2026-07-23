@@ -23,6 +23,7 @@ import type { ImportProductItem } from "@/lib/validations/product-import";
 import {
   bulkUpdateProductStatusSchema,
   bulkUpdateProductCoverSchema,
+  bulkUpdateProductCategoriesSchema,
   bulkDeleteProductsSchema,
   bulkTranslateProductsSchema,
   checkProductsChileCompatibilitySchema,
@@ -307,6 +308,74 @@ export async function syncKinguinProductAction(
   return { success: true, data: result };
 }
 
+
+export async function bulkUpdateProductCategoriesAction(
+  rawInput: unknown,
+): Promise<ActionResult<{ updated: number; categoryCount: number }>> {
+  const session = await requireSession();
+  if (!session) {
+    return unauthorized();
+  }
+
+  const parsed = bulkUpdateProductCategoriesSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return validationError(parsed.error);
+  }
+
+  const { productIds, categoryIds } = parsed.data;
+
+  if (productIds.length > PRODUCT_PROCESS_LIMIT) {
+    return {
+      success: false,
+      message: `Máximo ${PRODUCT_PROCESS_LIMIT} productos por operación.`,
+    };
+  }
+
+  const existing = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true },
+  });
+  if (existing.length === 0) {
+    return { success: false, message: "No se encontraron productos." };
+  }
+
+  if (categoryIds.length > 0) {
+    const categories = await prisma.category.findMany({
+      where: { id: { in: categoryIds } },
+      select: { id: true },
+    });
+    if (categories.length !== categoryIds.length) {
+      return {
+        success: false,
+        message: "Una o más categorías no existen.",
+        fieldErrors: { categoryIds: ["Categoría inválida"] },
+      };
+    }
+  }
+
+  const ids = existing.map((item) => item.id);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.productCategory.deleteMany({
+      where: { productId: { in: ids } },
+    });
+
+    if (categoryIds.length > 0) {
+      await tx.productCategory.createMany({
+        data: ids.flatMap((productId) =>
+          categoryIds.map((categoryId) => ({ productId, categoryId })),
+        ),
+      });
+    }
+  });
+
+  revalidatePath("/admin/products");
+
+  return {
+    success: true,
+    data: { updated: ids.length, categoryCount: categoryIds.length },
+  };
+}
 
 export async function bulkUpdateProductCoverAction(
   rawInput: unknown,

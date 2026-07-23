@@ -124,6 +124,7 @@ export async function prefillSmmServicesWithAiAction(
     type AiItem = {
       serviceId: string;
       nameEs: string;
+      descriptionEs: string;
     };
     type AiPayload = { items: AiItem[] };
 
@@ -132,7 +133,9 @@ export async function prefillSmmServicesWithAiAction(
     );
 
     const translateInstructions = [
-      "Traduce nombres de servicios SMM al español (neutro latinoamericano).",
+      "Traduce y redacta textos de servicios SMM al español (neutro latinoamericano).",
+      "Campos: nameEs (título comercial) y descriptionEs (descripción corta del producto, 1–3 frases).",
+      "descriptionEs debe explicar qué entrega el servicio (tipo/plataforma) de forma clara para un cliente chileno; no inventes métricas falsas ni garantías.",
       "Mantén marcas/plataformas (Instagram, TikTok, YouTube, etc.) cuando aplique.",
       "No inventes IDs: usa exactamente los serviceId recibidos.",
       "Responde solo con el JSON estructurado solicitado.",
@@ -148,10 +151,11 @@ export async function prefillSmmServicesWithAiAction(
           items: {
             type: "object",
             additionalProperties: false,
-            required: ["serviceId", "nameEs"],
+            required: ["serviceId", "nameEs", "descriptionEs"],
             properties: {
               serviceId: { type: "string" },
               nameEs: { type: "string" },
+              descriptionEs: { type: "string" },
             },
           },
         },
@@ -160,15 +164,14 @@ export async function prefillSmmServicesWithAiAction(
 
     const [aiItems, usdClpRate] = await Promise.all([
       (async (): Promise<AiItem[]> => {
-        if (toTranslate.length === 0) return [];
-
-        const chunks = chunkArray(toTranslate, AI_TRANSLATE_CHUNK_SIZE);
+        // Always call AI so we get Spanish titles + short descriptions.
+        const chunks = chunkArray(services, AI_TRANSLATE_CHUNK_SIZE);
         const translateLimit = pLimit(AI_TRANSLATE_CONCURRENCY);
         const chunkResults = await Promise.all(
           chunks.map((chunk) =>
             translateLimit(() =>
               createStructuredResponse<AiPayload>({
-                schemaName: "smm_service_title_translate",
+                schemaName: "smm_service_product_translate",
                 instructions: translateInstructions,
                 input: JSON.stringify({
                   services: chunk.map((service) => ({
@@ -176,6 +179,7 @@ export async function prefillSmmServicesWithAiAction(
                     name: service.name,
                     type: service.type,
                     category: service.category,
+                    alreadySpanishTitle: looksAlreadySpanish(service.name),
                   })),
                 }),
                 schema: translateSchema,
@@ -189,22 +193,32 @@ export async function prefillSmmServicesWithAiAction(
       getUsdToClpRate(),
     ]);
 
-    const nameById = new Map(
-      aiItems.map((row) => [row.serviceId, row.nameEs.trim()] as const),
+    const byId = new Map(
+      aiItems.map(
+        (row) =>
+          [
+            row.serviceId,
+            {
+              nameEs: row.nameEs.trim(),
+              descriptionEs: row.descriptionEs.trim(),
+            },
+          ] as const,
+      ),
     );
 
     const items: PrefillServiceItem[] = services.map((service) => {
       const rateUsd = Number.parseFloat(service.rate) || 0;
       const baseClp = Math.round(rateUsd * usdClpRate);
       const markupPct = randomMarkupPct(minMarkupPct, maxMarkupPct);
+      const ai = byId.get(service.id);
       const alreadySpanish = looksAlreadySpanish(service.name);
 
       return {
         serviceId: service.id,
         nameEs: alreadySpanish
           ? service.name
-          : nameById.get(service.id) || service.name,
-        descriptionEs: "",
+          : ai?.nameEs || service.name,
+        descriptionEs: ai?.descriptionEs || "",
         markupPct,
         priceClp: applyMarkupPct(baseClp, markupPct),
         rateUsd,

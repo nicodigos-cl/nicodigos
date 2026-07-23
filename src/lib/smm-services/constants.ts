@@ -14,9 +14,13 @@ export const SMM_SERVICE_PROCESS_LIMIT = 25;
 export const KINGUIN_PROCESS_LIMIT = 25;
 export const PRODUCT_PROCESS_LIMIT = 50;
 
-/** Concurrent OpenAI translate calls (chunked batches). */
-export const AI_TRANSLATE_CONCURRENCY = 4;
-/** Products/titles per OpenAI translate request. */
+/**
+ * Concurrent OpenAI translate calls (one product / chunk per request).
+ * Keep below org RPM; SDK retries 429s. Prefer higher concurrency over huge
+ * multi-product payloads so long descriptions stay in separate requests.
+ */
+export const AI_TRANSLATE_CONCURRENCY = 8;
+/** Titles per OpenAI translate request (SMM short-title batches only). */
 export const AI_TRANSLATE_CHUNK_SIZE = 5;
 /** Concurrent Kinguin/SMM import mutations (API + DB + R2). */
 export const IMPORT_CONCURRENCY = 5;

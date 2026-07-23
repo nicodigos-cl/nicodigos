@@ -6,7 +6,6 @@ import { flattenError } from "zod";
 
 import type { ActionResult } from "@/lib/actions/types";
 import { requireSession } from "@/lib/auth/session";
-import { chunkArray } from "@/lib/concurrency";
 import {
   getKinguinProductPreview,
   importKinguinProduct,
@@ -17,10 +16,7 @@ import {
   mirrorKinguinProductImages,
 } from "@/lib/kinguin/mirror-images";
 import { applyMarkupPct, eurToClp, getEurToClpRate } from "@/lib/fx/eur-clp";
-import { createStructuredResponse } from "@/lib/openai/client";
 import {
-  AI_TRANSLATE_CHUNK_SIZE,
-  AI_TRANSLATE_CONCURRENCY,
   IMPORT_CONCURRENCY,
   KINGUIN_FETCH_CONCURRENCY,
   KINGUIN_PROCESS_LIMIT,
@@ -34,6 +30,7 @@ import {
 } from "@/lib/validations/kinguin";
 import { getKinguinClient } from "@/lib/kinguin-client";
 import { slugify } from "@/lib/products/format";
+import { translateProductFieldsBulk } from "@/lib/products/translate-fields";
 import type { ImportProductItem } from "@/lib/validations/product-import";
 import type { KinguinProductPreviewDto } from "@/types/kinguin-admin";
 
@@ -59,20 +56,6 @@ function randomMarkupPct(min: number, max: number): number {
   const low = Math.min(min, max);
   const high = Math.max(min, max);
   return low + Math.floor(Math.random() * (high - low + 1));
-}
-
-/** Heuristic: skip AI when the text already looks Spanish. */
-function looksAlreadySpanish(text: string): boolean {
-  const value = text.trim();
-  if (!value) return false;
-  if (/[áéíóúüñÁÉÍÓÚÜÑ¿¡]/.test(value)) return true;
-  return false;
-}
-
-function needsTranslation(text: string | null | undefined): boolean {
-  const value = text?.trim() ?? "";
-  if (!value) return false;
-  return !looksAlreadySpanish(value);
 }
 
 function mapImportError(error: unknown): string | null {
@@ -376,7 +359,7 @@ export async function exportKinguinAsProductsAction(
   }
 }
 
-/** AI translation of short product text fields (name + short meta). Skips long descriptions. */
+/** Full AI translation: name, description, activation, regional limitations (p-limit). */
 export async function translateKinguinProductsAction(
   rawInput: unknown,
 ): Promise<ActionResult<{ items: TranslatedKinguinItem[] }>> {
@@ -388,14 +371,6 @@ export async function translateKinguinProductsAction(
   const parsed = translateKinguinProductsSchema.safeParse(rawInput);
   if (!parsed.success) {
     return validationError(parsed.error);
-  }
-
-  const SHORT_FIELD_MAX = 800;
-
-  function clipShort(value: string | null | undefined): string {
-    const text = value?.trim() ?? "";
-    if (text.length <= SHORT_FIELD_MAX) return text;
-    return `${text.slice(0, SHORT_FIELD_MAX)}…`;
   }
 
   try {
@@ -410,104 +385,32 @@ export async function translateKinguinProductsAction(
       ),
     );
 
-    type AiItem = {
-      kinguinId: number;
-      nameEs: string;
-      activationDetailsEs: string;
-      regionalLimitationsEs: string;
-    };
-    type AiPayload = { items: AiItem[] };
-
-    const toTranslate = remotes.filter(({ product }) =>
-      [
-        product.name,
-        product.activationDetails,
-        product.regionalLimitations,
-      ].some((field) => needsTranslation(field)),
-    );
-
-    const translateInstructions = [
-      "Traduce al español (neutro latinoamericano) solo campos cortos de productos digitales Kinguin.",
-      "Campos: nameEs (título), activationDetailsEs, regionalLimitationsEs.",
-      "NO traduzcas descripciones largas: no se envían en este request.",
-      "Mantén marcas, ediciones y plataformas (Steam, Xbox, PlayStation, Epic, etc.).",
-      "Si el título es un nombre propio de juego, usa el nombre comercial habitual en Latam o déjalo en inglés si no hay traducción establecida.",
-      "Si un campo viene vacío, devuélvelo como string vacío.",
-      "No inventes IDs: usa exactamente los kinguinId recibidos (números).",
-      "Responde solo con el JSON estructurado solicitado.",
-    ].join(" ");
-
-    const translateSchema = {
-      type: "object" as const,
-      additionalProperties: false as const,
-      required: ["items"],
-      properties: {
-        items: {
-          type: "array",
-          items: {
-            type: "object",
-            additionalProperties: false,
-            required: [
-              "kinguinId",
-              "nameEs",
-              "activationDetailsEs",
-              "regionalLimitationsEs",
-            ],
-            properties: {
-              kinguinId: { type: "integer" },
-              nameEs: { type: "string" },
-              activationDetailsEs: { type: "string" },
-              regionalLimitationsEs: { type: "string" },
-            },
-          },
+    const translatedById = await translateProductFieldsBulk(
+      remotes.map(({ kinguinId, product }) => ({
+        productId: String(kinguinId),
+        fields: {
+          name: product.name,
+          description: product.description ?? "",
+          activationDetails: product.activationDetails ?? "",
+          regionalLimitations: product.regionalLimitations ?? "",
         },
-      },
-    };
-
-    const aiItems: AiItem[] = [];
-    if (toTranslate.length > 0) {
-      const chunks = chunkArray(toTranslate, AI_TRANSLATE_CHUNK_SIZE);
-      const translateLimit = pLimit(AI_TRANSLATE_CONCURRENCY);
-      const chunkResults = await Promise.all(
-        chunks.map((chunk) =>
-          translateLimit(() =>
-            createStructuredResponse<AiPayload>({
-              schemaName: "kinguin_product_translate_short",
-              instructions: translateInstructions,
-              input: JSON.stringify({
-                products: chunk.map(({ kinguinId, product }) => ({
-                  kinguinId,
-                  name: product.name,
-                  activationDetails: clipShort(product.activationDetails),
-                  regionalLimitations: clipShort(product.regionalLimitations),
-                })),
-              }),
-              schema: translateSchema,
-            }),
-          ),
-        ),
-      );
-      for (const result of chunkResults) {
-        aiItems.push(...result.items);
-      }
-    }
-
-    const byId = new Map(aiItems.map((row) => [row.kinguinId, row] as const));
+      })),
+    );
 
     const items: TranslatedKinguinItem[] = remotes.map(
       ({ kinguinId, product }) => {
-        const translated = byId.get(kinguinId);
+        const translated = translatedById.get(String(kinguinId));
         return {
           kinguinId,
-          nameEs: translated?.nameEs.trim() || product.name,
-          // Keep original long description — never AI-translated.
-          descriptionEs: product.description || "",
+          nameEs: translated?.name?.trim() || product.name,
+          descriptionEs:
+            translated?.description?.trim() || product.description || "",
           activationDetailsEs:
-            translated?.activationDetailsEs.trim() ||
+            translated?.activationDetails?.trim() ||
             product.activationDetails ||
             "",
           regionalLimitationsEs:
-            translated?.regionalLimitationsEs.trim() ||
+            translated?.regionalLimitations?.trim() ||
             product.regionalLimitations ||
             "",
         };

@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import {
   HiChevronDown,
+  HiOutlineClipboard,
   HiOutlineDocumentText,
   HiOutlineTemplate,
   HiOutlineUpload,
@@ -11,6 +12,7 @@ import { toast } from "sonner";
 
 import { BulkConvertServicesDialog } from "@/components/admin/smm-services/bulk-convert-services-dialog";
 import { ImportProductsFileDialog } from "@/components/admin/products/import-products-file-dialog";
+import { ImportProductsPasteDialog } from "@/components/admin/products/import-products-paste-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -35,6 +37,7 @@ export function ImportProductsMenu({ categories }: ImportProductsMenuProps) {
   const [fileImportMode, setFileImportMode] = useState<FileImportMode | null>(
     null,
   );
+  const [pasteOpen, setPasteOpen] = useState(false);
   const [services, setServices] = useState<SmmServiceListItemDto[]>([]);
   const [convertOpen, setConvertOpen] = useState(false);
 
@@ -114,9 +117,13 @@ export function ImportProductsMenu({ categories }: ImportProductsMenuProps) {
           <HiChevronDown className="size-3.5 opacity-70" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-52">
+          <DropdownMenuItem onClick={() => setPasteOpen(true)}>
+            <HiOutlineClipboard className="size-4" />
+            Pegar JSON
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => openFileImport("json")}>
             <HiOutlineDocumentText className="size-4" />
-            Con JSON
+            Con archivo JSON
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => openFileImport("csv")}>
             <HiOutlineDocumentText className="size-4" />
@@ -131,6 +138,12 @@ export function ImportProductsMenu({ categories }: ImportProductsMenuProps) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <ImportProductsPasteDialog
+        open={pasteOpen}
+        onOpenChange={setPasteOpen}
+        categories={categories}
+      />
 
       <ImportProductsFileDialog
         open={fileImportMode != null}

@@ -94,6 +94,7 @@ export default async function ProductsPage({
           pageSize={result.pageSize}
           total={result.total}
           totalPages={result.totalPages}
+          categories={categories}
         />
       )}
     </div>

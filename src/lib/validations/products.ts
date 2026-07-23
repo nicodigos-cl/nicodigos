@@ -429,6 +429,19 @@ export type BulkUpdateProductCoverInput = z.infer<
   typeof bulkUpdateProductCoverSchema
 >;
 
+export const bulkUpdateProductCategoriesSchema = z.object({
+  productIds: z
+    .array(z.string().cuid())
+    .min(1)
+    .max(PRODUCT_PROCESS_LIMIT),
+  /** Empty array clears categories on all selected products. */
+  categoryIds: z.array(z.string().cuid()).max(50).default([]),
+});
+
+export type BulkUpdateProductCategoriesInput = z.infer<
+  typeof bulkUpdateProductCategoriesSchema
+>;
+
 export const selectProductsForQuerySchema = z.object({
   query: productsListQuerySchema,
   limit: z.coerce

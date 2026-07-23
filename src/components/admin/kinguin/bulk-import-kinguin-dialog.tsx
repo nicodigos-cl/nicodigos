@@ -206,13 +206,14 @@ export function BulkImportKinguinDialog({
             return {
               ...row,
               name: translated.nameEs,
+              description: translated.descriptionEs,
               activationDetails: translated.activationDetailsEs,
               regionalLimitations: translated.regionalLimitationsEs,
             };
           }),
         );
         toast.success(
-          `Traducidos ${result.data.items.length} (nombre y campos cortos)`,
+          `Traducidos ${result.data.items.length} (nombre, descripción y metadatos)`,
           {
             id: toastId,
           },
@@ -372,8 +373,8 @@ export function BulkImportKinguinDialog({
           <DialogTitle>Importar {hits.length} productos Kinguin</DialogTitle>
           <DialogDescription>
             Markup y precios CLP se calculan por código (EUR × FX). La IA
-            traduce solo nombre y campos cortos (no la descripción). Status
-            DRAFT.
+            traduce nombre, descripción, activación y limitaciones regionales.
+            Status DRAFT.
             {eurClpHint != null
               ? ` EUR/CLP ≈ ${Math.round(eurClpHint)}`
               : null}

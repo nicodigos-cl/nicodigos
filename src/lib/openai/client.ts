@@ -13,7 +13,8 @@ export function getOpenAIClient(): OpenAI {
   }
 
   if (!client) {
-    client = new OpenAI({ apiKey });
+    // Retries cover 429 / 5xx with exponential backoff (helps under p-limit concurrency).
+    client = new OpenAI({ apiKey, maxRetries: 4 });
   }
 
   return client;

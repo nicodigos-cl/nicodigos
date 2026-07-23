@@ -14,7 +14,7 @@ import {
   DEFAULT_BULK_SELECTION_LIMIT,
 } from "@/lib/smm-services/constants";
 import type { ProductsListQuery } from "@/lib/validations/products";
-import type { ProductListItemDto } from "@/types/products";
+import type { CategoryOptionDto, ProductListItemDto } from "@/types/products";
 
 type ProductsPageClientProps = {
   query: ProductsListQuery;
@@ -23,6 +23,7 @@ type ProductsPageClientProps = {
   pageSize: number;
   total: number;
   totalPages: number;
+  categories: CategoryOptionDto[];
 };
 
 export function ProductsPageClient({
@@ -32,6 +33,7 @@ export function ProductsPageClient({
   pageSize,
   total,
   totalPages,
+  categories,
 }: ProductsPageClientProps) {
   const router = useRouter();
   const [selectionLimit, setSelectionLimit] = useState(
@@ -159,6 +161,7 @@ export function ProductsPageClient({
         onSelectAll={handleSelectAll}
         onClear={handleClear}
         onRefresh={() => router.refresh()}
+        categories={categories}
       />
 
       <div className="hidden md:block">

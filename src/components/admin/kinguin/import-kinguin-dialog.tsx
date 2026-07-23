@@ -126,6 +126,12 @@ export function ImportKinguinDialog({
         }
         setPreview(previewResult.data.preview);
         setDescription(previewResult.data.preview.description ?? "");
+        setActivationDetails(
+          previewResult.data.preview.activationDetails ?? "",
+        );
+        setRegionalLimitations(
+          previewResult.data.preview.regionalLimitations ?? "",
+        );
 
         if (!priceResult.success) {
           toast.error(priceResult.message, { id: toastId });
@@ -218,9 +224,10 @@ export function ImportKinguinDialog({
           return;
         }
         setName(item.nameEs);
+        setDescription(item.descriptionEs);
         setActivationDetails(item.activationDetailsEs);
         setRegionalLimitations(item.regionalLimitationsEs);
-        toast.success("Traducción lista (nombre y campos cortos)", {
+        toast.success("Traducción lista (nombre, descripción y metadatos)", {
           id: toastId,
         });
       } finally {
@@ -268,8 +275,8 @@ export function ImportKinguinDialog({
           <DialogTitle>Importar desde Kinguin</DialogTitle>
           <DialogDescription>
             {hit?.name ?? "Producto"} · markup y precios CLP por código; la IA
-            traduce solo nombre y campos cortos (no la descripción). Se crean
-            todas las ofertas (la más barata es default).
+            traduce nombre, descripción, activación y limitaciones regionales.
+            Se crean todas las ofertas (la más barata es default).
           </DialogDescription>
         </DialogHeader>
 
