@@ -84,6 +84,8 @@ await emitDomainEvent("smm.service.rate_changed", payload);
 | ----------------------------- | -------------------------------------------- |
 | `sync-smm-services`           | Cache panel + eventos de rate                |
 | `sync-kinguin-products`       | Ofertas/stock/precio de productos importados |
+
+Webhooks (no cron): `POST /api/webhooks/kinguin` (`KINGUIN_WEBHOOK_SECRET`) para `product.update` / `order.status` / `order.complete` — responde **204** vacío; el panel TEST URL puede omitir body/evento.
 | `cleanup-price-change-events` | Retención de auditoría de precios            |
 | `publish-outbox`              | `OutboxEvent` → BullMQ                       |
 | `process-communications`      | Cola email/push y métricas                   |

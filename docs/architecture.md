@@ -68,7 +68,8 @@ src/
     api/
       auth/[...all]    # Better Auth
       payments/flow    # callbacks Flow
-      webhooks/resend  # inbound/delivery email
+      webhooks/resend   # inbound/delivery email
+      webhooks/kinguin # ESA product.update / order.status
       support/         # tickets WS
       cron/*           # sync, cleanup, outbox, communications
   components/

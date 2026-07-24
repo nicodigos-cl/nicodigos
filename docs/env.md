@@ -55,11 +55,14 @@ bunx --bun prisma migrate deploy
 | `KINGUIN_API_KEY` | Header `X-Api-Key` |
 | `KINGUIN_ENVIRONMENT` | `production` (default en client) \| `sandbox` |
 | `KINGUIN_API_BASE` | Override opcional del gateway |
+| `KINGUIN_WEBHOOK_SECRET` | Valida `X-Event-Secret` en `POST /api/webhooks/kinguin` |
 
 Sandbox: `https://gateway.sandbox.kinguin.net/esa/api`  
 Prod: `https://gateway.kinguin.net/esa/api`
 
 Credenciales sandbox ≠ producción. Ver [arquitectura → stock Kinguin](./architecture.md#stock-kinguin).
+
+Webhooks (`product.update`, `order.status`, legacy `order.complete`): misma URL pública, p. ej. `https://<host>/api/webhooks/kinguin`, secret configurado en el [panel Kinguin](https://www.kinguin.net/integration/dashboard/stores).
 
 ### Email (Resend)
 
