@@ -61,7 +61,7 @@ export function BulkConvertServicesDialog({
   const [maxMarkupPct, setMaxMarkupPct] = useState(
     String(DEFAULT_MARKUP_MAX_PCT),
   );
-  const [categoryId, setCategoryId] = useState<string>("");
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [rows, setRows] = useState<DraftRow[]>([]);
   const [usdClpHint, setUsdClpHint] = useState<number | null>(null);
   const anyBusy = busy != null;
@@ -80,7 +80,7 @@ export function BulkConvertServicesDialog({
         })),
       );
       setUsdClpHint(null);
-      setCategoryId("");
+      setCategoryIds([]);
       setMinMarkupPct(String(DEFAULT_MARKUP_MIN_PCT));
       setMaxMarkupPct(String(DEFAULT_MARKUP_MAX_PCT));
     }, 0);
@@ -143,7 +143,7 @@ export function BulkConvertServicesDialog({
             price: row.price,
             markupPct: row.markupPct ? Number(row.markupPct) : undefined,
           })),
-          categoryIds: categoryId ? [categoryId] : [],
+          categoryIds,
         });
         if (!result.success) {
           toast.error(result.message, { id: toastId });
@@ -281,14 +281,15 @@ export function BulkConvertServicesDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="bulkCategory">Categoría</Label>
+              <Label htmlFor="bulkCategory">Categorías</Label>
               <CategoryCombobox
                 id="bulkCategory"
+                multiple
                 categories={categories}
-                value={categoryId}
-                onChange={setCategoryId}
+                value={categoryIds}
+                onChange={setCategoryIds}
                 disabled={anyBusy}
-                placeholder="Buscar categoría (opcional)…"
+                placeholder="Buscar o seleccionar categorías…"
               />
             </div>
           </div>

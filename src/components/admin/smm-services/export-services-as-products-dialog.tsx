@@ -62,14 +62,14 @@ export function ExportServicesAsProductsDialog({
   const [maxMarkupPct, setMaxMarkupPct] = useState(
     String(DEFAULT_MARKUP_MAX_PCT),
   );
-  const [categoryId, setCategoryId] = useState("");
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) return;
     setTimeout(() => {
       setMinMarkupPct(String(DEFAULT_MARKUP_MIN_PCT));
       setMaxMarkupPct(String(DEFAULT_MARKUP_MAX_PCT));
-      setCategoryId("");
+      setCategoryIds([]);
     }, 0);
   }, [open]);
 
@@ -85,10 +85,7 @@ export function ExportServicesAsProductsDialog({
           toast.error(result.message);
           return;
         }
-        downloadProductsJson(
-          result.data.items,
-          categoryId ? [categoryId] : [],
-        );
+        downloadProductsJson(result.data.items, categoryIds);
         toast.success(
           `Exportados ${result.data.items.length} productos (USD/CLP ≈ ${Math.round(result.data.usdClpRate)})`,
         );
@@ -104,8 +101,8 @@ export function ExportServicesAsProductsDialog({
           <DialogTitle>Exportar como producto</DialogTitle>
           <DialogDescription>
             Genera un JSON importable en Productos (Importar → Con JSON). Markup
-            aleatorio entre mín/máx; precio CLP desde rate USD. La categoría se
-            aplica a todos.
+            aleatorio entre mín/máx; precio CLP desde rate USD. Las categorías se
+            aplican a todos.
           </DialogDescription>
         </DialogHeader>
 
@@ -137,14 +134,15 @@ export function ExportServicesAsProductsDialog({
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="exportCategory">Categoría</Label>
+            <Label htmlFor="exportCategory">Categorías</Label>
             <CategoryCombobox
               id="exportCategory"
+              multiple
               categories={categories}
-              value={categoryId}
-              onChange={setCategoryId}
+              value={categoryIds}
+              onChange={setCategoryIds}
               disabled={isPending}
-              placeholder="Buscar categoría (opcional)…"
+              placeholder="Buscar o seleccionar categorías…"
             />
           </div>
         </div>

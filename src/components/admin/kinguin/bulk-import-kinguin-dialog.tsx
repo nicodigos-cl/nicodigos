@@ -75,7 +75,7 @@ export function BulkImportKinguinDialog({
   const [maxMarkupPct, setMaxMarkupPct] = useState(
     String(DEFAULT_MARKUP_MAX_PCT),
   );
-  const [categoryId, setCategoryId] = useState("");
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [rows, setRows] = useState<DraftRow[]>([]);
   const [eurClpHint, setEurClpHint] = useState<number | null>(null);
 
@@ -166,7 +166,7 @@ export function BulkImportKinguinDialog({
         })),
       );
       setEurClpHint(null);
-      setCategoryId("");
+      setCategoryIds([]);
       setMinMarkupPct(String(DEFAULT_MARKUP_MIN_PCT));
       setMaxMarkupPct(String(DEFAULT_MARKUP_MAX_PCT));
       applyPrices(
@@ -251,7 +251,7 @@ export function BulkImportKinguinDialog({
             markupPct: row.markupPct ? Number(row.markupPct) : undefined,
             sourceCostPrice: row.sourceCostPrice,
           })),
-          categoryIds: categoryId ? [categoryId] : [],
+          categoryIds,
         });
         if (!result.success) {
           toast.error(result.message, { id: toastId });
@@ -414,14 +414,15 @@ export function BulkImportKinguinDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="kinguinBulkCategory">Categoría</Label>
+              <Label htmlFor="kinguinBulkCategory">Categorías</Label>
               <CategoryCombobox
                 id="kinguinBulkCategory"
+                multiple
                 categories={categories}
-                value={categoryId}
-                onChange={setCategoryId}
+                value={categoryIds}
+                onChange={setCategoryIds}
                 disabled={anyBusy}
-                placeholder="Buscar categoría…"
+                placeholder="Buscar o seleccionar categorías…"
               />
             </div>
           </div>

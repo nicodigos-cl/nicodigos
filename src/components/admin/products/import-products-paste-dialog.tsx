@@ -89,7 +89,7 @@ export function ImportProductsPasteDialog({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [raw, setRaw] = useState(EXAMPLE_JSON);
-  const [categoryId, setCategoryId] = useState("");
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const deferredRaw = useDeferredValue(raw);
   const parseState = useMemo(
     () => parseEditorText(deferredRaw),
@@ -121,14 +121,15 @@ export function ImportProductsPasteDialog({
 
   function applyCategoryFromParse(state: ParseState) {
     if (state.status !== "valid" || !state.categoryIds?.length) return;
-    const first = state.categoryIds[0] ?? "";
-    const known = categories.some((category) => category.id === first);
-    setCategoryId(known ? first : "");
+    const known = new Set(categories.map((category) => category.id));
+    setCategoryIds(
+      state.categoryIds.filter((categoryId) => known.has(categoryId)),
+    );
   }
 
   function reset() {
     setRaw(EXAMPLE_JSON);
-    setCategoryId("");
+    setCategoryIds([]);
   }
 
   function handleOpenChange(next: boolean) {
@@ -182,7 +183,7 @@ export function ImportProductsPasteDialog({
       void (async () => {
         const result = await importProductsAction({
           items: current.items,
-          categoryIds: categoryId ? [categoryId] : [],
+          categoryIds,
         });
         if (!result.success) {
           toast.error(result.message);
@@ -329,14 +330,15 @@ export function ImportProductsPasteDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="product-paste-category">Categoría (opcional)</Label>
+            <Label htmlFor="product-paste-category">Categorías (opcional)</Label>
             <CategoryCombobox
               id="product-paste-category"
+              multiple
               categories={categories}
-              value={categoryId}
-              onChange={setCategoryId}
+              value={categoryIds}
+              onChange={setCategoryIds}
               disabled={isPending}
-              placeholder="Buscar categoría…"
+              placeholder="Buscar o seleccionar categorías…"
             />
           </div>
 

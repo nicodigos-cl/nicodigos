@@ -62,14 +62,14 @@ export function ExportKinguinAsProductsDialog({
   const [maxMarkupPct, setMaxMarkupPct] = useState(
     String(DEFAULT_MARKUP_MAX_PCT),
   );
-  const [categoryId, setCategoryId] = useState("");
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) return;
     setTimeout(() => {
       setMinMarkupPct(String(DEFAULT_MARKUP_MIN_PCT));
       setMaxMarkupPct(String(DEFAULT_MARKUP_MAX_PCT));
-      setCategoryId("");
+      setCategoryIds([]);
     }, 0);
   }, [open]);
 
@@ -89,10 +89,7 @@ export function ExportKinguinAsProductsDialog({
           toast.error(result.message);
           return;
         }
-        downloadProductsJson(
-          result.data.items,
-          categoryId ? [categoryId] : [],
-        );
+        downloadProductsJson(result.data.items, categoryIds);
         toast.success(
           `Exportados ${result.data.items.length} productos (EUR/CLP ≈ ${Math.round(result.data.eurClpRate)})`,
         );
@@ -108,8 +105,8 @@ export function ExportKinguinAsProductsDialog({
           <DialogTitle>Exportar como producto</DialogTitle>
           <DialogDescription>
             Genera un JSON importable en Productos (Importar → Con JSON). Markup
-            aleatorio entre mín/máx; precio CLP desde EUR × FX. La categoría se
-            aplica a todos.
+            aleatorio entre mín/máx; precio CLP desde EUR × FX. Las categorías se
+            aplican a todos.
           </DialogDescription>
         </DialogHeader>
 
@@ -141,14 +138,15 @@ export function ExportKinguinAsProductsDialog({
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="kinguinExportCategory">Categoría</Label>
+            <Label htmlFor="kinguinExportCategory">Categorías</Label>
             <CategoryCombobox
               id="kinguinExportCategory"
+              multiple
               categories={categories}
-              value={categoryId}
-              onChange={setCategoryId}
+              value={categoryIds}
+              onChange={setCategoryIds}
               disabled={isPending}
-              placeholder="Buscar categoría…"
+              placeholder="Buscar o seleccionar categorías…"
             />
           </div>
         </div>

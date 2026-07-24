@@ -46,12 +46,12 @@ export function ImportProductsFileDialog({
   const [isPending, startTransition] = useTransition();
   const [items, setItems] = useState<ImportProductItem[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [categoryId, setCategoryId] = useState("");
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
 
   function reset() {
     setItems([]);
     setFileName(null);
-    setCategoryId("");
+    setCategoryIds([]);
     if (inputRef.current) {
       inputRef.current.value = "";
     }
@@ -84,11 +84,12 @@ export function ImportProductsFileDialog({
       setFileName(file.name);
       setItems(parsed.items);
       if (parsed.categoryIds && parsed.categoryIds.length > 0) {
-        const first = parsed.categoryIds[0] ?? "";
-        const known = categories.some((category) => category.id === first);
-        setCategoryId(known ? first : "");
+        const known = new Set(categories.map((category) => category.id));
+        setCategoryIds(
+          parsed.categoryIds.filter((categoryId) => known.has(categoryId)),
+        );
       } else {
-        setCategoryId("");
+        setCategoryIds([]);
       }
       toast.success(`${parsed.items.length} producto(s) listos para importar`);
     });
@@ -101,7 +102,7 @@ export function ImportProductsFileDialog({
       void (async () => {
         const result = await importProductsAction({
           items,
-          categoryIds: categoryId ? [categoryId] : [],
+          categoryIds,
         });
         if (!result.success) {
           toast.error(result.message);
@@ -169,15 +170,16 @@ export function ImportProductsFileDialog({
 
           <div className="space-y-2">
             <Label htmlFor="product-import-category">
-              Categoría (opcional)
+              Categorías (opcional)
             </Label>
             <CategoryCombobox
               id="product-import-category"
+              multiple
               categories={categories}
-              value={categoryId}
-              onChange={setCategoryId}
+              value={categoryIds}
+              onChange={setCategoryIds}
               disabled={isPending}
-              placeholder="Buscar categoría…"
+              placeholder="Buscar o seleccionar categorías…"
             />
           </div>
 
