@@ -12,6 +12,7 @@ import {
 import type { ActionResult } from "@/lib/actions/types";
 import { requireSession } from "@/lib/auth/session";
 import { invalidateKinguinSearchCache } from "@/lib/kinguin/search";
+import { syncKinguinProductsByIds } from "@/lib/kinguin/sync";
 import prisma from "@/lib/prisma";
 import { slugify, decimalToString } from "@/lib/products/format";
 import { IMPORT_CONCURRENCY } from "@/lib/smm-services/constants";
@@ -240,135 +241,162 @@ export async function importProductsAction(
   }
 
   try {
-    const createdIds = await prisma.$transaction(async (tx) => {
-      const ids: string[] = [];
-      const claimedObjectKeys = new Set<string>();
+    const { createdIds, kinguinCreatedIds } = await prisma.$transaction(
+      async (tx) => {
+        const ids: string[] = [];
+        const kinguinIds: string[] = [];
+        const claimedObjectKeys = new Set<string>();
 
-      for (const item of items) {
-        const slug = item.slug ?? (await uniqueSlug(tx, item.name));
-        const assets = item.assets ?? [];
-        const coverFromAssets =
-          assets.find((asset) => asset.type === "IMAGE" && asset.isCover)?.url ??
-          assets.find((asset) => asset.type === "IMAGE")?.url ??
-          null;
+        for (const item of items) {
+          const slug = item.slug ?? (await uniqueSlug(tx, item.name));
+          const assets = item.assets ?? [];
+          const coverFromAssets =
+            assets.find((asset) => asset.type === "IMAGE" && asset.isCover)
+              ?.url ??
+            assets.find((asset) => asset.type === "IMAGE")?.url ??
+            null;
 
-        const isSmm = item.deliveryMethod === "SMM";
-        const hasSmmWiring =
-          isSmm && item.smmApiUrl != null && item.smmServiceId != null;
-        const isKinguin = item.deliveryMethod === "KINGUIN";
-        const hasKinguinLink = isKinguin && item.kinguinId != null;
+          const isSmm = item.deliveryMethod === "SMM";
+          const hasSmmWiring =
+            isSmm && item.smmApiUrl != null && item.smmServiceId != null;
+          const isKinguin = item.deliveryMethod === "KINGUIN";
+          const hasKinguinLink = isKinguin && item.kinguinId != null;
 
-        const product = await tx.product.create({
-          data: {
-            name: item.name,
-            slug,
-            description: item.description ?? null,
-            coverImageUrl: item.coverImageUrl ?? coverFromAssets,
-            status: item.status as ProductStatus,
-            deliveryMethod: item.deliveryMethod as DeliveryMethod,
-            price: item.price,
-            compareAtPrice: item.compareAtPrice ?? null,
-            sourceCostPrice: item.sourceCostPrice ?? null,
-            currency: item.currency,
-            qty: item.qty,
-            textQty: item.textQty ?? null,
-            ...(hasSmmWiring
-              ? {
-                  smmApiUrl: item.smmApiUrl,
-                  smmServiceId: item.smmServiceId,
-                  smmServiceType: item.smmServiceType ?? null,
-                  smmCategory: item.smmCategory ?? null,
-                  smmRate: item.smmRate ?? null,
-                  smmMarkupPct: item.smmMarkupPct ?? null,
-                  smmMin: item.smmMin ?? null,
-                  smmMax: item.smmMax ?? null,
-                  smmRefill: item.smmRefill ?? null,
-                  smmCancel: item.smmCancel ?? null,
-                  smmServiceName: item.smmServiceName ?? null,
-                  smmSyncedAt: new Date(),
-                  originalName: item.smmServiceName ?? null,
-                }
-              : {}),
-            ...(hasKinguinLink
-              ? {
-                  kinguinId: item.kinguinId,
-                  kinguinProductId: item.kinguinProductId ?? null,
-                  kinguinMarkupPct: item.kinguinMarkupPct ?? null,
-                  kinguinSyncedAt: new Date(),
-                }
-              : {}),
-            ...(item.platform != null ? { platform: item.platform } : {}),
-            ...(item.regionalLimitations != null
-              ? { regionalLimitations: item.regionalLimitations }
-              : {}),
-            ...(item.activationDetails != null
-              ? { activationDetails: item.activationDetails }
-              : {}),
-            ...(item.genres != null ? { genres: item.genres } : {}),
-            ...(item.languages != null ? { languages: item.languages } : {}),
-            ...(item.developers != null ? { developers: item.developers } : {}),
-            ...(item.publishers != null ? { publishers: item.publishers } : {}),
-            ...(item.tags != null ? { tags: item.tags } : {}),
-            ...(item.originalName != null
-              ? { originalName: item.originalName }
-              : {}),
-            categories:
-              categoryIds.length > 0
+          const product = await tx.product.create({
+            data: {
+              name: item.name,
+              slug,
+              description: item.description ?? null,
+              coverImageUrl: item.coverImageUrl ?? coverFromAssets,
+              status: item.status as ProductStatus,
+              deliveryMethod: item.deliveryMethod as DeliveryMethod,
+              price: item.price,
+              compareAtPrice: item.compareAtPrice ?? null,
+              sourceCostPrice: item.sourceCostPrice ?? null,
+              currency: item.currency,
+              qty: item.qty,
+              textQty: item.textQty ?? null,
+              ...(hasSmmWiring
                 ? {
-                    create: categoryIds.map((categoryId) => ({
-                      categoryId,
-                    })),
+                    smmApiUrl: item.smmApiUrl,
+                    smmServiceId: item.smmServiceId,
+                    smmServiceType: item.smmServiceType ?? null,
+                    smmCategory: item.smmCategory ?? null,
+                    smmRate: item.smmRate ?? null,
+                    smmMarkupPct: item.smmMarkupPct ?? null,
+                    smmMin: item.smmMin ?? null,
+                    smmMax: item.smmMax ?? null,
+                    smmRefill: item.smmRefill ?? null,
+                    smmCancel: item.smmCancel ?? null,
+                    smmServiceName: item.smmServiceName ?? null,
+                    smmSyncedAt: new Date(),
+                    originalName: item.smmServiceName ?? null,
                   }
-                : undefined,
-          },
-          select: { id: true },
-        });
+                : {}),
+              ...(hasKinguinLink
+                ? {
+                    kinguinId: item.kinguinId,
+                    kinguinProductId: item.kinguinProductId ?? null,
+                    kinguinMarkupPct: item.kinguinMarkupPct ?? null,
+                    kinguinSyncedAt: new Date(),
+                  }
+                : {}),
+              ...(item.platform != null ? { platform: item.platform } : {}),
+              ...(item.regionalLimitations != null
+                ? { regionalLimitations: item.regionalLimitations }
+                : {}),
+              ...(item.activationDetails != null
+                ? { activationDetails: item.activationDetails }
+                : {}),
+              ...(item.genres != null ? { genres: item.genres } : {}),
+              ...(item.languages != null ? { languages: item.languages } : {}),
+              ...(item.developers != null
+                ? { developers: item.developers }
+                : {}),
+              ...(item.publishers != null
+                ? { publishers: item.publishers }
+                : {}),
+              ...(item.tags != null ? { tags: item.tags } : {}),
+              ...(item.originalName != null
+                ? { originalName: item.originalName }
+                : {}),
+              categories:
+                categoryIds.length > 0
+                  ? {
+                      create: categoryIds.map((categoryId) => ({
+                        categoryId,
+                      })),
+                    }
+                  : undefined,
+            },
+            select: { id: true },
+          });
 
-        if (assets.length > 0) {
-          const assetRows = [];
-          for (const asset of assets) {
-            let nextObjectKey = asset.objectKey ?? null;
-            if (nextObjectKey) {
-              if (claimedObjectKeys.has(nextObjectKey)) {
-                nextObjectKey = null;
-              } else {
-                const taken = await tx.asset.findUnique({
-                  where: { objectKey: nextObjectKey },
-                  select: { id: true },
-                });
-                if (taken) {
+          if (assets.length > 0) {
+            const assetRows = [];
+            for (const asset of assets) {
+              let nextObjectKey = asset.objectKey ?? null;
+              if (nextObjectKey) {
+                if (claimedObjectKeys.has(nextObjectKey)) {
                   nextObjectKey = null;
                 } else {
-                  claimedObjectKeys.add(nextObjectKey);
+                  const taken = await tx.asset.findUnique({
+                    where: { objectKey: nextObjectKey },
+                    select: { id: true },
+                  });
+                  if (taken) {
+                    nextObjectKey = null;
+                  } else {
+                    claimedObjectKeys.add(nextObjectKey);
+                  }
                 }
               }
+
+              assetRows.push({
+                productId: product.id,
+                type: asset.type,
+                url: asset.url,
+                objectKey: nextObjectKey,
+                youtubeId: asset.youtubeId ?? null,
+                mimeType: asset.mimeType ?? null,
+                fileName: asset.fileName ?? null,
+                sizeBytes:
+                  asset.sizeBytes != null ? BigInt(asset.sizeBytes) : null,
+                thumbnailUrl: asset.thumbnailUrl ?? null,
+                altText: asset.altText ?? null,
+                sortOrder: asset.sortOrder,
+                isCover: asset.type === "IMAGE" && asset.isCover,
+              });
             }
 
-            assetRows.push({
-              productId: product.id,
-              type: asset.type,
-              url: asset.url,
-              objectKey: nextObjectKey,
-              youtubeId: asset.youtubeId ?? null,
-              mimeType: asset.mimeType ?? null,
-              fileName: asset.fileName ?? null,
-              sizeBytes:
-                asset.sizeBytes != null ? BigInt(asset.sizeBytes) : null,
-              thumbnailUrl: asset.thumbnailUrl ?? null,
-              altText: asset.altText ?? null,
-              sortOrder: asset.sortOrder,
-              isCover: asset.type === "IMAGE" && asset.isCover,
-            });
+            await tx.asset.createMany({ data: assetRows });
           }
 
-          await tx.asset.createMany({ data: assetRows });
+          ids.push(product.id);
+          if (hasKinguinLink) {
+            kinguinIds.push(product.id);
+          }
         }
 
-        ids.push(product.id);
-      }
+        return { createdIds: ids, kinguinCreatedIds: kinguinIds };
+      },
+    );
 
-      return ids;
-    });
+    // JSON export wires kinguinId/markup but not ESA offers — sync fills
+    // ProductOffer + default kinguinOfferId (required for fulfillment).
+    if (kinguinCreatedIds.length > 0) {
+      const syncResult = await syncKinguinProductsByIds(kinguinCreatedIds);
+      if (syncResult.totals.errors > 0) {
+        revalidatePath("/admin/products");
+        await invalidateKinguinSearchCache();
+        revalidatePath("/admin/kinguin");
+        return {
+          success: true,
+          message: `Importados ${createdIds.length}. Ofertas Kinguin: ${syncResult.totals.synced} ok, ${syncResult.totals.errors} con error (revisar sync).`,
+          data: { createdIds, count: createdIds.length },
+        };
+      }
+    }
 
     revalidatePath("/admin/products");
     if (batchKinguinIds.length > 0) {

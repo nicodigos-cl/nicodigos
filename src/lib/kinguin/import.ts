@@ -13,6 +13,7 @@ import {
   offerPersistAvailableQty,
   parseReleaseDate,
   pickCheapestOffer,
+  uniqueOffers,
 } from "@/lib/kinguin/offers";
 import {
   mirrorKinguinProductImages,
@@ -159,7 +160,7 @@ export async function writeKinguinRelatedRecords(
   defaultOfferId: string,
   options?: { imageAssets?: MirroredKinguinImageAsset[] },
 ) {
-  const offers = remote.offers ?? [];
+  const offers = uniqueOffers(remote.offers ?? []);
 
   if (offers.length > 0) {
     await tx.productOffer.createMany({

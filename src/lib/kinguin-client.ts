@@ -138,32 +138,9 @@ export class KinguinClient {
       },
     });
 
-    this.http.interceptors.request.use((config) => {
-      log.debug(
-        {
-          method: config.method?.toUpperCase(),
-          url: config.url,
-          params: config.params,
-          environment: this.environment,
-        },
-        "Kinguin request",
-      );
-      return config;
-    });
-
+    // Success request/response bodies are intentionally not logged (noisy at scale).
     this.http.interceptors.response.use(
-      (response) => {
-        log.debug(
-          {
-            method: response.config.method?.toUpperCase(),
-            url: response.config.url,
-            status: response.status,
-            environment: this.environment,
-          },
-          "Kinguin response",
-        );
-        return response;
-      },
+      (response) => response,
       (error: unknown) => {
         const apiError = this.toApiError(error);
         log.error(

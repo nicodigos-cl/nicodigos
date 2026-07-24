@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "concurrently -k -n web,crons,delivery,support -c cyan,magenta,yellow,green \"bun --bun next dev\" \"bun scripts/dev-crons.ts\" \"bun --conditions=react-server scripts/delivery-worker.ts\" \"bun scripts/support-ws.ts\"",
     "dev:web": "bun --bun next dev",
+    "dev:prod": "bun --bun --env-file .env.production next dev",
     "cron:all": "bun scripts/dev-crons.ts",
     "cron:all:once": "bun scripts/dev-crons.ts --once",
     "cron:sync-smm": "bun scripts/dev-cron-sync-smm.ts",

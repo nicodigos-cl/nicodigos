@@ -12,6 +12,7 @@ import {
   offerPersistAvailableQty,
   parseReleaseDate,
   pickCheapestOffer,
+  uniqueOffers,
 } from "@/lib/kinguin/offers";
 import { getKinguinClient, KinguinApiError } from "@/lib/kinguin-client";
 import { createLogger } from "@/lib/logger";
@@ -153,7 +154,7 @@ async function syncOneProduct(
     return { ...base, status: "error", error: message };
   }
 
-  const offers = remote.offers ?? [];
+  const offers = uniqueOffers(remote.offers ?? []);
   const cheapest = offers.length > 0 ? pickCheapestOffer(remote) : null;
   const meta = mapRemoteMeta(remote);
 

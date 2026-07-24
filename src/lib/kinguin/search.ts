@@ -99,7 +99,10 @@ async function readCachedSearch(
     const raw = await redis.get(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CachedSearchPayload;
-    if (!Array.isArray(parsed.results) || typeof parsed.item_count !== "number") {
+    if (
+      !Array.isArray(parsed.results) ||
+      typeof parsed.item_count !== "number"
+    ) {
       return null;
     }
     return parsed;
@@ -181,17 +184,6 @@ async function getCachedOrFetchApiPage(
   const cacheKey = searchCacheKey(pageInput);
   const cached = await readCachedSearch(cacheKey);
   if (cached) {
-    log.debug(
-      {
-        q: input.q?.trim() ?? "",
-        page,
-        pageSize,
-        platform: input.platform,
-        regionId: input.regionId,
-        tag: input.tag,
-      },
-      "kinguin.search.cache_hit",
-    );
     return cached;
   }
 

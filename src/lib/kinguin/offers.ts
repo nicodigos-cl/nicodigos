@@ -2,11 +2,23 @@ import "server-only";
 
 import type { KinguinOffer, KinguinProduct } from "@/types/kinguin";
 
+/** ESA sometimes repeats the same offerId in `offers`; keep first occurrence. */
+export function uniqueOffers(offers: KinguinOffer[]): KinguinOffer[] {
+  const seen = new Set<string>();
+  const unique: KinguinOffer[] = [];
+  for (const offer of offers) {
+    if (!offer.offerId || seen.has(offer.offerId)) continue;
+    seen.add(offer.offerId);
+    unique.push(offer);
+  }
+  return unique;
+}
+
 /** Pick cheapest offer by EUR price; prefer cheapestOfferId when present. */
 export function pickCheapestOffer(
   product: KinguinProduct,
 ): KinguinOffer | null {
-  const offers = product.offers ?? [];
+  const offers = uniqueOffers(product.offers ?? []);
   if (offers.length === 0) {
     return null;
   }
