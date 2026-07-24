@@ -392,7 +392,6 @@ export async function importProductsAction(
         revalidatePath("/admin/kinguin");
         return {
           success: true,
-          message: `Importados ${createdIds.length}. Ofertas Kinguin: ${syncResult.totals.synced} ok, ${syncResult.totals.errors} con error (revisar sync).`,
           data: { createdIds, count: createdIds.length },
         };
       }
